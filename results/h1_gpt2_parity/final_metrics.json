@@ -1,0 +1,11 @@
+{
+  "h1_passed": true,
+  "max_abs_logit_diff_sdpa": 0.0,
+  "max_abs_logit_diff_naive": 5.96e-06,
+  "max_diff_sdpa_vs_naive": 5.96e-06,
+  "max_diff_kv_cache": 5.13e-06,
+  "cross_doc_leakage": 0.0,
+  "verified_total_params": 124439808,
+  "tokens_processed": 128,
+  "tokens_per_sec": 30.3
+}

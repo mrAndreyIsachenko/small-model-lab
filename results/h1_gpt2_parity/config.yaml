@@ -1,0 +1,65 @@
+experiment_id: h1_gpt2_parity
+hypothesis_id: H1
+hypothesis: Our custom Transformer implementation in gpt2-compat mode is mathematically
+  equivalent to Hugging Face GPT2LMHeadModel (124M), naive O(T^2) GQA matches SDPA,
+  KV-cache decoding matches full-sequence forward logits, and intra-document masking
+  prevents cross-document gradient leakage across <|eos|> boundaries.
+prediction: Max absolute logit difference < 1.0e-4 in fp32 across random and natural
+  prompts; future-token and cross-document gradient norm == 0.0.
+acceptance_criterion: max_abs_logit_diff < 1.0e-4 and cross_doc_grad_norm == 0.0
+seed: 1337
+model:
+  name: gpt2-124m
+  vocab_size: 50257
+  d_model: 768
+  n_layers: 12
+  n_heads: 12
+  n_kv_heads: 12
+  d_ff: 3072
+  max_seq_len: 1024
+  norm_type: layernorm
+  pos_encoding: learned
+  mlp_type: gelu
+  bias: true
+  tie_embeddings: true
+  rope_theta: 10000.0
+  norm_eps: 1.0e-05
+data:
+  name: tinystories-smoke
+  hf_dataset: roneneldan/TinyStories
+  hf_subset: default
+  vocab_size: 32768
+  train_tokens: 20000000
+  val_tokens: 1000000
+  test_tokens: 1000000
+  shard_size_tokens: 10000000
+  hf_repo_id: mrAndreyIsachenko/sml-tinystories-shards
+  license: CDLA-Sharing-1.0
+hardware:
+  name: apple-m4-pro-48gb
+  accelerator: mps
+  vram_gb: 48.0
+  peak_bf16_tflops: 18.0
+  hourly_rate_usd: 0.0
+  price_as_of: '2026-10-31'
+  provider_notes: Local MacBook Pro 16-inch (Apple M4 Pro, 48 GB Unified Memory)
+train:
+  batch_size_tokens: 16384
+  micro_batch_size: 4
+  seq_len: 1024
+  max_steps: 10
+  lr: 0.0006
+  min_lr_ratio: 0.1
+  weight_decay: 0.1
+  beta1: 0.9
+  beta2: 0.95
+  grad_clip: 1.0
+  schedule: wsd
+  warmup_steps: 2
+  decay_fraction: 0.2
+  branch_cooldown_tokens: null
+  precision: fp32
+  compile: false
+model_config_path: configs/model/gpt2_124m.yaml
+data_config_path: configs/data/tinystories.yaml
+hardware_config_path: configs/hardware/m4_pro_mps.yaml

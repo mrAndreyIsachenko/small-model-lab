@@ -1,0 +1,14 @@
+{
+  "hardware_name": "apple-m4-pro-48gb",
+  "hourly_rate_usd": 0.0,
+  "price_as_of": "2026-10-31",
+  "num_gpus": 1,
+  "active_training_seconds": 4.226,
+  "billed_instance_seconds": 4.226,
+  "active_gpu_hours": 0.001174,
+  "billed_gpu_hours": 0.001174,
+  "infrastructure_overhead_fraction": 0.0,
+  "active_cost_usd": 0.0,
+  "billed_cost_usd": 0.0,
+  "estimated_pre_run_cost_usd": 0.0
+}

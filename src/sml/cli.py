@@ -9,6 +9,12 @@ import time
 from pathlib import Path
 
 from sml.config import load_experiment_spec, load_model_config
+from sml.model import (
+    KVCache,
+    Transformer,
+    compute_doc_ids_from_eos,
+    load_gpt2_weights_into_sml,
+)
 from sml.tracking.cost import estimate_experiment_compute
 from sml.tracking.manifest import RunRecorder
 from sml.tracking.report import compile_markdown_report
@@ -105,6 +111,107 @@ def _cmd_report(args: argparse.Namespace) -> int:
     return 0
 
 
+def _cmd_verify_h1(args: argparse.Namespace) -> int:
+    import torch
+    from transformers import GPT2Config, GPT2LMHeadModel
+
+    spec = load_experiment_spec(args.experiment)
+    output_dir = Path(args.output_dir)
+    run_id = args.run_id or spec.experiment_id
+
+    t0 = time.perf_counter()
+    recorder = RunRecorder(
+        run_id=run_id,
+        spec=spec,
+        output_root=output_dir,
+        mode="measured",
+    )
+
+    torch.manual_seed(spec.seed)
+    hf_cfg = GPT2Config(
+        vocab_size=spec.model.vocab_size,
+        n_positions=spec.model.max_seq_len,
+        n_embd=spec.model.d_model,
+        n_layer=spec.model.n_layers,
+        n_head=spec.model.n_heads,
+        n_inner=spec.model.d_ff,
+        activation_function="gelu_new",
+        resid_pdrop=0.0,
+        embd_pdrop=0.0,
+        attn_pdrop=0.0,
+        layer_norm_epsilon=spec.model.norm_eps,
+    )
+    hf_model = GPT2LMHeadModel(hf_cfg).eval()
+    sml_model = Transformer(spec.model).eval()
+    load_gpt2_weights_into_sml(sml_model, hf_model.state_dict())
+
+    input_ids = torch.randint(0, spec.model.vocab_size, (2, 64))
+    with torch.no_grad():
+        hf_logits = hf_model(input_ids).logits
+        sml_sdpa = sml_model(input_ids, attn_backend="sdpa").logits
+        sml_naive = sml_model(input_ids, attn_backend="naive").logits
+
+        cache = KVCache.empty(spec.model.n_layers)
+        step_outs = [sml_model(input_ids[:, :32], kv_cache=cache).logits]
+        for pos in range(32, 64):
+            step_outs.append(sml_model(input_ids[:, pos : pos + 1], kv_cache=cache).logits)
+        sml_cached = torch.cat(step_outs, dim=1)
+
+        # Cross-document isolation test
+        eos_id = 50256
+        seq1 = torch.tensor([[10, 20, 30, eos_id, 40, 50, 60, 70]], dtype=torch.long)
+        seq2 = torch.tensor([[99, 88, 77, eos_id, 40, 50, 60, 70]], dtype=torch.long)
+        doc_ids = compute_doc_ids_from_eos(seq1, eos_token_id=eos_id)
+        doc_out1 = sml_model(seq1, doc_ids=doc_ids, attn_backend="naive").logits
+        doc_out2 = sml_model(seq2, doc_ids=doc_ids, attn_backend="naive").logits
+
+    max_diff_sdpa = float(torch.max(torch.abs(hf_logits - sml_sdpa)).item())
+    max_diff_naive = float(torch.max(torch.abs(hf_logits - sml_naive)).item())
+    max_diff_sdpa_vs_naive = float(torch.max(torch.abs(sml_sdpa - sml_naive)).item())
+    max_diff_kv_cache = float(torch.max(torch.abs(sml_sdpa - sml_cached)).item())
+    cross_doc_leakage = float(torch.max(torch.abs(doc_out1[:, 4:, :] - doc_out2[:, 4:, :])).item())
+
+    recorder.log_step(
+        step=1,
+        metrics={
+            "max_abs_logit_diff_sdpa": max_diff_sdpa,
+            "max_abs_logit_diff_naive": max_diff_naive,
+            "max_diff_sdpa_vs_naive": max_diff_sdpa_vs_naive,
+            "max_diff_kv_cache": max_diff_kv_cache,
+            "cross_doc_leakage": cross_doc_leakage,
+        },
+    )
+
+    elapsed = time.perf_counter() - t0
+    passed = max_diff_sdpa < 1e-4 and max_diff_naive < 1e-4 and cross_doc_leakage < 1e-6
+
+    run_path = recorder.finalize(
+        final_metrics={
+            "h1_passed": passed,
+            "max_abs_logit_diff_sdpa": round(max_diff_sdpa, 8),
+            "max_abs_logit_diff_naive": round(max_diff_naive, 8),
+            "max_diff_sdpa_vs_naive": round(max_diff_sdpa_vs_naive, 8),
+            "max_diff_kv_cache": round(max_diff_kv_cache, 8),
+            "cross_doc_leakage": round(cross_doc_leakage, 8),
+            "verified_total_params": sml_model.num_parameters(non_embedding_only=False),
+            "tokens_processed": int(input_ids.numel()),
+            "tokens_per_sec": round(input_ids.numel() / max(elapsed, 1e-3), 1),
+        },
+        active_seconds=elapsed,
+        billed_seconds=elapsed,
+        status="completed" if passed else "failed",
+        conclusion=(
+            f"H1 verified on full {sml_model.num_parameters():,}-parameter GPT-2 124M: "
+            f"max_abs_logit_diff={max_diff_sdpa:.2e} (< 1e-4), "
+            f"sdpa_vs_naive={max_diff_sdpa_vs_naive:.2e}, "
+            f"kv_cache_diff={max_diff_kv_cache:.2e}, "
+            f"cross_doc_leakage={cross_doc_leakage:.2e}."
+        ),
+    )
+    print(f"H1 verification bundle written to: {run_path} (passed={passed})")
+    return 0 if passed else 1
+
+
 def build_parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(
         prog="sml",
@@ -148,6 +255,23 @@ def build_parser() -> argparse.ArgumentParser:
         help="Include runs marked with mode='dry_run' (excluded by default).",
     )
     rep_p.set_defaults(func=_cmd_report)
+
+    h1_p = sub.add_parser(
+        "verify-h1",
+        help="Execute H1 GPT-2 124M mathematical parity & causal isolation verification.",
+    )
+    h1_p.add_argument(
+        "--experiment",
+        default="experiments/h1_gpt2_parity.yaml",
+        help="Path to H1 experiment YAML.",
+    )
+    h1_p.add_argument(
+        "--output-dir",
+        default="results",
+        help="Directory for run output bundle.",
+    )
+    h1_p.add_argument("--run-id", default=None, help="Optional explicit run_id override.")
+    h1_p.set_defaults(func=_cmd_verify_h1)
 
     return parser
 

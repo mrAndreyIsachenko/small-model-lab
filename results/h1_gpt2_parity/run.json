@@ -1,0 +1,28 @@
+{
+  "run_id": "h1_gpt2_parity",
+  "experiment_id": "h1_gpt2_parity",
+  "hypothesis_id": "H1",
+  "hypothesis": "Our custom Transformer implementation in gpt2-compat mode is mathematically equivalent to Hugging Face GPT2LMHeadModel (124M), naive O(T^2) GQA matches SDPA, KV-cache decoding matches full-sequence forward logits, and intra-document masking prevents cross-document gradient leakage across <|eos|> boundaries.",
+  "prediction": "Max absolute logit difference < 1.0e-4 in fp32 across random and natural prompts; future-token and cross-document gradient norm == 0.0.",
+  "acceptance_criterion": "max_abs_logit_diff < 1.0e-4 and cross_doc_grad_norm == 0.0",
+  "mode": "measured",
+  "status": "completed",
+  "seed": 1337,
+  "model_name": "gpt2-124m",
+  "total_params": 124439808,
+  "non_embedding_params": 85842432,
+  "dataset_name": "tinystories-smoke",
+  "git_sha": "f122a0c97aceefe3e2a74746e01c074615e4d69e",
+  "git_dirty": true,
+  "started_at_utc": "2026-10-31T21:20:56.267499+00:00",
+  "completed_at_utc": "2026-10-31T21:21:00.493912+00:00",
+  "pre_run_estimate": {
+    "planned_tokens": 163840,
+    "flops_per_token": 803261952,
+    "total_flops": 131606438215680,
+    "assumed_mfu": 0.3,
+    "estimated_clean_gpu_hours": 0.0068,
+    "estimated_cost_usd": 0.0
+  },
+  "conclusion": "H1 verified on full 124,439,808-parameter GPT-2 124M: max_abs_logit_diff=0.00e+00 (< 1e-4), sdpa_vs_naive=5.96e-06, kv_cache_diff=5.13e-06, cross_doc_leakage=0.00e+00."
+}

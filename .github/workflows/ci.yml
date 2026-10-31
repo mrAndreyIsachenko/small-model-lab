@@ -22,7 +22,7 @@ jobs:
         run: uv python install 3.12
 
       - name: Install dependencies (CPU PyTorch index for fast CI)
-        run: uv sync --extra-index-url https://download.pytorch.org/whl/cpu --index-strategy unsafe-best-match
+        run: uv sync --extra parity --extra-index-url https://download.pytorch.org/whl/cpu --index-strategy unsafe-best-match
 
       - name: Lint with ruff
         run: |

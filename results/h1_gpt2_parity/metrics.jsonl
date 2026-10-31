@@ -1,0 +1,1 @@
+{"step": 1, "timestamp_utc": "2026-10-31T21:21:00.493183+00:00", "max_abs_logit_diff_sdpa": 0.0, "max_abs_logit_diff_naive": 5.9604644775390625e-06, "max_diff_sdpa_vs_naive": 5.9604644775390625e-06, "max_diff_kv_cache": 5.125999450683594e-06, "cross_doc_leakage": 0.0}
