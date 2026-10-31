@@ -1,0 +1,30 @@
+experiment_id: h2_mfu_waterfall
+hypothesis_id: H2
+hypothesis: >
+  Cumulative systems optimizations (fp32 eager -> bf16 autocast -> SDPA/Flash ->
+  fused AdamW -> torch.compile with 128-aligned dimensions) yield monotonic
+  throughput improvements and achieve >= 30% MFU on 1x H100 80GB SXM for sml-100m.
+prediction: >
+  Throughput increases by >= 2.5x from fp32 eager baseline to compiled bf16 + SDPA +
+  fused AdamW, reaching >= 30% MFU (~415,000 tok/s on H100 SXM).
+acceptance_criterion: "measured_mfu >= 0.30 and speedup_vs_eager_fp32 >= 2.5"
+seed: 1337
+model_config_path: configs/model/sml_100m.yaml
+data_config_path: configs/data/fineweb_edu_4b.yaml
+hardware_config_path: configs/hardware/h100_sxm_80gb.yaml
+train:
+  batch_size_tokens: 524288
+  micro_batch_size: 32
+  seq_len: 2048
+  max_steps: 100
+  lr: 6.0e-4
+  min_lr_ratio: 0.0
+  weight_decay: 0.1
+  beta1: 0.9
+  beta2: 0.95
+  grad_clip: 1.0
+  schedule: wsd
+  warmup_steps: 20
+  decay_fraction: 0.2
+  precision: bf16
+  compile: true

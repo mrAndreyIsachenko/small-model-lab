@@ -1,0 +1,34 @@
+experiment_id: h3_wsd_100m
+hypothesis_id: H3
+hypothesis: >
+  Overtraining sml-100m (75.52M non-embedding parameters) from the Chinchilla
+  compute-optimal regime (1.5B tokens, ~20 tok/non-emb param) to 4.0B tokens
+  (~53 tok/non-emb param) using Warmup-Stable-Decay (WSD) cooldown branching
+  produces a statistically significant reduction in validation bits-per-byte (bpb)
+  and higher zero-shot accuracy at identical inference cost.
+prediction: >
+  The 4.0B WSD cooldown branch reduces validation bpb by >= 0.04 bpb (> 4 sigma
+  of the 3-seed sml-xs noise floor) and improves HellaSwag / ARC-Easy byte-normalized
+  accuracy by >= 2.5 percentage points over the 1.5B cooldown branch.
+acceptance_criterion: "delta_val_bpb <= -0.04 and abs(delta_val_bpb) > 2 * seed_noise_sigma"
+seed: 1337
+model_config_path: configs/model/sml_100m.yaml
+data_config_path: configs/data/fineweb_edu_4b.yaml
+hardware_config_path: configs/hardware/h100_sxm_80gb.yaml
+train:
+  batch_size_tokens: 524288
+  micro_batch_size: 32
+  seq_len: 2048
+  max_steps: 7630
+  lr: 6.0e-4
+  min_lr_ratio: 0.0
+  weight_decay: 0.1
+  beta1: 0.9
+  beta2: 0.95
+  grad_clip: 1.0
+  schedule: wsd
+  warmup_steps: 200
+  decay_fraction: 0.15
+  branch_cooldown_tokens: 1500000000
+  precision: bf16
+  compile: true

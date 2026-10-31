@@ -1,0 +1,7 @@
+name: apple-m4-pro-48gb
+accelerator: mps
+vram_gb: 48.0
+peak_bf16_tflops: 18.0
+hourly_rate_usd: 0.0
+price_as_of: "2026-10-31"
+provider_notes: "Local MacBook Pro 16-inch (Apple M4 Pro, 48 GB Unified Memory)"

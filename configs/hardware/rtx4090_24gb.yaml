@@ -1,0 +1,7 @@
+name: nvidia-rtx-4090-24gb
+accelerator: cuda
+vram_gb: 24.0
+peak_bf16_tflops: 165.2
+hourly_rate_usd: 0.45
+price_as_of: "2026-10-31"
+provider_notes: "Cloud on-demand 1x RTX 4090 24GB (RunPod / Vast.ai median)"

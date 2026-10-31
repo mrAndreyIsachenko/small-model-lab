@@ -1,0 +1,7 @@
+name: nvidia-h100-sxm-80gb
+accelerator: cuda
+vram_gb: 80.0
+peak_bf16_tflops: 989.5
+hourly_rate_usd: 2.69
+price_as_of: "2026-10-31"
+provider_notes: "Cloud on-demand 1x H100 80GB SXM5 (RunPod / Lambda reference rate)"

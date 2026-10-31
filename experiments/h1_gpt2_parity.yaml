@@ -1,0 +1,31 @@
+experiment_id: h1_gpt2_parity
+hypothesis_id: H1
+hypothesis: >
+  Our custom Transformer implementation in gpt2-compat mode is mathematically
+  equivalent to Hugging Face GPT2LMHeadModel (124M), naive O(T^2) GQA matches
+  SDPA, KV-cache decoding matches full-sequence forward logits, and intra-document
+  masking prevents cross-document gradient leakage across <|eos|> boundaries.
+prediction: >
+  Max absolute logit difference < 1.0e-4 in fp32 across random and natural prompts;
+  future-token and cross-document gradient norm == 0.0.
+acceptance_criterion: "max_abs_logit_diff < 1.0e-4 and cross_doc_grad_norm == 0.0"
+seed: 1337
+model_config_path: configs/model/gpt2_124m.yaml
+data_config_path: configs/data/tinystories.yaml
+hardware_config_path: configs/hardware/m4_pro_mps.yaml
+train:
+  batch_size_tokens: 16384
+  micro_batch_size: 4
+  seq_len: 1024
+  max_steps: 10
+  lr: 6.0e-4
+  min_lr_ratio: 0.1
+  weight_decay: 0.1
+  beta1: 0.9
+  beta2: 0.95
+  grad_clip: 1.0
+  schedule: wsd
+  warmup_steps: 2
+  decay_fraction: 0.2
+  precision: fp32
+  compile: false

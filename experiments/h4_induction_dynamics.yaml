@@ -1,0 +1,31 @@
+experiment_id: h4_induction_dynamics
+hypothesis_id: H4
+hypothesis: >
+  In-context induction capability—measured via intra-document token-500 minus token-50
+  loss delta (on single documents >= 600 tokens) and synthetic [A B ... A] -> B copying
+  accuracy—emerges via a sharp early phase transition across log-spaced checkpoints
+  rather than linearly with token count.
+prediction: >
+  > 60% of the total improvement in synthetic copying accuracy and intra-document
+  in-context loss delta occurs within a narrow window spanning < 15% of total training steps.
+acceptance_criterion: "max_window_gain_share >= 0.60 and checkpoints_saved >= 15"
+seed: 1337
+model_config_path: configs/model/sml_100m.yaml
+data_config_path: configs/data/fineweb_edu_4b.yaml
+hardware_config_path: configs/hardware/h100_sxm_80gb.yaml
+train:
+  batch_size_tokens: 524288
+  micro_batch_size: 32
+  seq_len: 2048
+  max_steps: 7630
+  lr: 6.0e-4
+  min_lr_ratio: 0.0
+  weight_decay: 0.1
+  beta1: 0.9
+  beta2: 0.95
+  grad_clip: 1.0
+  schedule: wsd
+  warmup_steps: 200
+  decay_fraction: 0.15
+  precision: bf16
+  compile: true

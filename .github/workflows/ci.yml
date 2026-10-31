@@ -1,0 +1,38 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+jobs:
+  lint-and-test:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Install uv
+        uses: astral-sh/setup-uv@v4
+        with:
+          enable-cache: true
+
+      - name: Set up Python 3.12
+        run: uv python install 3.12
+
+      - name: Install dependencies (CPU PyTorch index for fast CI)
+        run: uv sync --extra-index-url https://download.pytorch.org/whl/cpu --index-strategy unsafe-best-match
+
+      - name: Lint with ruff
+        run: |
+          uv run ruff check src tests
+          uv run ruff format --check src tests
+
+      - name: Run unit tests
+        run: uv run pytest
+
+      - name: Verify M0 dry-run and report compiler pipeline
+        run: |
+          uv run sml dry-run --experiment experiments/h3_wsd_100m.yaml --output-dir results/dry_run_ci
+          uv run sml report --results-dir results/dry_run_ci --output reports/sprint1/dry_run_ci.md --include-dry-runs

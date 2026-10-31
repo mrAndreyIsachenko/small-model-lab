@@ -1,0 +1,45 @@
+# Python & uv
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+.venv/
+venv/
+ENV/
+env/
+*.egg-info/
+dist/
+build/
+
+# Testing & linting caches
+.pytest_cache/
+.ruff_cache/
+.mypy_cache/
+.coverage
+htmlcov/
+
+# Local data shards, raw parquet, and model checkpoints (strict disk discipline)
+data/
+shards/
+checkpoints/
+*.bin
+*.pt
+*.pth
+*.safetensors
+*.parquet
+.hf_cache/
+wandb/
+
+# Keep dry-run scratch out of git while tracking official experiment JSONs in results/
+results/dry_run_*/
+results/smoke_*/
+
+# macOS & IDE
+.DS_Store
+.idea/
+.vscode/
+*.swp
+.env
+.env.*
+!.env.example

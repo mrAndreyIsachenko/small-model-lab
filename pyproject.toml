@@ -1,0 +1,63 @@
+[build-system]
+requires = ["hatchling>=1.25.0"]
+build-backend = "hatchling.build"
+
+[project]
+name = "small-model-lab"
+version = "0.1.0"
+description = "End-to-end LLM systems & applied research lab: Transformer pretraining from scratch, executable data incident benchmarks, distillation, and production GPU inference."
+readme = "README.md"
+license = { file = "LICENSE" }
+authors = [
+    { name = "Andrey Isachenko" },
+]
+requires-python = ">=3.12,<3.14"
+dependencies = [
+    "numpy>=2.0.0,<3.0.0",
+    "pyyaml>=6.0.2,<7.0.0",
+    "torch>=2.5.0,<3.0.0",
+    "tokenizers>=0.20.0,<1.0.0",
+    "huggingface-hub>=0.26.0,<2.0.0",
+]
+
+[project.optional-dependencies]
+data = [
+    "datasets>=3.0.0,<4.0.0",
+    "pyarrow>=17.0.0,<20.0.0",
+    "xxhash>=3.5.0,<4.0.0",
+]
+parity = [
+    "transformers>=4.46.0,<5.0.0",
+]
+telemetry = [
+    "nvidia-ml-py>=12.560.30",
+    "wandb>=0.18.0,<1.0.0",
+]
+
+[project.urls]
+Homepage = "https://github.com/mrAndreyIsachenko/small-model-lab"
+Repository = "https://github.com/mrAndreyIsachenko/small-model-lab"
+
+[project.scripts]
+sml = "sml.cli:main"
+
+[dependency-groups]
+dev = [
+    "pytest>=8.3.0,<9.0.0",
+    "ruff>=0.8.0,<1.0.0",
+]
+
+[tool.hatch.build.targets.wheel]
+packages = ["src/sml"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+addopts = "-q --strict-markers"
+
+[tool.ruff]
+line-length = 100
+target-version = "py312"
+src = ["src", "tests"]
+
+[tool.ruff.lint]
+select = ["E", "F", "I", "B", "UP", "SIM"]
