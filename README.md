@@ -11,23 +11,23 @@
 
 **Small Model Lab** is an end-to-end language model systems and applied research project structured into four tightly coupled sprints:
 
-1. **Sprint 1 — Core Transformer, Custom `@triton.jit` Kernels & GPU Pretraining (`Phase I Lean`):** Modern Llama/Qwen-compatible decoder (`RMSNorm`, `RoPE`, `GQA`, `SwiGLU`, intra-document causal masking, `KV-cache`) + custom `@triton.jit` fused `RMSNorm` and `SwiGLU` forward/backward kernels (`src/sml/kernels/`), validated against OpenAI `gpt2` (`124M`) logits (`< 1e-4`), trained with a 32k BPE tokenizer on `FineWeb-Edu` (`4.0B` tokens with Warmup–Stable–Decay and a `1.5B` Chinchilla-optimal cooldown branch).
-2. **Sprint 2 — Trainable Analytical & Incident RL Environment (`StatefulToolEnv`):** `verifiers`-compatible multi-turn environment (`StatefulToolEnv` + `load_environment`) built on `dbt Core + DuckDB + sqlglot` with isolated MCP tools, multi-seed counterfactual fault injection (`product_bug`, `data_pipeline_artifact`, `mix_shift` + confounders), and a Gated Multiplicative `Rubric` (`G_safety · G_complete · R_correctness · G_evidence · (1 + α R_efficiency)`).
-3. **Sprint 3 — Adaptation, Distillation & Multi-Turn RL (`GRPO`):** Controlled comparison on `1.5B–3B` open weights: Prompting vs. Hybrid RAG vs. LoRA/SFT vs. Teacher (`30B+`) Rejection-Sampled Distillation and multi-turn `GRPO`, including a pre-registered reward-hacking ablation (`H5`: Gated Multiplicative vs. Naive Additive reward).
+1. **Sprint 1 — Core Transformer, Custom `@triton.jit` Kernels & GPU Pretraining (`Phase I Lean`):** Modern Llama/Qwen-compatible decoder (`RMSNorm`, `RoPE`, `GQA`, `SwiGLU`, intra-document causal masking, `KV-cache`) + custom `@triton.jit` fused `RMSNorm`, `SwiGLU`, and chunked `CrossEntropy` forward/backward kernels (`src/sml/kernels/`), validated against OpenAI `gpt2` (`124M`) logits (`< 1e-4`), trained with a 32k BPE tokenizer on `FineWeb-Edu` (`4.0B` tokens with Warmup–Stable–Decay and a `1.5B` Chinchilla-optimal cooldown branch).
+2. **Sprint 2 — Trainable Analytical & Incident RL Environment (`StatefulToolEnv`):** `verifiers`-compatible multi-turn environment (`StatefulToolEnv` + `load_environment`) built on `dbt Core + DuckDB + sqlglot` with isolated MCP tools, multi-seed counterfactual fault injection (`product_bug`, `data_pipeline_artifact`, `mix_shift` + confounders), and a Gated Multiplicative `Rubric` (`R_total = R_outcome · R_evidence · R_process`).
+3. **Sprint 3 — Adaptation, Distillation & Multi-Turn RL (`GRPO`):** Controlled comparison on `1.5B–3B` open weights: Prompting vs. Hybrid RAG vs. LoRA/SFT vs. Teacher (`30B+`) Rejection-Sampled Distillation (via the hardened OpenRouter gateway in `src/sml/gateway/` with strict recursive secret/raw-row egress guards) and multi-turn `GRPO`, including a pre-registered reward-hacking ablation (`H5`: Gated Multiplicative vs. Naive Additive reward).
 4. **Sprint 4 — Specialist Surgery & Production Inference (`vLLM`):** Layer-wise representation drift (`CKA`), quantization sensitivity (`FP8` / `INT4 AWQ`), layer pruning, and load-tested serving economics (`TTFT`, `TPOT`, `req/s`, `$/1k` incidents Pareto frontier).
 
 > **Zero Placeholder Numbers Policy:** No synthetic or estimated numbers are ever written into result tables. All tables in `reports/` are compiled directly from machine-readable experiment manifests in `results/<run_id>/` via `sml report`.
 
 ---
 
-## Sprint 1 Pre-Registered Hypotheses
+## Sprint 1 Pre-Registered Hypotheses & Status
 
 | ID | Hypothesis | Pre-Registered Acceptance Criterion | Status |
 | :--- | :--- | :--- | :--- |
-| **H1** | **Mathematical & Causal Equivalence:** Custom `Transformer` in `gpt2-compat` mode matches `GPT2LMHeadModel` (`124M`) logits; naive `O(T^2)` GQA matches `SDPA`; `KV-cache` matches full forward; intra-document mask blocks cross-`<\|eos\|>` gradients. | `max_abs_logit_diff < 1e-4` (`fp32`); future & cross-doc grad `== 0.0` | `M0 Ready / M1 Next` |
-| **H2** | **GPU Throughput & `@triton.jit` Waterfall:** Cumulative system optimizations (`fp32 eager` → `bf16` → `SDPA` → `fused AdamW` → `torch.compile` → custom `@triton.jit` `FusedRMSNorm` & `FusedSwiGLU`) yield measured throughput/HBM bandwidth gains and high hardware utilization. | Measured waterfall in `reports/sprint1/`; `MFU >= 30%` on `1x H100 SXM` | `Planned (M4)` |
-| **H3** | **Chinchilla Optimal (`1.5B`) vs. Overtrained (`4.0B`) WSD Cooldown:** Overtraining `sml-100m` (`75.52M` non-embedding params) past `20x` tokens/param via WSD cooldown branching improves `val bpb` and zero-shot accuracy at identical inference cost. | Improvement exceeds `2σ` of 3-seed `sml-xs` noise floor | `Planned (M5)` |
-| **H4** | **In-Context Induction Phase Transition:** Log-spaced checkpoints reveal an abrupt phase transition in intra-document `loss(pos=500) - loss(pos=50)` and synthetic sequence copying. | Phase transition localized across 15 checkpoints | `Planned (M5-M6)` |
+| **H1** | **Mathematical & Causal Equivalence:** Custom `Transformer` in `gpt2-compat` mode matches `GPT2LMHeadModel` (`124M`) logits; naive `O(T^2)` GQA matches `SDPA`; `KV-cache` matches full forward; intra-document mask blocks cross-`<\|eos\|>` leakage. | `max_abs_logit_diff < 1e-4` (`fp32`); cross-doc leakage `== 0.0` | **Verified** (`sdpa=0.00e+00`, `naive=5.96e-6`, `kv_cache=5.13e-6`, `leakage=0.00e+00` in [`results/h1_gpt2_parity/`](results/h1_gpt2_parity/final_metrics.json)) |
+| **H2** | **GPU Throughput & `@triton.jit` Waterfall:** Cumulative system optimizations (`fp32 naive` → `fp32 sdpa` → `bf16 sdpa` → `bf16 fused kernels` → `torch.compile`) yield measured throughput gains and high hardware utilization. | Measured 5-stage waterfall in `reports/sprint1/`; `MFU >= 30%` on `1x H100 SXM` (`1.40x` local MPS speedup verified) | **Code Ready (`sml profile-h2`)** |
+| **H3** | **Chinchilla Optimal (`1.5B`) vs. Overtrained (`4.0B`) WSD Cooldown:** Overtraining `sml-100m` (`75.52M` non-embedding params) past `20x` tokens/param via WSD cooldown branching improves `val bpb` and zero-shot accuracy at identical inference cost. | Improvement exceeds `2σ` of 3-seed `sml-xs` noise floor | **Code Ready (`sml train`)** |
+| **H4** | **In-Context Induction Phase Transition:** Log-spaced checkpoints reveal an abrupt phase transition in intra-document `loss(late) - loss(early)` and synthetic sequence copying. | Phase transition localized across 15 log-spaced checkpoints | **Code Ready (`sml train`)** |
 
 ---
 
@@ -42,26 +42,49 @@
 
 ---
 
-## Quickstart (`M0` Scaffold)
+## Quickstart (Local macOS / Apple Silicon & Ephemeral Cloud GPU)
 
 ```bash
 # 1. Install dependencies into an isolated Python 3.12 virtualenv
 make sync
 
-# 2. Run unit tests and linter
+# 2. Run all 32 unit & integration tests and ruff linter
 make test
 make lint
 
-# 3. Inspect exact closed-form parameter, KV-cache, and FLOP math for sml-100m
-uv run sml inspect-config --model configs/model/sml_100m.yaml
+# 3. Verify H1 GPT-2 124M mathematical parity & cross-document causal isolation
+make verify-h1
 
-# 4. Run M0 dry-run pipeline and compile a preview report from results/
-make smoke
+# 4. Run end-to-end M2+M3 local pretraining smoke test on Apple Silicon MPS / CPU
+make train-smoke
+
+# 5. Profile the 5-stage H2 throughput waterfall locally
+make profile-h2-local
 ```
+
+### Running `M4–M5` on an Ephemeral Cloud GPU (`RTX 4090` / `H100 SXM`)
+
+```bash
+# 1. Bootstrap Ubuntu + NVIDIA GPU instance (installs uv, Python 3.12, locked deps, runs pytest)
+./scripts/remote/bootstrap.sh
+
+# 2. Run the full M4-M5 GPU experiment pipeline (with 15-min idle GPU auto-shutdown watchdog):
+#    - H1 parity verification
+#    - H2 5-stage MFU & Triton fused-kernel waterfall
+#    - FineWeb-Edu streaming BPE + uint16 shard generation (< 15 GB disk discipline)
+#    - H3/H4 WSD pretraining with cooldown branching & 15 log-spaced checkpoints
+#    - Markdown report compilation to reports/sprint1/summary.md
+GPU_PROFILE=h100 ./scripts/remote/run_m4_m5_gpu.sh
+# Or on a 24 GB RTX 4090 pilot instance:
+GPU_PROFILE=rtx4090 MAX_DOCS=50000 MAX_STEPS=2000 ./scripts/remote/run_m4_m5_gpu.sh
+```
+
+---
 
 ## Architecture & Decisions
 
 * [Master Roadmap & Sprint Specifications](docs/roadmap.md)
+* [Sprint 1 Measured Results Summary](reports/sprint1/summary.md)
 * [ADR-001: Four-Sprint Architecture vs. Eight Loose Phases](docs/decisions/001-four-sprint-architecture.md)
 * [ADR-002: Grouped-Query Attention (GQA) & WSD Cooldown Branching](docs/decisions/002-gqa-and-wsd-schedule.md)
 * [ADR-003: Streaming Data Shards & `< 15 GB` Local Disk Discipline](docs/decisions/003-streaming-disk-discipline.md)
