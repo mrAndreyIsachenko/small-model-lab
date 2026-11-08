@@ -20,9 +20,9 @@ build/
 htmlcov/
 
 # Local data shards, raw parquet, and model checkpoints (strict disk discipline)
-data/
-shards/
-checkpoints/
+/data/
+/shards/
+/checkpoints/
 *.bin
 *.pt
 *.pth

@@ -1,0 +1,10 @@
+name: tinystories-smoke
+hf_dataset: roneneldan/TinyStories
+hf_subset: default
+vocab_size: 32768
+train_tokens: 20000000
+val_tokens: 1000000
+test_tokens: 1000000
+shard_size_tokens: 10000000
+hf_repo_id: mrAndreyIsachenko/sml-tinystories-shards
+license: CDLA-Sharing-1.0

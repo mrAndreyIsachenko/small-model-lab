@@ -1,0 +1,10 @@
+name: fineweb-edu-4b
+hf_dataset: HuggingFaceFW/fineweb-edu
+hf_subset: sample-10BT
+vocab_size: 32768
+train_tokens: 4200000000
+val_tokens: 10000000
+test_tokens: 10000000
+shard_size_tokens: 100000000
+hf_repo_id: mrAndreyIsachenko/sml-fineweb-edu-32k-shards
+license: ODC-By-1.0

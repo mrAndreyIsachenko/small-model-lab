@@ -316,6 +316,163 @@ def _cmd_train_smoke(args: argparse.Namespace) -> int:
         return 0 if summary["bpb_improved"] else 1
 
 
+def _cmd_profile_h2(args: argparse.Namespace) -> int:
+    """Profile MFU waterfall across precision, attention, fusion, and compilation stages."""
+    from sml.config import load_experiment_spec
+    from sml.tracking.manifest import RunRecorder
+    from sml.training.profiler import run_mfu_waterfall
+
+    spec = load_experiment_spec(args.experiment)
+    output_dir = Path(args.output_dir)
+    run_id = args.run_id or spec.experiment_id
+    device = args.device
+
+    t0 = time.perf_counter()
+    recorder = RunRecorder(
+        run_id=run_id,
+        spec=spec,
+        output_root=output_dir,
+        mode="measured",
+    )
+
+    stages = run_mfu_waterfall(
+        spec=spec,
+        device=device,
+        warmup_steps=args.warmup_steps,
+        measure_steps=args.measure_steps,
+        seq_len_override=args.seq_len,
+        micro_batch_override=args.micro_batch_size,
+    )
+
+    for idx, stage in enumerate(stages, start=1):
+        recorder.log_step(
+            step=idx,
+            metrics={
+                "tokens_per_sec": stage.tokens_per_sec,
+                "step_time_ms": stage.step_time_ms,
+                "mfu": stage.mfu,
+                "peak_memory_mb": stage.peak_memory_mb,
+                "speedup_vs_baseline": stage.speedup_vs_baseline,
+            },
+        )
+
+    waterfall_path = recorder.run_dir / "stage_waterfall.json"
+    waterfall_path.write_text(
+        json.dumps([s.to_dict() for s in stages], indent=2),
+        encoding="utf-8",
+    )
+
+    elapsed = max(time.perf_counter() - t0, 1e-6)
+    seq_len = min(args.seq_len or spec.train.seq_len, spec.model.max_seq_len)
+    bsz = args.micro_batch_size or spec.train.micro_batch_size
+    tokens_per_stage = (args.warmup_steps + args.measure_steps) * bsz * seq_len
+    total_tokens = len(stages) * tokens_per_stage
+
+    baseline_stage = stages[0]
+    best_stage = max(stages, key=lambda s: s.tokens_per_sec)
+    final_stage = stages[-1]
+
+    recorder.finalize(
+        final_metrics={
+            "stages_profiled": len(stages),
+            "baseline_tokens_per_sec": baseline_stage.tokens_per_sec,
+            "final_tokens_per_sec": final_stage.tokens_per_sec,
+            "best_tokens_per_sec": best_stage.tokens_per_sec,
+            "final_mfu": final_stage.mfu,
+            "best_mfu": best_stage.mfu,
+            "max_speedup_vs_baseline": best_stage.speedup_vs_baseline,
+            "tokens_processed": total_tokens,
+            "tokens_per_sec": best_stage.tokens_per_sec,
+            "mfu": best_stage.mfu,
+        },
+        active_seconds=elapsed,
+        billed_seconds=elapsed,
+        status="completed",
+        conclusion=(
+            f"H2 MFU waterfall profiled across {len(stages)} stages: "
+            f"baseline={baseline_stage.tokens_per_sec:.1f} tok/s -> "
+            f"best={best_stage.tokens_per_sec:.1f} tok/s "
+            f"({best_stage.speedup_vs_baseline:.2f}x speedup, MFU={best_stage.mfu:.4f})."
+        ),
+    )
+
+    print(
+        json.dumps(
+            {
+                "run_dir": str(recorder.run_dir),
+                "stages": [s.to_dict() for s in stages],
+            },
+            indent=2,
+        )
+    )
+    return 0
+
+
+def _cmd_prepare_data(args: argparse.Namespace) -> int:
+    """Prepare dataset shards and tokenizer from HF streaming or synthetic documents."""
+    from sml.config import load_data_config
+    from sml.data import prepare_dataset_shards
+
+    data_config = load_data_config(args.data_config)
+
+    synthetic_docs: list[tuple[str, str]] | None = None
+    if args.synthetic:
+        synthetic_docs = [
+            (
+                f"synthetic-{i:04d}",
+                (
+                    f"Document {i}: Once upon a time a small language model processed "
+                    f"pipeline logs. SELECT count(*) FROM bronze.events WHERE id = {i}; "
+                    "When schema drift occurred in upstream dbt models, we checked lineage."
+                ),
+            )
+            for i in range(max(12, int(args.max_docs)))
+        ]
+
+    manifest = prepare_dataset_shards(
+        data_config=data_config,
+        output_dir=Path(args.output_dir),
+        documents=synthetic_docs,
+        max_docs=args.max_docs,
+    )
+
+    summary = {
+        "dataset_name": manifest.dataset_name,
+        "vocab_size": manifest.vocab_size,
+        "eos_token_id": manifest.eos_token_id,
+        "total_tokens": sum(s.num_tokens for s in manifest.shards),
+        "bytes_per_token_by_split": manifest.bytes_per_token_by_split,
+        "shards": len(manifest.shards),
+        "manifest_path": str(Path(args.output_dir) / "manifest.json"),
+    }
+    print(json.dumps(summary, indent=2))
+    return 0
+
+
+def _cmd_train(args: argparse.Namespace) -> int:
+    """Run a complete pretraining experiment."""
+    from sml.config import load_experiment_spec
+    from sml.training.runner import run_pretraining_experiment
+
+    spec = load_experiment_spec(args.experiment)
+
+    # Run the experiment
+    run_dir = run_pretraining_experiment(
+        spec=spec,
+        manifest_path=args.manifest,
+        output_dir=args.output_dir,
+        run_id=args.run_id,
+        device=args.device,
+        max_steps_override=args.max_steps,
+        seq_len_override=args.seq_len,
+        micro_batch_override=args.micro_batch_size,
+        num_checkpoints=args.num_checkpoints,
+    )
+
+    print(f"Training experiment completed. Results saved to: {run_dir}")
+    return 0
+
+
 def build_parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(
         prog="sml",
@@ -388,6 +545,133 @@ def build_parser() -> argparse.ArgumentParser:
         help="Device override: auto | mps | cuda | cpu.",
     )
     smoke_p.set_defaults(func=_cmd_train_smoke)
+
+    # H2 Profile subcommand
+    profile_h2_p = sub.add_parser(
+        "profile-h2",
+        help="Run MFU waterfall profiling for different training configurations.",
+    )
+    profile_h2_p.add_argument(
+        "--experiment",
+        default="experiments/h2_mfu_waterfall.yaml",
+        help="Path to experiment YAML.",
+    )
+    profile_h2_p.add_argument(
+        "--output-dir",
+        default="results",
+        help="Directory for run output bundle.",
+    )
+    profile_h2_p.add_argument("--run-id", default=None, help="Optional explicit run_id override.")
+    profile_h2_p.add_argument(
+        "--device",
+        default="auto",
+        help="Device override: auto | mps | cuda | cpu.",
+    )
+    profile_h2_p.add_argument(
+        "--warmup-steps",
+        type=int,
+        default=1,
+        help="Number of warmup steps before measurement.",
+    )
+    profile_h2_p.add_argument(
+        "--measure-steps",
+        type=int,
+        default=3,
+        help="Number of steps to measure for profiling.",
+    )
+    profile_h2_p.add_argument(
+        "--seq-len",
+        type=int,
+        default=None,
+        help="Override sequence length for profiling.",
+    )
+    profile_h2_p.add_argument(
+        "--micro-batch-size",
+        type=int,
+        default=None,
+        help="Override micro batch size for profiling.",
+    )
+    profile_h2_p.set_defaults(func=_cmd_profile_h2)
+
+    # Prepare data subcommand
+    prepare_data_p = sub.add_parser(
+        "prepare-data",
+        help="Prepare dataset shards from raw documents.",
+    )
+    prepare_data_p.add_argument(
+        "--data-config",
+        default="configs/data/tinystories.yaml",
+        help="Path to data config YAML.",
+    )
+    prepare_data_p.add_argument(
+        "--output-dir",
+        required=True,
+        help="Output directory for prepared shards.",
+    )
+    prepare_data_p.add_argument(
+        "--max-docs",
+        type=int,
+        default=200,
+        help="Maximum number of documents to process.",
+    )
+    prepare_data_p.add_argument(
+        "--synthetic",
+        action="store_true",
+        help="Build deterministic synthetic corpus instead of loading from config.",
+    )
+    prepare_data_p.set_defaults(func=_cmd_prepare_data)
+
+    # Train subcommand
+    train_p = sub.add_parser(
+        "train",
+        help="Run a complete pretraining experiment.",
+    )
+    train_p.add_argument(
+        "--experiment",
+        default="experiments/h3_wsd_100m.yaml",
+        help="Path to experiment YAML.",
+    )
+    train_p.add_argument(
+        "--manifest",
+        required=True,
+        help="Path to dataset manifest JSON file.",
+    )
+    train_p.add_argument(
+        "--output-dir",
+        default="results",
+        help="Directory for run output bundle.",
+    )
+    train_p.add_argument("--run-id", default=None, help="Optional explicit run_id override.")
+    train_p.add_argument(
+        "--device",
+        default="auto",
+        help="Device override: auto | mps | cuda | cpu.",
+    )
+    train_p.add_argument(
+        "--max-steps",
+        type=int,
+        default=None,
+        help="Override maximum training steps.",
+    )
+    train_p.add_argument(
+        "--seq-len",
+        type=int,
+        default=None,
+        help="Override sequence length.",
+    )
+    train_p.add_argument(
+        "--micro-batch-size",
+        type=int,
+        default=None,
+        help="Override micro batch size.",
+    )
+    train_p.add_argument(
+        "--num-checkpoints",
+        type=int,
+        default=5,
+        help="Number of evenly spaced checkpoints to save.",
+    )
+    train_p.set_defaults(func=_cmd_train)
 
     return parser
 
