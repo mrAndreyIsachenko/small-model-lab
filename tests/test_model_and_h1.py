@@ -10,6 +10,17 @@ from transformers import GPT2Config, GPT2LMHeadModel
 
 from sml.config import ModelConfig, load_model_config
 from sml.hooks import ActivationHookManager
+from sml.kernels import (
+    compute_rmsnorm_hbm_bytes,
+    compute_swiglu_hbm_bytes,
+    fused_rmsnorm,
+    fused_swiglu,
+    is_triton_available,
+    ref_rmsnorm,
+    ref_swiglu,
+    simulate_tiled_rmsnorm_fwd_bwd,
+    simulate_tiled_swiglu_fwd_bwd,
+)
 from sml.model import (
     KVCache,
     RotaryEmbedding,
@@ -234,3 +245,62 @@ def test_activation_hooks_capture_and_identity_patch() -> None:
     with hooks.patch({"layers.1.mlp": lambda t: torch.zeros_like(t)}):
         patched_zero_logits = model(x).logits
     assert torch.max(torch.abs(base_logits - patched_zero_logits)).item() > 1e-3
+
+
+def test_triton_fused_rmsnorm_and_swiglu_forward_backward_parity() -> None:
+    """Verify tiled SRAM block-masked RMSNorm & SwiGLU forward/backward match PyTorch < 1e-5."""
+    torch.manual_seed(314)
+    # Test non-power-of-2 dimensions (768 -> BLOCK_SIZE 1024, 1408 -> BLOCK_SIZE 2048)
+    for d_model, d_ff in ((256, 768), (768, 1408)):
+        x = torch.randn(3, 11, d_model, dtype=torch.float32, requires_grad=True)
+        w = torch.randn(d_model, dtype=torch.float32, requires_grad=True)
+        dy = torch.randn_like(x)
+
+        y_ref = ref_rmsnorm(x, w, eps=1e-5)
+        y_ref.backward(dy)
+        assert x.grad is not None and w.grad is not None
+        dx_ref, dw_ref = x.grad.clone(), w.grad.clone()
+
+        y_tiled, dx_tiled, dw_tiled = simulate_tiled_rmsnorm_fwd_bwd(x, w, dy, eps=1e-5)
+        assert torch.max(torch.abs(y_ref - y_tiled)).item() < 1e-5
+        assert torch.max(torch.abs(dx_ref - dx_tiled)).item() < 1e-5
+        assert torch.max(torch.abs(dw_ref - dw_tiled)).item() < 1e-5
+
+        # SwiGLU forward + analytical backward parity
+        gate = torch.randn(3, 11, d_ff, dtype=torch.float32, requires_grad=True)
+        up = torch.randn(3, 11, d_ff, dtype=torch.float32, requires_grad=True)
+        dout = torch.randn_like(gate)
+
+        out_ref = ref_swiglu(gate, up)
+        out_ref.backward(dout)
+        assert gate.grad is not None and up.grad is not None
+        dgate_ref, dup_ref = gate.grad.clone(), up.grad.clone()
+
+        out_tiled, dgate_tiled, dup_tiled = simulate_tiled_swiglu_fwd_bwd(
+            gate, up, dout, block_size=256
+        )
+        assert torch.max(torch.abs(out_ref - out_tiled)).item() < 1e-5
+        assert torch.max(torch.abs(dgate_ref - dgate_tiled)).item() < 1e-5
+        assert torch.max(torch.abs(dup_ref - dup_tiled)).item() < 1e-5
+
+        # Auto dispatcher parity
+        assert torch.allclose(fused_rmsnorm(x.detach(), w.detach(), backend="auto"), y_ref.detach())
+        assert torch.allclose(
+            fused_swiglu(gate.detach(), up.detach(), backend="auto"), out_ref.detach()
+        )
+
+    # Verify HBM traffic closed-form calculators
+    assert compute_rmsnorm_hbm_bytes(num_tokens=1024, d_model=768, bytes_per_elem=2) == (
+        (2 * 1024 * 768 + 768) * 2 + 1024 * 4
+    )
+    assert compute_swiglu_hbm_bytes(num_tokens=1024, d_ff=2048, bytes_per_elem=2) == (
+        3 * 1024 * 2048 * 2
+    )
+
+    # If CUDA + Triton are present, also run the hardware @triton.jit kernels directly
+    if is_triton_available():
+        x_cuda = torch.randn(4, 16, 768, device="cuda", dtype=torch.float32, requires_grad=True)
+        w_cuda = torch.randn(768, device="cuda", dtype=torch.float32, requires_grad=True)
+        y_triton = fused_rmsnorm(x_cuda, w_cuda, backend="triton")
+        y_torch = ref_rmsnorm(x_cuda, w_cuda)
+        assert torch.max(torch.abs(y_triton - y_torch)).item() < 1e-5

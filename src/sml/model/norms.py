@@ -6,21 +6,22 @@ import torch
 import torch.nn as nn
 
 from sml.config import NormType
+from sml.kernels import KernelBackend, fused_rmsnorm
 
 
 class RMSNorm(nn.Module):
-    """Root Mean Square Layer Normalization computed in fp32 for stability."""
+    """Root Mean Square Layer Normalization with optional @triton.jit kernel fusion."""
 
-    def __init__(self, d_model: int, eps: float = 1e-5) -> None:
+    def __init__(
+        self, d_model: int, eps: float = 1e-5, kernel_backend: KernelBackend = "auto"
+    ) -> None:
         super().__init__()
         self.eps = eps
+        self.kernel_backend: KernelBackend = kernel_backend
         self.weight = nn.Parameter(torch.ones(d_model))
 
     def forward(self, x: torch.Tensor) -> torch.Tensor:
-        x_fp32 = x.float()
-        rrms = torch.rsqrt(x_fp32.pow(2).mean(dim=-1, keepdim=True) + self.eps)
-        normed = (x_fp32 * rrms).to(dtype=x.dtype)
-        return normed * self.weight
+        return fused_rmsnorm(x, self.weight, eps=self.eps, backend=self.kernel_backend)
 
 
 def build_norm(d_model: int, norm_type: NormType = "rmsnorm", eps: float = 1e-5) -> nn.Module:

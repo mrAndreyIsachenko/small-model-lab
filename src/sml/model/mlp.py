@@ -6,9 +6,9 @@ import math
 
 import torch
 import torch.nn as nn
-import torch.nn.functional as F
 
 from sml.config import ModelConfig
+from sml.kernels import KernelBackend, fused_swiglu
 
 
 def gpt2_new_gelu(x: torch.Tensor) -> torch.Tensor:
@@ -19,16 +19,19 @@ def gpt2_new_gelu(x: torch.Tensor) -> torch.Tensor:
 
 
 class SwiGLUMLP(nn.Module):
-    """Llama/Qwen-style SwiGLU feed-forward network (gate_proj, up_proj, down_proj)."""
+    """Llama/Qwen-style SwiGLU feed-forward network with optional @triton.jit fusion."""
 
-    def __init__(self, config: ModelConfig) -> None:
+    def __init__(self, config: ModelConfig, kernel_backend: KernelBackend = "auto") -> None:
         super().__init__()
+        self.kernel_backend: KernelBackend = kernel_backend
         self.gate_proj = nn.Linear(config.d_model, config.d_ff, bias=config.bias)
         self.up_proj = nn.Linear(config.d_model, config.d_ff, bias=config.bias)
         self.down_proj = nn.Linear(config.d_ff, config.d_model, bias=config.bias)
 
     def forward(self, x: torch.Tensor) -> torch.Tensor:
-        return self.down_proj(F.silu(self.gate_proj(x)) * self.up_proj(x))
+        return self.down_proj(
+            fused_swiglu(self.gate_proj(x), self.up_proj(x), backend=self.kernel_backend)
+        )
 
 
 class GELUMLP(nn.Module):

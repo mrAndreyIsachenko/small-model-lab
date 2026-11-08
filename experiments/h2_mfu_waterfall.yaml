@@ -2,11 +2,11 @@ experiment_id: h2_mfu_waterfall
 hypothesis_id: H2
 hypothesis: >
   Cumulative systems optimizations (fp32 eager -> bf16 autocast -> SDPA/Flash ->
-  fused AdamW -> torch.compile with 128-aligned dimensions) yield monotonic
-  throughput improvements and achieve >= 30% MFU on 1x H100 80GB SXM for sml-100m.
+  fused AdamW -> torch.compile -> custom @triton.jit FusedRMSNorm & FusedSwiGLU kernels)
+  yield monotonic throughput improvements and achieve >= 30% MFU on 1x H100 80GB SXM for sml-100m.
 prediction: >
   Throughput increases by >= 2.5x from fp32 eager baseline to compiled bf16 + SDPA +
-  fused AdamW, reaching >= 30% MFU (~415,000 tok/s on H100 SXM).
+  fused AdamW + custom @triton.jit kernels, reaching >= 30% MFU (~415,000 tok/s on H100 SXM).
 acceptance_criterion: "measured_mfu >= 0.30 and speedup_vs_eager_fp32 >= 2.5"
 seed: 1337
 model_config_path: configs/model/sml_100m.yaml
