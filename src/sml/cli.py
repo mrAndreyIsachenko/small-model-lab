@@ -212,6 +212,110 @@ def _cmd_verify_h1(args: argparse.Namespace) -> int:
     return 0 if passed else 1
 
 
+def _cmd_train_smoke(args: argparse.Namespace) -> int:
+    import tempfile
+
+    import torch
+
+    from sml.config import ModelConfig, TrainConfig
+    from sml.data import ShardedDataset, StreamingShardWriter
+    from sml.evals import evaluate_validation_bpb
+    from sml.tokenizer import BPETokenizer
+    from sml.training import Trainer
+
+    device_str = args.device
+    if device_str == "auto":
+        if torch.cuda.is_available():
+            device_str = "cuda"
+        elif torch.backends.mps.is_available():
+            device_str = "mps"
+        else:
+            device_str = "cpu"
+
+    torch.manual_seed(1337)
+    corpus = [
+        "Once upon a time there was a little language model trained on clean stories. "
+        "Every day the model read paragraphs, updated its attention heads, and learned syntax. "
+        "When an incident occurred in the data pipeline, the engineer checked the schema and SQL."
+    ] * 80
+
+    with tempfile.TemporaryDirectory() as tmp_dir:
+        tmp_path = Path(tmp_dir)
+        tok = BPETokenizer.train_from_iterator(corpus, vocab_size=512, min_frequency=2)
+        writer = StreamingShardWriter(
+            output_dir=tmp_path,
+            dataset_name="local-mps-smoke",
+            tokenizer=tok,
+            shard_size_tokens=4096,
+        )
+        for i, doc in enumerate(corpus):
+            split = "val" if i % 10 == 0 else "train"
+            writer.add_document(f"smoke-{i}", doc, split=split)
+        manifest = writer.finalize()
+        manifest_path = tmp_path / "manifest.json"
+
+        seq_len = 64
+        train_ds = ShardedDataset(manifest_path, split="train", seq_len=seq_len)
+        val_ds = ShardedDataset(manifest_path, split="val", seq_len=seq_len)
+
+        model_cfg = ModelConfig(
+            name="sml-nano-smoke",
+            vocab_size=tok.vocab_size,
+            d_model=128,
+            n_layers=4,
+            n_heads=4,
+            n_kv_heads=2,
+            d_ff=384,
+            max_seq_len=128,
+        )
+        train_cfg = TrainConfig(
+            batch_size_tokens=4 * seq_len * 2,
+            micro_batch_size=4,
+            seq_len=seq_len,
+            max_steps=int(args.steps),
+            lr=3.0e-3,
+            min_lr_ratio=0.1,
+            weight_decay=0.01,
+            grad_clip=1.0,
+            schedule="wsd",
+            warmup_steps=5,
+            decay_fraction=0.2,
+        )
+
+        model = Transformer(model_cfg)
+        trainer = Trainer(model, train_cfg, device=device_str)
+        bpt = manifest.bytes_per_token_by_split["val"]
+
+        val_start = evaluate_validation_bpb(
+            model, val_ds, num_batches=2, batch_size=4, bytes_per_token=bpt, device=device_str
+        )
+        t0 = time.perf_counter()
+        for step in range(train_cfg.max_steps):
+            trainer.train_step(train_ds.next_batch, step=step)
+        elapsed = time.perf_counter() - t0
+        val_end = evaluate_validation_bpb(
+            model, val_ds, num_batches=2, batch_size=4, bytes_per_token=bpt, device=device_str
+        )
+
+        prompt_ids = tok.encode("Once upon a time", add_bos=True)
+        prompt_t = torch.tensor([prompt_ids], dtype=torch.long, device=device_str)
+        gen_t = model.generate(prompt_t, max_new_tokens=16, temperature=0.0, use_kv_cache=True)
+        sample_text = tok.decode(gen_t[0].tolist(), skip_special_tokens=True)
+
+        summary = {
+            "device": device_str,
+            "steps": train_cfg.max_steps,
+            "tokens_processed": trainer.tokens_processed,
+            "tokens_per_sec": round(trainer.tokens_processed / max(elapsed, 1e-3), 1),
+            "initial_val_bpb": round(val_start["val_bpb"], 4),
+            "final_val_bpb": round(val_end["val_bpb"], 4),
+            "bpb_improved": val_end["val_bpb"] < val_start["val_bpb"],
+            "sample_generation": sample_text,
+        }
+        print(json.dumps(summary, indent=2))
+        return 0 if summary["bpb_improved"] else 1
+
+
 def build_parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(
         prog="sml",
@@ -272,6 +376,18 @@ def build_parser() -> argparse.ArgumentParser:
     )
     h1_p.add_argument("--run-id", default=None, help="Optional explicit run_id override.")
     h1_p.set_defaults(func=_cmd_verify_h1)
+
+    smoke_p = sub.add_parser(
+        "train-smoke",
+        help="Run end-to-end M2+M3 local pretraining smoke test on MPS/CUDA/CPU.",
+    )
+    smoke_p.add_argument("--steps", type=int, default=25, help="Number of WSD training steps.")
+    smoke_p.add_argument(
+        "--device",
+        default="auto",
+        help="Device override: auto | mps | cuda | cpu.",
+    )
+    smoke_p.set_defaults(func=_cmd_train_smoke)
 
     return parser
 
