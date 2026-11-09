@@ -1,0 +1,15 @@
+{
+  "captured_at_utc": "2026-11-09T14:14:57.262332+00:00",
+  "os": "Darwin",
+  "os_release": "25.5.0",
+  "machine": "arm64",
+  "python_version": "3.12.13",
+  "torch_version": "2.15.0",
+  "accelerator": "mps",
+  "device_name": "Apple Silicon MPS (arm64)",
+  "vram_gb": null,
+  "cuda_version": null,
+  "git_sha": "05414f1c53740116c42af299e2051f5828fc5245",
+  "git_dirty": true,
+  "uv_lock_sha256": "1c573a4a28d86c15a7c2942287daea6d326bd9f6b907af25485458d3f2cd0fc9"
+}

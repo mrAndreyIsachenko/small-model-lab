@@ -1,0 +1,10 @@
+{
+  "h7_verified": true,
+  "h7_kl_reduction_ratio": 0.7333,
+  "h8_verified": true,
+  "pareto_dominance_verified": true,
+  "cka_guided_kl": 0.005168,
+  "bottom_k_control_kl": 0.019381,
+  "tokens_processed": 0,
+  "tokens_per_sec": 0
+}

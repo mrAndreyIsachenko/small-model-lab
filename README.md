@@ -20,7 +20,7 @@
 
 ---
 
-## Sprint 1 Pre-Registered Hypotheses & Status
+## Pre-Registered Hypotheses & Status (Sprints 1–4)
 
 | ID | Hypothesis | Pre-Registered Acceptance Criterion | Status |
 | :--- | :--- | :--- | :--- |
@@ -28,6 +28,10 @@
 | **H2** | **GPU Throughput & `@triton.jit` Waterfall:** Cumulative system optimizations (`fp32 naive` → `fp32 sdpa` → `bf16 sdpa` → `bf16 fused kernels` → `torch.compile`) yield measured throughput gains and high hardware utilization. | Measured 5-stage waterfall in `reports/sprint1/`; `MFU >= 30%` on `1x H100 SXM` (`1.40x` local MPS speedup verified) | **Code Ready (`sml profile-h2`)** |
 | **H3** | **Chinchilla Optimal (`1.5B`) vs. Overtrained (`4.0B`) WSD Cooldown:** Overtraining `sml-100m` (`75.52M` non-embedding params) past `20x` tokens/param via WSD cooldown branching improves `val bpb` and zero-shot accuracy at identical inference cost. | Improvement exceeds `2σ` of 3-seed `sml-xs` noise floor | **Code Ready (`sml train`)** |
 | **H4** | **In-Context Induction Phase Transition:** Log-spaced checkpoints reveal an abrupt phase transition in intra-document `loss(late) - loss(early)` and synthetic sequence copying. | Phase transition localized across 15 log-spaced checkpoints | **Code Ready (`sml train`)** |
+| **H5** | **Gated Multiplicative vs. Naive Additive Rubric (Anti-Reward-Hacking):** `G_evidence · R_correctness` prevents premature guessing and unsafe SQL during multi-turn `GRPO`. | `oracle_gated > 1.0`, `lazy_gated == 0.0` vs. `lazy_naive == 0.75`, and `H5_skill_difference >= 0.15` | **Verified** (`Δskill = +0.8625` in [`results/h5_env_verification/`](results/h5_env_verification/final_metrics.json) & [`results/h6_adaptation_comparison/`](results/h6_adaptation_comparison/adaptation_comparison.json)) |
+| **H6** | **Context Enrichment (`Hybrid RAG`) vs. Weight Updates (`Distillation + GRPO`):** Hybrid BM25 + char 3-gram RRF resolves knowledge-bound table lookups (`>= 85%`), while weight updates dominate skill-bound multi-turn hypothesis elimination (`>= 20 pp` gain). | `rag_knowledge_score >= 0.85` AND `H6_skill_difference >= 0.20` | **Verified** (`rag_kb = 1.00`, `Δskill = +0.5050` in [`results/h6_adaptation_comparison/`](results/h6_adaptation_comparison/adaptation_comparison.json)) |
+| **H7** | **Representation-Constrained Compression (CKA-Guided Mixed-Precision RCO):** Allocating 8-bit precision to the top-k highest per-block CKA-drift layers reduces KL divergence by `>= 20%` vs. an equal-bit bottom-k control (`5.33 bits/weight`). | `h7_kl_reduction_ratio >= 0.20` at identical average bits/weight | **Verified** (`73.33%` KL reduction: `0.005168` vs. `0.019381` at `5.33 bits` in [`results/h7_h8_surgery_pareto/`](results/h7_h8_surgery_pareto/surgery_pareto.json)) |
+| **H8** | **Rank-1 Subspace Projection (`W' = W - r(r^T W)`):** Closed-form orthogonal projection zeroes out targeted residual stream writes along contrastive direction `r` (`< 1e-5`). | `max_ortho_residual < 1e-5` AND `layer_write_proj_after < 1e-5` | **Verified** (`ortho_residual = 0.0`, `write_proj: 7.91e-3 → 2.57e-6` in [`results/h7_h8_surgery_pareto/`](results/h7_h8_surgery_pareto/surgery_pareto.json)) |
 
 ---
 
@@ -52,8 +56,12 @@ make sync
 make test
 make lint
 
-# 3. Verify H1 GPT-2 124M mathematical parity & cross-document causal isolation
+# 3. Verify H1 (GPT-2 124M parity), H5 (StatefulToolEnv), H6 (Context vs. Weights), and H7/H8 (Weight Surgery & Pareto)
 make verify-h1
+make verify-env
+make compare-adaptation
+make run-surgery
+make report
 
 # 4. Run end-to-end M2+M3 local pretraining smoke test on Apple Silicon MPS / CPU
 make train-smoke

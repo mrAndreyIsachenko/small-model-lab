@@ -1,0 +1,147 @@
+{
+  "h7_verified": true,
+  "h7_kl_reduction_ratio": 0.7333,
+  "h8_verified": true,
+  "h8_diagnostics": {
+    "max_ortho_residual": 0.0,
+    "layer5_write_proj_before": 0.007913,
+    "layer5_write_proj_after": 2.57e-06,
+    "kl_ablation_collateral": 0.0
+  },
+  "pareto_dominance_verified": true,
+  "layer_drifts": [
+    {
+      "layer_idx": 0,
+      "cka_similarity": 0.984726,
+      "cka_drift": 0.015274
+    },
+    {
+      "layer_idx": 1,
+      "cka_similarity": 0.97457,
+      "cka_drift": 0.02543
+    },
+    {
+      "layer_idx": 2,
+      "cka_similarity": 0.096973,
+      "cka_drift": 0.903027
+    },
+    {
+      "layer_idx": 3,
+      "cka_similarity": 0.509418,
+      "cka_drift": 0.490582
+    },
+    {
+      "layer_idx": 4,
+      "cka_similarity": 0.11119,
+      "cka_drift": 0.88881
+    },
+    {
+      "layer_idx": 5,
+      "cka_similarity": 0.460061,
+      "cka_drift": 0.539939
+    }
+  ],
+  "bit_allocations": {
+    "cka_guided": {
+      "0": 4,
+      "1": 4,
+      "2": 8,
+      "3": 4,
+      "4": 8,
+      "5": 4
+    },
+    "bottom_k_control": {
+      "0": 8,
+      "1": 8,
+      "2": 4,
+      "3": 4,
+      "4": 4,
+      "5": 4
+    }
+  },
+  "quantization_stats": {
+    "cka_guided": {
+      "average_bits_per_weight": 5.33,
+      "compression_ratio_vs_bf16": 3.0,
+      "estimated_model_mb": 0.56
+    },
+    "bottom_k_control": {
+      "average_bits_per_weight": 5.33,
+      "compression_ratio_vs_bf16": 3.0,
+      "estimated_model_mb": 0.56
+    },
+    "uniform_low": {
+      "average_bits_per_weight": 4.0,
+      "compression_ratio_vs_bf16": 4.0,
+      "estimated_model_mb": 0.42
+    },
+    "uniform_high": {
+      "average_bits_per_weight": 8.0,
+      "compression_ratio_vs_bf16": 2.0,
+      "estimated_model_mb": 0.84
+    }
+  },
+  "kl_divergences": {
+    "cka_guided": 0.005168,
+    "bottom_k_control": 0.019381,
+    "uniform_low": 0.019133,
+    "uniform_high": 0.00067,
+    "pruned_5layer_int4": 0.02734
+  },
+  "pareto_frontier": [
+    {
+      "variant": "1_bf16_adapted",
+      "avg_bits": 16.0,
+      "compression_ratio": 1.0,
+      "kl_vs_bf16": 0.0,
+      "measured_cpu_ms_per_tok": 0.0111,
+      "measured_cpu_tok_s": 90086.9,
+      "is_pareto_optimal": true
+    },
+    {
+      "variant": "2_fp8_uniform",
+      "avg_bits": 8.0,
+      "compression_ratio": 2.0,
+      "kl_vs_bf16": 0.00067,
+      "measured_cpu_ms_per_tok": 0.0112,
+      "measured_cpu_tok_s": 89105.2,
+      "is_pareto_optimal": true
+    },
+    {
+      "variant": "3_cka_guided_mixed_4_8",
+      "avg_bits": 5.33,
+      "compression_ratio": 3.0,
+      "kl_vs_bf16": 0.005168,
+      "measured_cpu_ms_per_tok": 0.0111,
+      "measured_cpu_tok_s": 90328.5,
+      "is_pareto_optimal": true
+    },
+    {
+      "variant": "4_bottom_k_control_4_8",
+      "avg_bits": 5.33,
+      "compression_ratio": 3.0,
+      "kl_vs_bf16": 0.019381,
+      "measured_cpu_ms_per_tok": 0.0111,
+      "measured_cpu_tok_s": 90370.0,
+      "is_pareto_optimal": false
+    },
+    {
+      "variant": "5_uniform_int4",
+      "avg_bits": 4.0,
+      "compression_ratio": 4.0,
+      "kl_vs_bf16": 0.019133,
+      "measured_cpu_ms_per_tok": 0.0107,
+      "measured_cpu_tok_s": 93291.3,
+      "is_pareto_optimal": true
+    },
+    {
+      "variant": "6_pruned_5layer_int4",
+      "avg_bits": 3.33,
+      "compression_ratio": 4.8,
+      "kl_vs_bf16": 0.02734,
+      "measured_cpu_ms_per_tok": 0.0093,
+      "measured_cpu_tok_s": 107894.3,
+      "is_pareto_optimal": true
+    }
+  ]
+}

@@ -1,0 +1,28 @@
+{
+  "run_id": "h7_h8_surgery_pareto",
+  "experiment_id": "h7_h8_surgery_pareto",
+  "hypothesis_id": "H7",
+  "hypothesis": "Allocating 8-bit precision to the top-k highest CKA-drift layers and 4-bit to low-drift layers yields >20% lower KL divergence than an equal-bit bottom-k control (H7), while rank-1 subspace projection W' = W - r(r^T W) zeroes out targeted residual writes (<1e-5) with minimal collateral KL (H8).",
+  "prediction": "cka_guided 4/8-bit allocation achieves >= 20% lower KL divergence vs adapted_model than bottom_k_control at identical average bits-per-weight (5.33 bits), and rank-1 subspace ablation reduces targeted residual write projection below 1e-5.",
+  "acceptance_criterion": "h7_verified == True AND h8_verified == True AND pareto_dominance_verified == True",
+  "mode": "measured",
+  "status": "completed",
+  "seed": 2026,
+  "model_name": "sml-nano",
+  "total_params": 11536640,
+  "non_embedding_params": 3148032,
+  "dataset_name": "tinystories-smoke",
+  "git_sha": "05414f1c53740116c42af299e2051f5828fc5245",
+  "git_dirty": true,
+  "started_at_utc": "2026-11-09T14:14:57.217541+00:00",
+  "completed_at_utc": "2026-11-09T14:14:57.459527+00:00",
+  "pre_run_estimate": {
+    "planned_tokens": 65536,
+    "flops_per_token": 72365568,
+    "total_flops": 4742549864448,
+    "assumed_mfu": 0.3,
+    "estimated_clean_gpu_hours": 0.0002,
+    "estimated_cost_usd": 0.0
+  },
+  "conclusion": "Surgery verification completed: H7_verified=True, H8_verified=True"
+}

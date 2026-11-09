@@ -1,0 +1,6 @@
+{"step": 1, "timestamp_utc": "2026-11-09T14:14:57.458901+00:00", "avg_bits": 16.0, "kl_vs_bf16": 0.0, "measured_cpu_tok_s": 90086.9}
+{"step": 2, "timestamp_utc": "2026-11-09T14:14:57.459184+00:00", "avg_bits": 8.0, "kl_vs_bf16": 0.00067, "measured_cpu_tok_s": 89105.2}
+{"step": 3, "timestamp_utc": "2026-11-09T14:14:57.459237+00:00", "avg_bits": 5.33, "kl_vs_bf16": 0.005168, "measured_cpu_tok_s": 90328.5}
+{"step": 4, "timestamp_utc": "2026-11-09T14:14:57.459276+00:00", "avg_bits": 5.33, "kl_vs_bf16": 0.019381, "measured_cpu_tok_s": 90370.0}
+{"step": 5, "timestamp_utc": "2026-11-09T14:14:57.459305+00:00", "avg_bits": 4.0, "kl_vs_bf16": 0.019133, "measured_cpu_tok_s": 93291.3}
+{"step": 6, "timestamp_utc": "2026-11-09T14:14:57.459332+00:00", "avg_bits": 3.33, "kl_vs_bf16": 0.02734, "measured_cpu_tok_s": 107894.3}

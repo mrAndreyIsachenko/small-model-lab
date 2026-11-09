@@ -671,6 +671,82 @@ def _cmd_compare_adaptation(args: argparse.Namespace) -> int:
     return 0 if (comp["hypotheses"]["H5_verified"] and comp["hypotheses"]["H6_verified"]) else 1
 
 
+def _cmd_run_surgery(args: argparse.Namespace) -> int:
+    import json
+    import time
+
+    from sml.config import load_experiment_spec
+    from sml.surgery.pareto import run_surgery_and_pareto_suite
+    from sml.tracking.manifest import RunRecorder
+
+    spec = load_experiment_spec(args.experiment)
+    output_dir = Path(args.output_dir)
+    run_id = args.run_id or spec.experiment_id
+
+    t0 = time.perf_counter()
+    recorder = RunRecorder(
+        run_id=run_id,
+        spec=spec,
+        output_root=output_dir,
+        mode="measured",
+    )
+
+    res = run_surgery_and_pareto_suite(seed=spec.seed)
+
+    # Log Pareto frontier metrics
+    for idx, item in enumerate(res["pareto_frontier"], start=1):
+        recorder.log_step(
+            step=idx,
+            metrics={
+                "avg_bits": float(item["avg_bits"]),
+                "kl_vs_bf16": float(item["kl_vs_bf16"]),
+                "measured_cpu_tok_s": float(item["measured_cpu_tok_s"]),
+            },
+        )
+
+    # Write surgery_pareto.json
+    surgery_pareto_path = recorder.run_dir / "surgery_pareto.json"
+    surgery_pareto_path.write_text(
+        json.dumps(res, indent=2),
+        encoding="utf-8",
+    )
+
+    # Final metrics
+    final_metrics = {
+        "h7_verified": res["h7_verified"],
+        "h7_kl_reduction_ratio": res["h7_kl_reduction_ratio"],
+        "h8_verified": res["h8_verified"],
+        "pareto_dominance_verified": res["pareto_dominance_verified"],
+        "cka_guided_kl": res["kl_divergences"]["cka_guided"],
+        "bottom_k_control_kl": res["kl_divergences"]["bottom_k_control"],
+        "tokens_processed": 0,
+        "tokens_per_sec": 0,
+    }
+
+    elapsed = time.perf_counter() - t0
+    run_path = recorder.finalize(
+        final_metrics=final_metrics,
+        active_seconds=elapsed,
+        billed_seconds=elapsed,
+        status="completed" if (res["h7_verified"] and res["h8_verified"]) else "failed",
+        conclusion=(
+            f"Surgery verification completed: "
+            f"H7_verified={res['h7_verified']}, "
+            f"H8_verified={res['h8_verified']}"
+        ),
+    )
+
+    # Print JSON summary
+    summary = {
+        "h7_verified": res["h7_verified"],
+        "h8_verified": res["h8_verified"],
+        "run_path": str(run_path),
+    }
+    print(json.dumps(summary, indent=2))
+
+    return 0 if (res["h7_verified"] and res["h8_verified"]) else 1
+
+
 def build_parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(
         prog="sml",
@@ -920,6 +996,24 @@ def build_parser() -> argparse.ArgumentParser:
         help="Number of adaptation episodes to run.",
     )
     compare_adaptation_p.set_defaults(func=_cmd_compare_adaptation)
+
+    # Run Surgery subcommand
+    run_surgery_p = sub.add_parser(
+        "run-surgery",
+        help="Execute H7/H8 weight surgery verification and Serving Pareto Frontier.",
+    )
+    run_surgery_p.add_argument(
+        "--experiment",
+        default="experiments/h7_h8_surgery_pareto.yaml",
+        help="Path to H7/H8 experiment YAML.",
+    )
+    run_surgery_p.add_argument(
+        "--output-dir",
+        default="results",
+        help="Directory for run output bundle.",
+    )
+    run_surgery_p.add_argument("--run-id", default=None, help="Optional explicit run_id override.")
+    run_surgery_p.set_defaults(func=_cmd_run_surgery)
 
     return parser
 

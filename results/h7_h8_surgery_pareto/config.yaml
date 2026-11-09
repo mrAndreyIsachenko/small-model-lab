@@ -1,0 +1,67 @@
+experiment_id: h7_h8_surgery_pareto
+hypothesis_id: H7
+hypothesis: Allocating 8-bit precision to the top-k highest CKA-drift layers and 4-bit
+  to low-drift layers yields >20% lower KL divergence than an equal-bit bottom-k control
+  (H7), while rank-1 subspace projection W' = W - r(r^T W) zeroes out targeted residual
+  writes (<1e-5) with minimal collateral KL (H8).
+prediction: cka_guided 4/8-bit allocation achieves >= 20% lower KL divergence vs adapted_model
+  than bottom_k_control at identical average bits-per-weight (5.33 bits), and rank-1
+  subspace ablation reduces targeted residual write projection below 1e-5.
+acceptance_criterion: h7_verified == True AND h8_verified == True AND pareto_dominance_verified
+  == True
+seed: 2026
+model:
+  name: sml-nano
+  vocab_size: 32768
+  d_model: 256
+  n_layers: 4
+  n_heads: 4
+  n_kv_heads: 2
+  d_ff: 768
+  max_seq_len: 1024
+  norm_type: rmsnorm
+  pos_encoding: rope
+  mlp_type: swiglu
+  bias: false
+  tie_embeddings: true
+  rope_theta: 10000.0
+  norm_eps: 1.0e-05
+data:
+  name: tinystories-smoke
+  hf_dataset: roneneldan/TinyStories
+  hf_subset: default
+  vocab_size: 32768
+  train_tokens: 20000000
+  val_tokens: 1000000
+  test_tokens: 1000000
+  shard_size_tokens: 10000000
+  hf_repo_id: mrAndreyIsachenko/sml-tinystories-shards
+  license: CDLA-Sharing-1.0
+hardware:
+  name: apple-m4-pro-48gb
+  accelerator: mps
+  vram_gb: 48.0
+  peak_bf16_tflops: 18.0
+  hourly_rate_usd: 0.0
+  price_as_of: '2026-10-31'
+  provider_notes: Local MacBook Pro 16-inch (Apple M4 Pro, 48 GB Unified Memory)
+train:
+  batch_size_tokens: 4096
+  micro_batch_size: 2
+  seq_len: 512
+  max_steps: 16
+  lr: 0.0005
+  min_lr_ratio: 0.1
+  weight_decay: 0.05
+  beta1: 0.9
+  beta2: 0.95
+  grad_clip: 1.0
+  schedule: wsd
+  warmup_steps: 2
+  decay_fraction: 0.2
+  branch_cooldown_tokens: null
+  precision: bf16
+  compile: false
+model_config_path: configs/model/sml_nano.yaml
+data_config_path: configs/data/tinystories.yaml
+hardware_config_path: configs/hardware/m4_pro_mps.yaml
