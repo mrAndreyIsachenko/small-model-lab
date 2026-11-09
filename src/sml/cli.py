@@ -594,6 +594,83 @@ def _cmd_verify_env(args: argparse.Namespace) -> int:
     return 0 if h5_passed else 1
 
 
+def _cmd_compare_adaptation(args: argparse.Namespace) -> int:
+    from sml.adaptation import run_adaptation_comparison
+    from sml.config import load_experiment_spec
+    from sml.tracking.manifest import RunRecorder
+
+    spec = load_experiment_spec(args.experiment)
+    output_dir = Path(args.output_dir)
+    run_id = args.run_id or spec.experiment_id
+
+    t0 = time.perf_counter()
+    recorder = RunRecorder(
+        run_id=run_id,
+        spec=spec,
+        output_root=output_dir,
+        mode="measured",
+    )
+
+    comp = run_adaptation_comparison(split="test", count=args.episodes, seed=spec.seed)
+    by_name = {item["strategy_name"]: item for item in comp["results"]}
+
+    for idx, item in enumerate(comp["results"], start=1):
+        recorder.log_step(
+            step=idx,
+            metrics={
+                "knowledge_bound_score": float(item["knowledge_bound_score"]),
+                "skill_bound_score": float(item["skill_bound_score"]),
+                "mean_gated_reward": float(item["mean_gated_reward"]),
+                "ungrounded_citation_rate": float(item["ungrounded_citation_rate"]),
+                "mean_steps": float(item["mean_steps"]),
+            },
+        )
+
+    comparison_path = recorder.run_dir / "adaptation_comparison.json"
+    comparison_path.write_text(
+        json.dumps(comp, indent=2),
+        encoding="utf-8",
+    )
+
+    final_metrics = {
+        "h5_verified": comp["hypotheses"]["H5_verified"],
+        "h6_verified": comp["hypotheses"]["H6_verified"],
+        "h5_skill_difference": comp["hypotheses"]["H5_skill_difference"],
+        "h6_skill_difference": comp["hypotheses"]["H6_skill_difference"],
+        "rag_knowledge_score": by_name["3_hybrid_rag"]["knowledge_bound_score"],
+        "rag_retrieval_recall_at_1": comp["rag_retrieval_recall_at_1"],
+        "gated_grpo_skill_score": by_name["6_grpo_gated_rl"]["skill_bound_score"],
+        "naive_grpo_skill_score": by_name["6b_grpo_naive_additive"]["skill_bound_score"],
+        "tokens_processed": 0,
+        "tokens_per_sec": 0,
+    }
+
+    elapsed = time.perf_counter() - t0
+    run_path = recorder.finalize(
+        final_metrics=final_metrics,
+        active_seconds=elapsed,
+        billed_seconds=elapsed,
+        status="completed"
+        if (comp["hypotheses"]["H5_verified"] and comp["hypotheses"]["H6_verified"])
+        else "failed",
+        conclusion=(
+            f"Adaptation comparison completed: "
+            f"H5_verified={comp['hypotheses']['H5_verified']}, "
+            f"H6_verified={comp['hypotheses']['H6_verified']}"
+        ),
+    )
+
+    # Print JSON summary
+    summary = {
+        "h5_verified": comp["hypotheses"]["H5_verified"],
+        "h6_verified": comp["hypotheses"]["H6_verified"],
+        "run_path": str(run_path),
+    }
+    print(json.dumps(summary, indent=2))
+
+    return 0 if (comp["hypotheses"]["H5_verified"] and comp["hypotheses"]["H6_verified"]) else 1
+
+
 def build_parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(
         prog="sml",
@@ -817,6 +894,32 @@ def build_parser() -> argparse.ArgumentParser:
         help="Number of counterfactual episodes to run.",
     )
     verify_env_p.set_defaults(func=_cmd_verify_env)
+
+    # Compare Adaptation subcommand
+    compare_adaptation_p = sub.add_parser(
+        "compare-adaptation",
+        help="Compare adaptation strategies: Hybrid RAG vs Rejection Sampling vs GRPO.",
+    )
+    compare_adaptation_p.add_argument(
+        "--experiment",
+        default="experiments/h6_adaptation_comparison.yaml",
+        help="Path to H6 experiment YAML.",
+    )
+    compare_adaptation_p.add_argument(
+        "--output-dir",
+        default="results",
+        help="Directory for run output bundle.",
+    )
+    compare_adaptation_p.add_argument(
+        "--run-id", default=None, help="Optional explicit run_id override."
+    )
+    compare_adaptation_p.add_argument(
+        "--episodes",
+        type=int,
+        default=18,
+        help="Number of adaptation episodes to run.",
+    )
+    compare_adaptation_p.set_defaults(func=_cmd_compare_adaptation)
 
     return parser
 

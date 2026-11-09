@@ -1,0 +1,12 @@
+{
+  "h5_verified": true,
+  "h6_verified": true,
+  "h5_skill_difference": 0.8625,
+  "h6_skill_difference": 0.505,
+  "rag_knowledge_score": 1.0,
+  "rag_retrieval_recall_at_1": 1.0,
+  "gated_grpo_skill_score": 1.0,
+  "naive_grpo_skill_score": 0.1375,
+  "tokens_processed": 0,
+  "tokens_per_sec": 0
+}

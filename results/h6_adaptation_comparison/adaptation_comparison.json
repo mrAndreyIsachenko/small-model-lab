@@ -1,0 +1,139 @@
+{
+  "results": [
+    {
+      "strategy_name": "1_base_zero_shot",
+      "paradigm": "context_only",
+      "knowledge_bound_score": 0.0,
+      "skill_bound_score": 0.0,
+      "mean_gated_reward": 0.0,
+      "ci_95_low": 0.0,
+      "ci_95_high": 0.0,
+      "ungrounded_citation_rate": 1.0,
+      "mean_steps": 1.0
+    },
+    {
+      "strategy_name": "2_strong_prompting",
+      "paradigm": "context_only",
+      "knowledge_bound_score": 0.6667,
+      "skill_bound_score": 0.21,
+      "mean_gated_reward": 0.2415,
+      "ci_95_low": 0.0805,
+      "ci_95_high": 0.4025,
+      "ungrounded_citation_rate": 0.6667,
+      "mean_steps": 2.33
+    },
+    {
+      "strategy_name": "3_hybrid_rag",
+      "paradigm": "context_only",
+      "knowledge_bound_score": 1.0,
+      "skill_bound_score": 0.495,
+      "mean_gated_reward": 0.5693,
+      "ci_95_low": 0.5693,
+      "ci_95_high": 0.5693,
+      "ungrounded_citation_rate": 0.3333,
+      "mean_steps": 3.0
+    },
+    {
+      "strategy_name": "4_lora_sft",
+      "paradigm": "weight_update",
+      "knowledge_bound_score": 1.0,
+      "skill_bound_score": 0.8317,
+      "mean_gated_reward": 0.9364,
+      "ci_95_low": 0.814,
+      "ci_95_high": 1.0588,
+      "ungrounded_citation_rate": 0.1111,
+      "mean_steps": 3.67
+    },
+    {
+      "strategy_name": "5_teacher_distill_sft",
+      "paradigm": "weight_update",
+      "knowledge_bound_score": 1.0,
+      "skill_bound_score": 0.9158,
+      "mean_gated_reward": 1.0282,
+      "ci_95_low": 0.9364,
+      "ci_95_high": 1.12,
+      "ungrounded_citation_rate": 0.0556,
+      "mean_steps": 3.83
+    },
+    {
+      "strategy_name": "6_grpo_gated_rl",
+      "paradigm": "weight_update",
+      "knowledge_bound_score": 1.0,
+      "skill_bound_score": 1.0,
+      "mean_gated_reward": 1.12,
+      "ci_95_low": 1.12,
+      "ci_95_high": 1.12,
+      "ungrounded_citation_rate": 0.0,
+      "mean_steps": 4.0
+    },
+    {
+      "strategy_name": "6b_grpo_naive_additive",
+      "paradigm": "weight_update",
+      "knowledge_bound_score": 0.2778,
+      "skill_bound_score": 0.1375,
+      "mean_gated_reward": 0.1581,
+      "ci_95_low": 0.0316,
+      "ci_95_high": 0.2846,
+      "ungrounded_citation_rate": 0.8148,
+      "mean_steps": 1.56
+    }
+  ],
+  "rag_retrieval_recall_at_1": 1.0,
+  "distillation_rejection_sampling": {
+    "total_candidates": 54,
+    "accepted_count": 18,
+    "acceptance_rate": 0.3333,
+    "mean_accepted_reward": 1.12
+  },
+  "grpo_policy_diagnostics": {
+    "gated_multiplicative": {
+      "rubric_mode": "gated_multiplicative",
+      "initial_probs": [
+        0.496746,
+        0.301292,
+        0.201962
+      ],
+      "final_probs": [
+        0.021025,
+        0.114849,
+        0.864126
+      ],
+      "final_guess_prob": 0.021025,
+      "final_partial_prob": 0.114849,
+      "final_verify_prob": 0.864126,
+      "measured_mode_rewards": [
+        0.0,
+        0.56925,
+        1.12
+      ]
+    },
+    "naive_additive": {
+      "rubric_mode": "naive_additive",
+      "initial_probs": [
+        0.496746,
+        0.301292,
+        0.201962
+      ],
+      "final_probs": [
+        0.141132,
+        0.848681,
+        0.010187
+      ],
+      "final_guess_prob": 0.141132,
+      "final_partial_prob": 0.848681,
+      "final_verify_prob": 0.010187,
+      "measured_mode_rewards": [
+        0.75,
+        0.8525,
+        0.52625
+      ]
+    }
+  },
+  "hypotheses": {
+    "H5_verified": true,
+    "H5_skill_difference": 0.8625,
+    "H6_verified": true,
+    "H6_skill_difference": 0.505,
+    "H6_rag_knowledge_score": 1.0
+  }
+}

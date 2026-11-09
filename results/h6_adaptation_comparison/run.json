@@ -1,0 +1,28 @@
+{
+  "run_id": "h6_adaptation_comparison",
+  "experiment_id": "h6_adaptation_comparison",
+  "hypothesis_id": "H6",
+  "hypothesis": "Enriching context via Hybrid RAG (BM25 + char n-gram RRF) resolves knowledge-bound table/schema lookups (>= 85% coverage), but weight updates via Rejection-Sampled Teacher Distillation + Multi-Turn Gated GRPO significantly outperform context-only strategies on skill-bound multi-step hypothesis elimination and confounder rejection (>= 20 pp gain).",
+  "prediction": "3_hybrid_rag achieves >= 0.85 knowledge_bound_score, while 6_grpo_gated_rl outperforms 3_hybrid_rag by >= 0.20 on skill_bound_score (G_evidence * R_correctness) and outperforms 6b_grpo_naive_additive by >= 0.15 (H5).",
+  "acceptance_criterion": "H6_verified == True AND H5_verified == True AND rag_retrieval_recall_at_1 == 1.0",
+  "mode": "measured",
+  "status": "completed",
+  "seed": 2026,
+  "model_name": "sml-nano",
+  "total_params": 11536640,
+  "non_embedding_params": 3148032,
+  "dataset_name": "tinystories-smoke",
+  "git_sha": "a4dac8e2f9758e5920dab8afdd56ca46bd1fe95b",
+  "git_dirty": true,
+  "started_at_utc": "2026-11-09T14:02:05.958156+00:00",
+  "completed_at_utc": "2026-11-09T14:02:08.536220+00:00",
+  "pre_run_estimate": {
+    "planned_tokens": 65536,
+    "flops_per_token": 72365568,
+    "total_flops": 4742549864448,
+    "assumed_mfu": 0.3,
+    "estimated_clean_gpu_hours": 0.0002,
+    "estimated_cost_usd": 0.0
+  },
+  "conclusion": "Adaptation comparison completed: H5_verified=True, H6_verified=True"
+}

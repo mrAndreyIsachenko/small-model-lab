@@ -1,4 +1,4 @@
-.PHONY: help sync test lint format verify-h1 verify-env train-smoke profile-h2-local gpu-smoke smoke report clean
+.PHONY: help sync test lint format verify-h1 verify-env compare-adaptation train-smoke profile-h2-local gpu-smoke smoke report clean
 
 help:
 	@echo "Small Model Lab — Available Commands:"
@@ -8,6 +8,7 @@ help:
 	@echo "  make format           Auto-format codebase via ruff"
 	@echo "  make verify-h1        Run H1 GPT-2 124M mathematical & causal equivalence verification"
 	@echo "  make verify-env       Run H5 StatefulToolEnv & Gated Rubric anti-hacking verification"
+	@echo "  make compare-adaptation Run H6 Context vs. Weights adaptation comparison (7 strategies)"
 	@echo "  make train-smoke      Run end-to-end M2+M3 local pretraining smoke test (MPS/CUDA/CPU)"
 	@echo "  make profile-h2-local Run 5-stage MFU throughput waterfall locally (MPS/CPU)"
 	@echo "  make gpu-smoke        Dry-run the full M4-M5 GPU script in fast smoke mode"
@@ -32,6 +33,9 @@ verify-h1:
 
 verify-env:
 	uv run sml verify-env --experiment experiments/h5_env_verification.yaml --output-dir results --run-id h5_env_verification
+
+compare-adaptation:
+	uv run sml compare-adaptation --experiment experiments/h6_adaptation_comparison.yaml --output-dir results --run-id h6_adaptation_comparison
 
 train-smoke:
 	uv run sml train-smoke --steps 20 --device auto

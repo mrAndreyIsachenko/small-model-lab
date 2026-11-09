@@ -8,6 +8,7 @@
 | :--- | :--- | :--- | :--- | ---: | ---: | ---: | ---: | ---: | :--- | ---: | :--- |
 | `h1_gpt2_parity` | `H1` | `measured` | `gpt2-124m` | `85,842,432` | `128` | `n/a` | `30` | `n/a` | `apple-m4-pro-48gb` | `$0.0000` | `f122a0c9` |
 | `h5_env_verification` | `H5` | `measured` | `sml-nano` | `3,148,032` | `0` | `n/a` | `0` | `n/a` | `apple-m4-pro-48gb` | `$0.0000` | `7cc965d9` |
+| `h6_adaptation_comparison` | `H6` | `measured` | `sml-nano` | `3,148,032` | `0` | `n/a` | `0` | `n/a` | `apple-m4-pro-48gb` | `$0.0000` | `a4dac8e2` |
 
 ## Run Conclusions
 
@@ -18,3 +19,7 @@
 ### `h5_env_verification` (`H5` — `measured`)
 - **Prediction:** Oracle policy achieves 100% evidence coverage and > 1.0 mean gated reward across all 12 counterfactual episodes; lazy-guess and unsafe-SQL policies score exactly 0.0 under Gated Multiplicative but > 0.40 under Naive Additive.
 - **Conclusion:** H5 environment verification PASSED: oracle_gated=1.1200, lazy_gated=0.0000, unsafe_gated=0.0000, lazy_naive=0.7500
+
+### `h6_adaptation_comparison` (`H6` — `measured`)
+- **Prediction:** 3_hybrid_rag achieves >= 0.85 knowledge_bound_score, while 6_grpo_gated_rl outperforms 3_hybrid_rag by >= 0.20 on skill_bound_score (G_evidence * R_correctness) and outperforms 6b_grpo_naive_additive by >= 0.15 (H5).
+- **Conclusion:** Adaptation comparison completed: H5_verified=True, H6_verified=True

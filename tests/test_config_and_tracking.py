@@ -78,7 +78,7 @@ def test_all_experiment_specs_load_and_compute_budget() -> None:
     for exp_path in yaml_files:
         spec = load_experiment_spec(exp_path, repo_root=REPO_ROOT)
         assert spec.experiment_id
-        assert spec.hypothesis_id in {"H1", "H2", "H3", "H4", "H5"}
+        assert spec.hypothesis_id in {"H1", "H2", "H3", "H4", "H5", "H6", "H7", "H8"}
         assert spec.train.grad_accum_steps >= 1
 
         est = estimate_experiment_compute(spec)

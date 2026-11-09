@@ -1,0 +1,7 @@
+{"step": 1, "timestamp_utc": "2026-11-09T14:02:08.535072+00:00", "knowledge_bound_score": 0.0, "skill_bound_score": 0.0, "mean_gated_reward": 0.0, "ungrounded_citation_rate": 1.0, "mean_steps": 1.0}
+{"step": 2, "timestamp_utc": "2026-11-09T14:02:08.535361+00:00", "knowledge_bound_score": 0.6667, "skill_bound_score": 0.21, "mean_gated_reward": 0.2415, "ungrounded_citation_rate": 0.6667, "mean_steps": 2.33}
+{"step": 3, "timestamp_utc": "2026-11-09T14:02:08.535659+00:00", "knowledge_bound_score": 1.0, "skill_bound_score": 0.495, "mean_gated_reward": 0.5693, "ungrounded_citation_rate": 0.3333, "mean_steps": 3.0}
+{"step": 4, "timestamp_utc": "2026-11-09T14:02:08.535802+00:00", "knowledge_bound_score": 1.0, "skill_bound_score": 0.8317, "mean_gated_reward": 0.9364, "ungrounded_citation_rate": 0.1111, "mean_steps": 3.67}
+{"step": 5, "timestamp_utc": "2026-11-09T14:02:08.535861+00:00", "knowledge_bound_score": 1.0, "skill_bound_score": 0.9158, "mean_gated_reward": 1.0282, "ungrounded_citation_rate": 0.0556, "mean_steps": 3.83}
+{"step": 6, "timestamp_utc": "2026-11-09T14:02:08.535901+00:00", "knowledge_bound_score": 1.0, "skill_bound_score": 1.0, "mean_gated_reward": 1.12, "ungrounded_citation_rate": 0.0, "mean_steps": 4.0}
+{"step": 7, "timestamp_utc": "2026-11-09T14:02:08.535930+00:00", "knowledge_bound_score": 0.2778, "skill_bound_score": 0.1375, "mean_gated_reward": 0.1581, "ungrounded_citation_rate": 0.8148, "mean_steps": 1.56}
