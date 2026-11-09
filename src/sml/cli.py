@@ -473,6 +473,127 @@ def _cmd_train(args: argparse.Namespace) -> int:
     return 0
 
 
+def _cmd_verify_env(args: argparse.Namespace) -> int:
+    """Execute H5 environment verification: compare oracle, lazy-guess, and unsafe-SQL policies."""
+    from sml.config import load_experiment_spec
+    from sml.envs import (
+        load_environment,
+        run_lazy_guess_episode,
+        run_oracle_episode,
+        run_unsafe_sql_episode,
+    )
+    from sml.tracking.manifest import RunRecorder
+
+    spec = load_experiment_spec(args.experiment)
+    output_dir = Path(args.output_dir)
+    run_id = args.run_id or spec.experiment_id
+
+    t0 = time.perf_counter()
+    recorder = RunRecorder(
+        run_id=run_id,
+        spec=spec,
+        output_root=output_dir,
+        mode="measured",
+    )
+
+    env = load_environment(split="val", count=args.episodes, base_seed=spec.seed)
+
+    episode_metrics = []
+    for idx, scenario in enumerate(env.scenarios, start=1):
+        # Run all three policies
+        oracle_state = run_oracle_episode(env, scenario)
+        lazy_state = run_lazy_guess_episode(env, scenario)
+        unsafe_state = run_unsafe_sql_episode(env, scenario)
+
+        # Score each under both rubric modes
+        oracle_gated = env.score_state(oracle_state, mode_override="gated_multiplicative")
+        oracle_naive = env.score_state(oracle_state, mode_override="naive_additive")
+        lazy_gated = env.score_state(lazy_state, mode_override="gated_multiplicative")
+        lazy_naive = env.score_state(lazy_state, mode_override="naive_additive")
+        unsafe_gated = env.score_state(unsafe_state, mode_override="gated_multiplicative")
+        unsafe_naive = env.score_state(unsafe_state, mode_override="naive_additive")
+
+        # Log step metrics
+        recorder.log_step(
+            step=idx,
+            metrics={
+                "oracle_gated": oracle_gated.total_reward,
+                "oracle_naive": oracle_naive.total_reward,
+                "lazy_gated": lazy_gated.total_reward,
+                "lazy_naive": lazy_naive.total_reward,
+                "unsafe_gated": unsafe_gated.total_reward,
+                "unsafe_naive": unsafe_naive.total_reward,
+            },
+        )
+
+        # Store for final computation
+        episode_metrics.append(
+            {
+                "oracle_gated": oracle_gated.total_reward,
+                "oracle_naive": oracle_naive.total_reward,
+                "lazy_gated": lazy_gated.total_reward,
+                "lazy_naive": lazy_naive.total_reward,
+                "unsafe_gated": unsafe_gated.total_reward,
+                "unsafe_naive": unsafe_naive.total_reward,
+            }
+        )
+
+    # Compute means across all episodes
+    import statistics
+
+    oracle_gated_mean = statistics.mean(m["oracle_gated"] for m in episode_metrics)
+    oracle_naive_mean = statistics.mean(m["oracle_naive"] for m in episode_metrics)
+    lazy_gated_mean = statistics.mean(m["lazy_gated"] for m in episode_metrics)
+    lazy_naive_mean = statistics.mean(m["lazy_naive"] for m in episode_metrics)
+    unsafe_gated_mean = statistics.mean(m["unsafe_gated"] for m in episode_metrics)
+    unsafe_naive_mean = statistics.mean(m["unsafe_naive"] for m in episode_metrics)
+
+    # Verify H5 acceptance criterion
+    h5_passed = (
+        oracle_gated_mean > 1.0
+        and lazy_gated_mean == 0.0
+        and unsafe_gated_mean == 0.0
+        and lazy_naive_mean > 0.40
+    )
+
+    elapsed = time.perf_counter() - t0
+    run_path = recorder.finalize(
+        final_metrics={
+            "h5_passed": h5_passed,
+            "oracle_gated_mean": round(oracle_gated_mean, 6),
+            "oracle_naive_mean": round(oracle_naive_mean, 6),
+            "lazy_gated_mean": round(lazy_gated_mean, 6),
+            "lazy_naive_mean": round(lazy_naive_mean, 6),
+            "unsafe_gated_mean": round(unsafe_gated_mean, 6),
+            "unsafe_naive_mean": round(unsafe_naive_mean, 6),
+            "episodes_run": len(episode_metrics),
+            "tokens_processed": 0,
+            "tokens_per_sec": 0,
+        },
+        active_seconds=elapsed,
+        billed_seconds=elapsed,
+        status="completed" if h5_passed else "failed",
+        conclusion=(
+            f"H5 environment verification {'PASSED' if h5_passed else 'FAILED'}: "
+            f"oracle_gated={oracle_gated_mean:.4f}, lazy_gated={lazy_gated_mean:.4f}, "
+            f"unsafe_gated={unsafe_gated_mean:.4f}, lazy_naive={lazy_naive_mean:.4f}"
+        ),
+    )
+
+    # Print JSON summary
+    summary = {
+        "h5_passed": h5_passed,
+        "oracle_gated_mean": round(oracle_gated_mean, 6),
+        "lazy_gated_mean": round(lazy_gated_mean, 6),
+        "unsafe_gated_mean": round(unsafe_gated_mean, 6),
+        "lazy_naive_mean": round(lazy_naive_mean, 6),
+        "run_path": str(run_path),
+    }
+    print(json.dumps(summary, indent=2))
+
+    return 0 if h5_passed else 1
+
+
 def build_parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(
         prog="sml",
@@ -672,6 +793,30 @@ def build_parser() -> argparse.ArgumentParser:
         help="Number of evenly spaced checkpoints to save.",
     )
     train_p.set_defaults(func=_cmd_train)
+
+    # H5 Environment Verification subcommand
+    verify_env_p = sub.add_parser(
+        "verify-env",
+        help="Execute H5 environment verification across oracle, lazy, and unsafe policies.",
+    )
+    verify_env_p.add_argument(
+        "--experiment",
+        default="experiments/h5_env_verification.yaml",
+        help="Path to H5 experiment YAML.",
+    )
+    verify_env_p.add_argument(
+        "--output-dir",
+        default="results",
+        help="Directory for run output bundle.",
+    )
+    verify_env_p.add_argument("--run-id", default=None, help="Optional explicit run_id override.")
+    verify_env_p.add_argument(
+        "--episodes",
+        type=int,
+        default=12,
+        help="Number of counterfactual episodes to run.",
+    )
+    verify_env_p.set_defaults(func=_cmd_verify_env)
 
     return parser
 

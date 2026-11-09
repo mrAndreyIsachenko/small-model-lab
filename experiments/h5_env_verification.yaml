@@ -1,0 +1,32 @@
+experiment_id: h5_env_verification
+hypothesis_id: H5
+hypothesis: >
+  A Gated Multiplicative Rubric (R = G_safety * G_complete * R_correctness * G_evidence * (1 + alpha * R_efficiency))
+  on multi-seed counterfactual DuckDB scenarios eliminates reward hacking by lazy/guessing and unsafe SQL policies
+  (scoring 0.0) while rewarding verified analytical trajectories (> 1.0), whereas a Naive Additive Rubric rewards
+  unverified guessing (> 0.45).
+prediction: >
+  Oracle policy achieves 100% evidence coverage and > 1.0 mean gated reward across all 12 counterfactual episodes;
+  lazy-guess and unsafe-SQL policies score exactly 0.0 under Gated Multiplicative but > 0.40 under Naive Additive.
+acceptance_criterion: >
+  oracle_gated_reward > 1.0 AND lazy_guess_gated_reward == 0.0 AND unsafe_sql_gated_reward == 0.0 AND lazy_guess_naive_reward > 0.40
+seed: 2026
+model_config_path: configs/model/sml_nano.yaml
+data_config_path: configs/data/tinystories.yaml
+hardware_config_path: configs/hardware/m4_pro_mps.yaml
+train:
+  batch_size_tokens: 4096
+  micro_batch_size: 2
+  seq_len: 512
+  max_steps: 12
+  lr: 0.0006
+  min_lr_ratio: 0.1
+  weight_decay: 0.1
+  beta1: 0.9
+  beta2: 0.95
+  grad_clip: 1.0
+  schedule: wsd
+  warmup_steps: 2
+  decay_fraction: 0.2
+  precision: bf16
+  compile: false

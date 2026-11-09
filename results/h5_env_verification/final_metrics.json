@@ -1,0 +1,12 @@
+{
+  "h5_passed": true,
+  "oracle_gated_mean": 1.12,
+  "oracle_naive_mean": 0.98,
+  "lazy_gated_mean": 0.0,
+  "lazy_naive_mean": 0.75,
+  "unsafe_gated_mean": 0.0,
+  "unsafe_naive_mean": 0.55,
+  "episodes_run": 12,
+  "tokens_processed": 0,
+  "tokens_per_sec": 0
+}

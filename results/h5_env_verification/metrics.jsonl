@@ -1,0 +1,12 @@
+{"step": 1, "timestamp_utc": "2026-11-09T13:44:16.875332+00:00", "oracle_gated": 1.12, "oracle_naive": 0.98, "lazy_gated": 0.0, "lazy_naive": 0.75, "unsafe_gated": 0.0, "unsafe_naive": 0.55}
+{"step": 2, "timestamp_utc": "2026-11-09T13:44:16.906347+00:00", "oracle_gated": 1.12, "oracle_naive": 0.98, "lazy_gated": 0.0, "lazy_naive": 0.75, "unsafe_gated": 0.0, "unsafe_naive": 0.55}
+{"step": 3, "timestamp_utc": "2026-11-09T13:44:16.935094+00:00", "oracle_gated": 1.12, "oracle_naive": 0.98, "lazy_gated": 0.0, "lazy_naive": 0.75, "unsafe_gated": 0.0, "unsafe_naive": 0.55}
+{"step": 4, "timestamp_utc": "2026-11-09T13:44:16.963865+00:00", "oracle_gated": 1.12, "oracle_naive": 0.98, "lazy_gated": 0.0, "lazy_naive": 0.75, "unsafe_gated": 0.0, "unsafe_naive": 0.55}
+{"step": 5, "timestamp_utc": "2026-11-09T13:44:16.994350+00:00", "oracle_gated": 1.12, "oracle_naive": 0.98, "lazy_gated": 0.0, "lazy_naive": 0.75, "unsafe_gated": 0.0, "unsafe_naive": 0.55}
+{"step": 6, "timestamp_utc": "2026-11-09T13:44:17.046100+00:00", "oracle_gated": 1.12, "oracle_naive": 0.98, "lazy_gated": 0.0, "lazy_naive": 0.75, "unsafe_gated": 0.0, "unsafe_naive": 0.55}
+{"step": 7, "timestamp_utc": "2026-11-09T13:44:17.075968+00:00", "oracle_gated": 1.12, "oracle_naive": 0.98, "lazy_gated": 0.0, "lazy_naive": 0.75, "unsafe_gated": 0.0, "unsafe_naive": 0.55}
+{"step": 8, "timestamp_utc": "2026-11-09T13:44:17.105373+00:00", "oracle_gated": 1.12, "oracle_naive": 0.98, "lazy_gated": 0.0, "lazy_naive": 0.75, "unsafe_gated": 0.0, "unsafe_naive": 0.55}
+{"step": 9, "timestamp_utc": "2026-11-09T13:44:17.135148+00:00", "oracle_gated": 1.12, "oracle_naive": 0.98, "lazy_gated": 0.0, "lazy_naive": 0.75, "unsafe_gated": 0.0, "unsafe_naive": 0.55}
+{"step": 10, "timestamp_utc": "2026-11-09T13:44:17.165055+00:00", "oracle_gated": 1.12, "oracle_naive": 0.98, "lazy_gated": 0.0, "lazy_naive": 0.75, "unsafe_gated": 0.0, "unsafe_naive": 0.55}
+{"step": 11, "timestamp_utc": "2026-11-09T13:44:17.192402+00:00", "oracle_gated": 1.12, "oracle_naive": 0.98, "lazy_gated": 0.0, "lazy_naive": 0.75, "unsafe_gated": 0.0, "unsafe_naive": 0.55}
+{"step": 12, "timestamp_utc": "2026-11-09T13:44:17.218590+00:00", "oracle_gated": 1.12, "oracle_naive": 0.98, "lazy_gated": 0.0, "lazy_naive": 0.75, "unsafe_gated": 0.0, "unsafe_naive": 0.55}

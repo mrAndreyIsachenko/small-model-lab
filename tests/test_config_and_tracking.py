@@ -73,12 +73,12 @@ def test_invalid_head_divisibility_rejected() -> None:
 def test_all_experiment_specs_load_and_compute_budget() -> None:
     exp_dir = REPO_ROOT / "experiments"
     yaml_files = sorted(exp_dir.glob("*.yaml"))
-    assert len(yaml_files) == 4
+    assert len(yaml_files) >= 4
 
     for exp_path in yaml_files:
         spec = load_experiment_spec(exp_path, repo_root=REPO_ROOT)
         assert spec.experiment_id
-        assert spec.hypothesis_id in {"H1", "H2", "H3", "H4"}
+        assert spec.hypothesis_id in {"H1", "H2", "H3", "H4", "H5"}
         assert spec.train.grad_accum_steps >= 1
 
         est = estimate_experiment_compute(spec)

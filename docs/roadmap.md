@@ -15,7 +15,7 @@
 | **Sprint 1: Core Transformer, `@triton.jit` Kernels & GPU Pretraining (`Phase I Lean`)** | Weeks 1–4 (~35–40h) | Implement Llama/Qwen-compatible decoder (`RMSNorm`, `RoPE`, `GQA`, `SwiGLU`, `KV-cache`, intra-doc causal mask), custom `@triton.jit` fused `RMSNorm` & `SwiGLU` forward/backward kernels (`src/sml/kernels/`), verify `gpt2` (`124M`) logit parity (`< 1e-4`), train 32k BPE, stream-shard `FineWeb-Edu`, profile MFU waterfall, train `sml-100m` (`4.0B` WSD tokens + `1.5B` Chinchilla branch). | `sml-100m` weights + 15 log-spaced checkpoints + `@triton.jit` kernel benchmarks + 32k BPE + shard manifest on HF Hub + Report #1. |
 | **Sprint 2: Trainable Analytical & Incident RL Environment (`StatefulToolEnv`)** | Weeks 5–6 (~20–25h) | Build `verifiers`-compatible multi-turn environment (`StatefulToolEnv` + `load_environment`) on `dbt Core + DuckDB + sqlglot`, isolated MCP tools (`query_warehouse`, `get_metric_lineage`, `inspect_changes`, `submit_diagnosis`), multi-seed counterfactual fault injection (`product_bug`, `data_pipeline_artifact`, `mix_shift` + confounders), and Gated Multiplicative `Rubric` (`G_safety · G_complete · R_correctness · G_evidence · (1 + α R_efficiency)`). | Installable `verifiers` environment package (`src/sml/envs/`) + counterfactual scenario benchmark + anti-hacking unit suite + Report #2. |
 | **Sprint 3: Adaptation, Distillation & Multi-Turn RL (`Context vs. Weights`)** | Weeks 7–9 (~25–30h) | Baseline eval $\rightarrow$ trajectory collection $\rightarrow$ Teacher (`30B+`) Rejection-Sampled SFT $\rightarrow$ Multi-Turn `GRPO` into `1.5B–3B` open weights; run controlled ablation comparing Gated Multiplicative `Rubric` vs. Naive Additive reward on held-out fault seeds (`H5`). | Distilled & RL-tuned specialist models (`1.5B–3B`) + verified multi-turn trajectory dataset + Report #3. |
-| **Sprint 4: Specialist Surgery & Production Inference (`vLLM`)** | Weeks 10–11 (~20–25h) | Inspect layer-wise CKA drift (Base vs. SFT vs. GRPO Student), evaluate `FP8` / `INT4 AWQ` and layer-pruning degradation on multi-turn tool calls, benchmark `vLLM` continuous batching & prefix caching (`TTFT`, `TPOT`, `$/1k` incidents Pareto frontier). | Quantized specialist checkpoints + `vLLM` benchmark suite + Final Pareto Report #4. |
+| **Sprint 4: Specialist Surgery & Production Inference (`vLLM`)** | Weeks 10–11 (~20–25h) | Inspect layer-wise CKA drift (Base vs. SFT vs. GRPO Student), evaluate `FP8` / `INT4 AWQ` and layer-pruning degradation on multi-turn tool calls, benchmark `vLLM` continuous batching & prefix caching (`TTFT`, `TPOT`, `$/1k` incidents Pareto frontier), test CKA-guided non-uniform mixed-precision bit allocation (RCO principle), surgical rank-1 weight projection (W' = W - r(r^T W)) sensitivity across Gated Rubric components. | Quantized specialist checkpoints + `vLLM` benchmark suite + Final Pareto Report #4. |
 
 ## 3. Sprint 1 Milestone Plan
 
@@ -57,3 +57,20 @@ $$R(\tau) = G_{\text{safety}}(\tau) \cdot G_{\text{complete}}(\tau) \cdot \Big[ 
 | :--- | :--- | :--- | :--- |
 | **H5** | **Gated vs. Additive Reward Hacking in Multi-Turn `GRPO`:** Training a `1.5B–3B` policy with a naive additive reward induces premature termination / ungrounded guessing, whereas the Gated Multiplicative `Rubric` increases verified root-cause accuracy and maintains `< 5%` ungrounded citation rate on held-out seeds. | Gated `GRPO` outperforms Naive Additive `GRPO` by `>= 15 pp` on held-out `G_evidence * R_correctness` with `p < 0.05` (bootstrap 95% CI). | `Sprint 3` |
 | **H6** | **Context Enrichment (`Hybrid RAG`) vs. Weight Updates (`Distillation + GRPO`):** Enriching context resolves `knowledge-bound` schema/lineage lookups, but multi-turn `Distillation + GRPO` significantly outperforms prompting + RAG on `skill-bound` multi-step hypothesis elimination and confounder rejection. | `Distillation + GRPO` improves `skill-bound` episode pass rate by `>= 20 pp` over `Hybrid RAG` on the same `1.5B–3B` base model. | `Sprint 3` |
+
+## 5. Sprint 4 Specification: Weight Surgery, Mixed-Precision Allocation & Serving Pareto
+
+### 5.1 CKA-Guided Mixed-Precision Allocation (RCO Principle) & Post-Quantization Weight Surgery
+
+Using layer-wise Linear CKA drift (Base vs. SFT vs. GRPO Student) to guide non-uniform bit allocation across tensors (preserving higher precision in high-drift tool-routing/reasoning layers while compressing low-sensitivity layers, inspired by RCO / GSQ-RCO) and testing surgical rank-1 subspace updates W' = W - r(r^T W) on target projections (o_proj, down_proj) without full retraining.
+
+### 5.2 Component-Level Degradation Audit on StatefulToolEnv
+
+Measuring degradation across individual Gated Rubric factors (G_safety, G_complete, G_evidence, R_correctness, and confounder rejection) rather than only static perplexity or single-turn benchmarks.
+
+### 5.3 Sprint 4 Pre-Registered Hypotheses
+
+| ID | Hypothesis | Pre-Registered Acceptance Criterion | Sprint |
+| :--- | :--- | :--- | :--- |
+| **H7** | **CKA-Guided Mixed-Precision vs. Uniform Low-Bit Quantization on Multi-Turn Tool Use:** protecting top-25% CKA-drift layers recovers >= 85% of BF16 G_evidence * R_correctness and beats uniform low-bit quantization by >= 10 pp on held-out episodes. | CKA-guided mixed-precision preserves >= 85% of BF16 performance on G_evidence * R_correctness while beating uniform low-bit by >= 10 pp on held-out episodes. | `Sprint 4` |
+| **H8** | **Rank-1 Subspace Weight Projection Sensitivity W' = W - r(r^T W):** selective mid-to-late layer rank-1 projection shifts verification behavior while keeping G_safety * G_complete >= 0.95, whereas all-layer projection degrades G_evidence and confounder rejection first. | Selective mid-to-late layer rank-1 projection maintains G_safety * G_complete >= 0.95 while all-layer projection degrades G_evidence and confounder rejection first. | `Sprint 4` |
