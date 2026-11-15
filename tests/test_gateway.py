@@ -161,5 +161,32 @@ def test_gateway_config_from_env():
         assert config.model_allowlist == ("model1", "model2", "model3")
 
 
+def test_gateway_config_harness_base_url_and_task_id():
+    """Test GatewayConfig picks up HARNESS_BASE_URL and client sends X-Harness-Task-Id."""
+    with patch.dict(
+        "os.environ",
+        {"HARNESS_BASE_URL": "http://127.0.0.1:41234/api/v1"},
+        clear=False,
+    ):
+        config = GatewayConfig(api_key="test-key", task_id="task-123")
+        assert config.upstream_url == "http://127.0.0.1:41234/api/v1"
+        assert GatewayConfig.from_env().upstream_url == "http://127.0.0.1:41234/api/v1"
+
+    captured_headers: dict[str, str] = {}
+
+    def mock_transport(request, timeout):
+        captured_headers.update({k.lower(): v for k, v in request.header_items()})
+        return {
+            "id": "resp-1",
+            "choices": [{"message": {"role": "assistant", "content": "ok"}}],
+            "usage": {"prompt_tokens": 1, "completion_tokens": 1},
+        }
+
+    client = OpenRouterGatewayClient(config, transport=mock_transport)
+    payload = {"model": "qwen/qwen3-coder", "messages": [{"role": "user", "content": "hi"}]}
+    client.chat_completions(payload)
+    assert captured_headers.get("x-harness-task-id") == "task-123"
+
+
 if __name__ == "__main__":
     pytest.main([__file__])
