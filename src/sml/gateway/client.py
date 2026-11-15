@@ -3,7 +3,7 @@ import os
 import time
 import urllib.request
 from collections.abc import Callable
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from typing import Any
 from urllib.error import URLError
 
@@ -31,9 +31,17 @@ class GatewayError(ValueError):
         self.code = code
 
 
+def _default_upstream_url() -> str:
+    return (
+        os.environ.get("HARNESS_BASE_URL")
+        or os.environ.get("OPENROUTER_BASE_URL")
+        or OPENROUTER_DEFAULT_URL
+    )
+
+
 @dataclass(frozen=True)
 class GatewayConfig:
-    upstream_url: str = OPENROUTER_DEFAULT_URL
+    upstream_url: str = field(default_factory=_default_upstream_url)
     api_key: str = ""
     model_allowlist: tuple[str, ...] = (
         "qwen/qwen3-coder",
@@ -46,11 +54,12 @@ class GatewayConfig:
     max_message_chars: int = 60000
     app_title: str = "Small Model Lab"
     app_referer: str = "https://github.com/mrAndreyIsachenko/small-model-lab"
+    task_id: str | None = None
 
     @classmethod
     def from_env(cls) -> "GatewayConfig":
         # Read upstream URL
-        upstream_url = os.environ.get("SML_GATEWAY_UPSTREAM_URL", OPENROUTER_DEFAULT_URL)
+        upstream_url = os.environ.get("SML_GATEWAY_UPSTREAM_URL") or _default_upstream_url()
 
         # Read API key from environment or file
         api_key = os.environ.get("OPENROUTER_API_KEY") or os.environ.get("SML_GATEWAY_API_KEY", "")
@@ -204,6 +213,8 @@ class OpenRouterGatewayClient:
 
         if request_id:
             headers["X-SML-Request-Id"] = request_id
+        if self.config.task_id:
+            headers["X-Harness-Task-Id"] = self.config.task_id
 
         # Serialize payload
         data = json.dumps(payload).encode("utf-8")
