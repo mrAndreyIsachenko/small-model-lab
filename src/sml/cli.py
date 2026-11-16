@@ -622,9 +622,7 @@ def _resolve_llm_model_config(model_name: str, fallback: ModelConfig) -> ModelCo
         pos_encoding=fallback.pos_encoding,
         mlp_type=fallback.mlp_type,
         bias=fallback.bias,
-        tie_embeddings=bool(
-            getattr(cfg, "tie_word_embeddings", fallback.tie_embeddings)
-        ),
+        tie_embeddings=bool(getattr(cfg, "tie_word_embeddings", fallback.tie_embeddings)),
         rope_theta=float(getattr(cfg, "rope_theta", fallback.rope_theta)),
         norm_eps=float(getattr(cfg, "rms_norm_eps", fallback.norm_eps)),
     )

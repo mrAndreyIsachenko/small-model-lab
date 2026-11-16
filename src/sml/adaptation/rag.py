@@ -37,9 +37,9 @@ def build_incident_knowledge_base() -> list[RunbookDocument]:
                 'sql="SELECT client_platform, app_version, AVG(webhook_delivery_rate) '
                 "AS delivery_rate FROM stg_sms_reminders WHERE week = '2026-10-26' "
                 'GROUP BY client_platform, app_version". Step 3: call submit_diagnosis '
-                "with root_cause_category=\"product_bug\", "
+                'with root_cause_category="product_bug", '
                 'root_cause_code="android_v4_18_2_sms_webhook_regression", '
-                'ruled_out_confounders=[], evidence_numbers=[0.84, 0.70, 0.42].'
+                "ruled_out_confounders=[], evidence_numbers=[0.84, 0.70, 0.42]."
             ),
         ),
         RunbookDocument(
@@ -58,7 +58,7 @@ def build_incident_knowledge_base() -> list[RunbookDocument]:
                 'mapped_is_completed". Step 3: call submit_diagnosis with '
                 'root_cause_category="data_pipeline_artifact", '
                 'root_cause_code="ehr_status_finished_unmapped_in_dbt", '
-                'ruled_out_confounders=[], evidence_numbers=[0.84, 0.70, 0.42].'
+                "ruled_out_confounders=[], evidence_numbers=[0.84, 0.70, 0.42]."
             ),
         ),
         RunbookDocument(
@@ -77,9 +77,9 @@ def build_incident_knowledge_base() -> list[RunbookDocument]:
                 "JOIN dim_clinics d ON m.clinic_id = d.clinic_id WHERE m.week = "
                 "'2026-10-26' GROUP BY d.clinic_tier, "
                 'm.booking_horizon_days". Step 3: call submit_diagnosis with '
-                "root_cause_category=\"mix_shift\", "
+                'root_cause_category="mix_shift", '
                 'root_cause_code="onboarding_tier_c_long_horizon_mix_shift", '
-                'ruled_out_confounders=[], evidence_numbers=[0.84, 0.70, 0.42].'
+                "ruled_out_confounders=[], evidence_numbers=[0.84, 0.70, 0.42]."
             ),
         ),
         RunbookDocument(

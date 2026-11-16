@@ -418,9 +418,7 @@ def train_grpo_llm_policy(
         t_ref_lp = _ref_logprobs(t_ids, t_mask)
         per_traj_items.append((t_ids, t_mask, t_old_lp, t_ref_lp, t_shift_mask))
 
-    optimizer = (
-        torch.optim.AdamW(trainable_params, lr=cfg.lr) if trainable_params else None
-    )
+    optimizer = torch.optim.AdamW(trainable_params, lr=cfg.lr) if trainable_params else None
 
     history: list[dict[str, Any]] = []
     kl_values: list[float] = []

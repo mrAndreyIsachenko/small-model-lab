@@ -106,9 +106,7 @@ SECRET_LEAK_PATTERNS = (
     re.compile(r"sk-or-v1-[A-Za-z0-9_-]{16,}"),
     re.compile(r"sk-[A-Za-z0-9_-]{20,}"),
     re.compile(r"-----BEGIN [A-Z ]*PRIVATE KEY-----"),
-    re.compile(
-        r"(?i)(api_key|secret_key|password|access_token)\s*[:=]\s*[\"']?[A-Za-z0-9_\-]{8,}"
-    ),
+    re.compile(r"(?i)(api_key|secret_key|password|access_token)\s*[:=]\s*[\"']?[A-Za-z0-9_\-]{8,}"),
 )
 
 
@@ -124,9 +122,7 @@ def find_secret_leak_paths(value: Any, prefix: str = "body") -> list[str]:
         for i, item in enumerate(value):
             current_path = f"{prefix}[{i}]"
             paths.extend(find_secret_leak_paths(item, current_path))
-    elif isinstance(value, str) and any(
-        pattern.search(value) for pattern in SECRET_LEAK_PATTERNS
-    ):
+    elif isinstance(value, str) and any(pattern.search(value) for pattern in SECRET_LEAK_PATTERNS):
         paths.append(prefix)
 
     return paths

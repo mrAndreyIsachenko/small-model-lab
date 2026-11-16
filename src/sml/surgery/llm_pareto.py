@@ -219,9 +219,7 @@ def run_llm_surgery_and_pareto_suite(
         if resolved_device == "cuda" and torch.cuda.is_available():
             torch.cuda.empty_cache()
         elif (
-            resolved_device == "mps"
-            and hasattr(torch, "mps")
-            and hasattr(torch.mps, "empty_cache")
+            resolved_device == "mps" and hasattr(torch, "mps") and hasattr(torch.mps, "empty_cache")
         ):
             torch.mps.empty_cache()
 
@@ -230,9 +228,7 @@ def run_llm_surgery_and_pareto_suite(
     prompt_inputs = [
         _encode_chat_prompt(
             tokenizer,
-            format_incident_prompt(
-                eval_env, scenario, extra_context=_rag_extra_context(scenario)
-            ),
+            format_incident_prompt(eval_env, scenario, extra_context=_rag_extra_context(scenario)),
             resolved_device,
         )
         for scenario in eval_env.scenarios
@@ -519,8 +515,7 @@ def run_llm_surgery_and_pareto_suite(
 
     n_drop = max(1, int(round(0.10 * n_layers)))
     drop_layer_indices = [
-        d["layer_idx"]
-        for d in sorted(grpo_layer_drifts, key=lambda x: x["cka_drift"])[:n_drop]
+        d["layer_idx"] for d in sorted(grpo_layer_drifts, key=lambda x: x["cka_drift"])[:n_drop]
     ]
     pruned_model = prune_transformer_layers(int4_model, drop_layer_indices=drop_layer_indices)
     kl_pruned = _kl_vs_grpo(pruned_model, prompt_inputs)
@@ -583,8 +578,7 @@ def run_llm_surgery_and_pareto_suite(
     premature_inputs = [
         _encode_chat_prompt(
             tokenizer,
-            format_incident_prompt(eval_env, scenario)
-            + [_premature_assistant_prefix(scenario)],
+            format_incident_prompt(eval_env, scenario) + [_premature_assistant_prefix(scenario)],
             resolved_device,
         )
         for scenario in eval_env.scenarios
@@ -592,16 +586,13 @@ def run_llm_surgery_and_pareto_suite(
     verified_inputs = [
         _encode_chat_prompt(
             tokenizer,
-            format_incident_prompt(eval_env, scenario)
-            + [_verified_assistant_prefix(scenario)],
+            format_incident_prompt(eval_env, scenario) + [_verified_assistant_prefix(scenario)],
             resolved_device,
         )
         for scenario in eval_env.scenarios
     ]
 
-    def _final_layer_last_token_acts(
-        policy_model: Any, inputs: list[torch.Tensor]
-    ) -> torch.Tensor:
+    def _final_layer_last_token_acts(policy_model: Any, inputs: list[torch.Tensor]) -> torch.Tensor:
         """Last-token residual activations of the final layer, stacked `[n, hidden]`."""
         layers = get_transformer_layers(policy_model)
         acts: list[torch.Tensor] = []
@@ -659,9 +650,7 @@ def run_llm_surgery_and_pareto_suite(
     rubric_after_ablation, used_after = _evaluate_gated_rubric(ablated_model)
     tokens_processed += used_after
 
-    h8_verified = bool(
-        write_proj_after < write_proj_before * 0.25 and max_ortho_residual < 1e-2
-    )
+    h8_verified = bool(write_proj_after < write_proj_before * 0.25 and max_ortho_residual < 1e-2)
 
     h8_diagnostics = {
         "max_ortho_residual": round(max_ortho_residual, 8),

@@ -93,9 +93,7 @@ def _execute_stage_step(
                 dtype=torch.bfloat16,
                 enabled=use_autocast,
             ):
-                out = model(
-                    chunk_ids, targets=chunk_targets, attn_backend=attn_backend
-                )
+                out = model(chunk_ids, targets=chunk_targets, attn_backend=attn_backend)
                 assert out.loss is not None
                 loss = out.loss / num_chunks
             del out

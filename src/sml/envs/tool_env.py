@@ -582,7 +582,7 @@ def run_llm_episode(
 
         output = model.generate(**inputs, **gen_kwargs)
         generated_ids = _to_plain_ids(output[0] if isinstance(output, (list, tuple)) else output)
-        new_token_ids = generated_ids[len(prompt_ids):]
+        new_token_ids = generated_ids[len(prompt_ids) :]
         response_text = tokenizer.decode(new_token_ids, skip_special_tokens=True)
 
         messages.append({"role": "assistant", "content": response_text})
@@ -593,8 +593,7 @@ def run_llm_episode(
                 {
                     "role": "user",
                     "content": (
-                        "Format error: no valid tool call found. "
-                        f"{_TOOL_CALL_PROMPT_SUFFIX}"
+                        f"Format error: no valid tool call found. {_TOOL_CALL_PROMPT_SUFFIX}"
                     ),
                 }
             )
@@ -613,9 +612,7 @@ def run_llm_episode(
 
     breakdown = env.score_state(state, mode_override=rubric_mode)
     input_ids, assistant_action_mask = build_masked_trajectory_tokens(messages, tokenizer)
-    scenario_id = str(
-        getattr(scenario, "scenario_id", None) or getattr(scenario, "id", None) or ""
-    )
+    scenario_id = str(getattr(scenario, "scenario_id", None) or getattr(scenario, "id", None) or "")
     return RolloutTrajectory(
         scenario_id=scenario_id,
         messages=messages,

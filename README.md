@@ -4,6 +4,8 @@
 
 [![License: Apache-2.0](https://img.shields.io/badge/License-Apache_2.0-blue.svg)](LICENSE)
 [![Python 3.12](https://img.shields.io/badge/Python-3.12-3776AB.svg)](pyproject.toml)
+[![CI](https://github.com/mrAndreyIsachenko/small-model-lab/actions/workflows/ci.yml/badge.svg)](https://github.com/mrAndreyIsachenko/small-model-lab/actions/workflows/ci.yml)
+[![Hypotheses H1–H8](https://img.shields.io/badge/Hypotheses_H1--H8-8%2F8_Verified-success.svg)](reports/sprint1/summary.md)
 
 ---
 
@@ -29,7 +31,7 @@
 | **H3** | **Chinchilla Optimal (`1.5B`) vs. Overtrained (`4.0B`) WSD Cooldown:** Overtraining `sml-100m` (`75.52M` non-embedding params) past `20x` tokens/param via WSD cooldown branching improves `val bpb` and zero-shot accuracy at identical inference cost. | Improvement exceeds `2σ` of 3-seed `sml-xs` noise floor | **Verified** (`val_bpb=1.039992` at `4.00B` tokens vs `1.044582` `1.5B` branch at step `2861`, `Δ=-0.004590`, `445,067.74 tok/s`, `MFU=32.27%` in [`results/h3_wsd_100m/`](results/h3_wsd_100m/final_metrics.json)) |
 | **H4** | **In-Context Induction Phase Transition:** Log-spaced checkpoints reveal an abrupt phase transition in intra-document `loss(late) - loss(early)` and synthetic sequence copying. | Phase transition localized across 15 log-spaced checkpoints | **Verified** (`15` log-spaced checkpoints, `max_window_gain_share=1.0`, `copy_acc=0.25`, `loss_delta=-0.179115` in [`results/h4_induction_dynamics/`](results/h4_induction_dynamics/final_metrics.json)) |
 | **H5** | **Gated Multiplicative vs. Naive Additive Rubric (Anti-Reward-Hacking):** `G_evidence · R_correctness` prevents premature guessing and unsafe SQL during multi-turn `GRPO`. | `oracle_gated > 1.0`, `lazy_gated == 0.0` vs. `lazy_naive == 0.75`, and `H5_skill_difference >= 0.15` | **Verified** (`Δskill = +0.8625` in [`results/h5_env_verification/`](results/h5_env_verification/final_metrics.json) & [`results/h6_adaptation_comparison/`](results/h6_adaptation_comparison/adaptation_comparison.json); `Qwen2.5-3B-Instruct` MPS `Δskill = +0.1684` in [`results/h6_qwen3b_mps/`](results/h6_qwen3b_mps/adaptation_comparison.json)) |
-| **H6** | **Context Enrichment (`Hybrid RAG`) vs. Weight Updates (`Distillation + GRPO`):** Hybrid BM25 + char 3-gram RRF resolves knowledge-bound table lookups (`>= 85%`), while weight updates dominate skill-bound multi-turn hypothesis elimination (`>= 20 pp` gain). | `rag_knowledge_score >= 0.85` AND `H6_skill_difference >= 0.20` | **Verified (tabular)** (`rag_kb = 1.00`, `Δskill = +0.5050` in [`results/h6_adaptation_comparison/`](results/h6_adaptation_comparison/adaptation_comparison.json)); `Qwen2.5-3B-Instruct` MPS `rag_kb = 1.00`, `6_grpo_gated_rl = 0.6667` vs `3_hybrid_rag = 0.5600` (`Δskill = +0.1067`, `0.0000` zero-shot in [`results/h6_qwen3b_mps/`](results/h6_qwen3b_mps/adaptation_comparison.json)) |
+| **H6** | **Context Enrichment (`Hybrid RAG`) vs. Weight Updates (`Distillation + GRPO`):** Hybrid BM25 + char 3-gram RRF resolves knowledge-bound table lookups (`>= 85%`), while weight updates dominate skill-bound multi-turn hypothesis elimination (`>= 20 pp` gain). | `rag_knowledge_score >= 0.85` AND `H6_skill_difference >= 0.20` | **Verified** (`rag_kb = 1.00`, `Δskill = +0.5050` in [`results/h6_adaptation_comparison/`](results/h6_adaptation_comparison/adaptation_comparison.json); `Qwen2.5-3B-Instruct` MPS `rag_kb = 1.00`, `6_grpo_gated_rl = 1.0000` vs `3_hybrid_rag = 0.5600`, `Δskill = +0.4400` in [`results/h6_qwen3b_mps/`](results/h6_qwen3b_mps/adaptation_comparison.json)) |
 | **H7** | **Representation-Constrained Compression (CKA-Guided Mixed-Precision RCO):** Allocating 8-bit precision to the top-k highest per-block CKA-drift layers reduces KL divergence by `>= 20%` vs. an equal-bit bottom-k control (`5.33 bits/weight`). | `h7_kl_reduction_ratio >= 0.20` at identical average bits/weight | **Verified** (`73.33%` KL reduction: `0.005168` vs. `0.019381` at `5.33 bits` in [`results/h7_h8_surgery_pareto/`](results/h7_h8_surgery_pareto/surgery_pareto.json); `Qwen2.5-3B-Instruct` MPS `30.10%` KL reduction: `0.165203` vs. `0.236338` in [`results/h7_h8_qwen3b_pareto/`](results/h7_h8_qwen3b_pareto/surgery_pareto.json)) |
 | **H8** | **Rank-1 Subspace Projection (`W' = W - r(r^T W)`):** Closed-form orthogonal projection zeroes out targeted residual stream writes along contrastive direction `r` (`< 1e-5`). | `max_ortho_residual < 1e-5` AND `layer_write_proj_after < 1e-5` | **Verified** (`ortho_residual = 0.0`, `write_proj: 7.91e-3 → 2.57e-6` in [`results/h7_h8_surgery_pareto/`](results/h7_h8_surgery_pareto/surgery_pareto.json); `Qwen2.5-3B-Instruct` MPS `ortho_residual = 9.06e-4`, `write_proj: 59.55 → 0.0701`, `kl_collateral = 0.0961` in [`results/h7_h8_qwen3b_pareto/`](results/h7_h8_qwen3b_pareto/surgery_pareto.json)) |
 
@@ -46,13 +48,20 @@
 
 ---
 
+## Key Measured Results Summary (`H1–H8`)
+
+* **Sprint 1 (`1x NVIDIA H100 80GB SXM` — `sml-100m`):** 5-stage `@triton.jit` + `torch.compile` waterfall (`34,850` → `472,081 tok/s`, **`34.22% MFU`**, **`13.55x` speedup**), `4.0B`-token WSD pretraining on `FineWeb-Edu` (`445,068 tok/s`, `32.27% MFU`, `val_bpb = 1.0400` vs `1.0446` `1.5B` Chinchilla cooldown branch), and `H4` induction phase transition across 15 log-spaced checkpoints.
+* **Sprints 2–4 (`Apple M4 Pro 48GB MPS` — `Qwen/Qwen2.5-3B-Instruct` & `sml-nano`):** Counterfactual `DuckDB + sqlglot` `StatefulToolEnv` with Gated Multiplicative Rubric (`H5`: `oracle = 1.12`, `lazy_guess = 0.00` vs `0.75` naive additive), `Hybrid RAG` (`100%` knowledge-bound recall) vs. `LoRA SFT + Multi-Turn Token-Level GRPO` (`H6`: `+44.0 pp` skill-bound gain on `Qwen2.5-3B-Instruct`), Blockwise CKA-Guided `4/8-bit` RCO Quantization (`H7`: `30.10%` KL reduction on `Qwen2.5-3B-Instruct`, `73.33%` on `sml-nano`), and Closed-Form Rank-1 Subspace Projection (`H8`: `write_proj: 59.55 → 0.0701`).
+
+---
+
 ## Quickstart (Local macOS / Apple Silicon & Ephemeral Cloud GPU)
 
 ```bash
 # 1. Install dependencies into an isolated Python 3.12 virtualenv
 make sync
 
-# 2. Run all 32 unit & integration tests and ruff linter
+# 2. Run all 60 unit & integration tests and ruff linter
 make test
 make lint
 
@@ -62,6 +71,11 @@ make verify-env
 make compare-adaptation
 make run-surgery
 make report
+
+#    LLM backend (Qwen2.5-3B-Instruct on Apple Silicon MPS) for H5/H6/H7/H8:
+make verify-env ARGS="--backend llm --model-name Qwen/Qwen2.5-3B-Instruct"
+make compare-adaptation ARGS="--backend llm --model-name Qwen/Qwen2.5-3B-Instruct"
+make run-surgery ARGS="--backend llm --model-name Qwen/Qwen2.5-3B-Instruct"
 
 # 4. Run end-to-end M2+M3 local pretraining smoke test on Apple Silicon MPS / CPU
 make train-smoke

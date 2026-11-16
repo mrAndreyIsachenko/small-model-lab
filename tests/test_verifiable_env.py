@@ -205,16 +205,14 @@ def test_parse_tool_call_variants_and_aliases() -> None:
 
     # Fenced ```json block with `tool`/`args` keys plus an alias.
     name, args = parse_tool_call(
-        'I will inspect the lineage.\n```json\n'
+        "I will inspect the lineage.\n```json\n"
         '{"tool": "inspect_schema", "args": {"table_name": "mart_appointments"}}\n```'
     )
     assert name == "get_metric_lineage"
     assert args == {"table_name": "mart_appointments"}
 
     # Fenced block without a language tag.
-    name, args = parse_tool_call(
-        '```\n{"name": "inspect_changes", "arguments": {}}\n```'
-    )
+    name, args = parse_tool_call('```\n{"name": "inspect_changes", "arguments": {}}\n```')
     assert name == "inspect_changes"
     assert args == {}
 
@@ -339,7 +337,7 @@ def test_run_llm_episode_dummy_policy_matches_oracle_reward() -> None:
     scripted_turns = [
         'Checking the weekly aggregate.\n<tool_call>{"name": "run_sql", "arguments": '
         '{"sql": "SELECT week, AVG(is_completed) AS completion_rate, '
-        'COUNT(DISTINCT billing_tz_offset) AS tz_buckets '
+        "COUNT(DISTINCT billing_tz_offset) AS tz_buckets "
         'FROM mart_appointments GROUP BY week"}}</tool_call>',
         '<tool_call>{"tool": "run_sql", "args": {"sql": "SELECT d.clinic_tier, '
         "d.is_regional_holiday, m.booking_horizon_days, "
@@ -369,9 +367,7 @@ def test_run_llm_episode_dummy_policy_matches_oracle_reward() -> None:
         )
     scripted_turns.append(
         "Submitting the verified diagnosis.\n<tool_call>"
-        + json.dumps(
-            {"name": "submit_root_cause", "arguments": diagnosis}, sort_keys=True
-        )
+        + json.dumps({"name": "submit_root_cause", "arguments": diagnosis}, sort_keys=True)
         + "</tool_call>"
     )
     model = _DummyModel(tokenizer, scripted_turns)
@@ -412,9 +408,7 @@ def test_run_llm_episode_dummy_policy_matches_oracle_reward() -> None:
     assert len(observations) == 4
     assert '"status": "diagnosis_recorded"' in observations[-1]
 
-    first_assistant_index = next(
-        i for i, m in enumerate(traj.messages) if m["role"] == "assistant"
-    )
+    first_assistant_index = next(i for i, m in enumerate(traj.messages) if m["role"] == "assistant")
     span_start = len(
         tokenizer.apply_chat_template(
             traj.messages[:first_assistant_index], tokenize=True, add_generation_prompt=True

@@ -269,9 +269,7 @@ def test_collect_oracle_sft_trajectories_and_lora_sft_loss_decreases() -> None:
         assert set(traj.assistant_action_mask) == {0, 1}
 
     model = _build_tiny_qwen()
-    sft = train_lora_sft_llm(
-        model, tokenizer, trajectories, rank=4, alpha=8.0, lr=1e-2, steps=8
-    )
+    sft = train_lora_sft_llm(model, tokenizer, trajectories, rank=4, alpha=8.0, lr=1e-2, steps=8)
 
     wrapped = [name for name, mod in model.named_modules() if isinstance(mod, LoRALinear)]
     assert len(wrapped) == 4  # one layer x (q_proj, k_proj, v_proj, o_proj)
@@ -428,9 +426,7 @@ def test_collect_teacher_gateway_trajectories_filters_by_gated_rubric() -> None:
         key: ("ungrounded_guess_no_evidence" if isinstance(value, str) else value)
         for key, value in submit_args.items()
     }
-    bad_payload = json.dumps(
-        {"name": "submit_diagnosis", "arguments": wrong_args}, default=str
-    )
+    bad_payload = json.dumps({"name": "submit_diagnosis", "arguments": wrong_args}, default=str)
     bad_responses = [f"<tool_call>{bad_payload}</tool_call>"]
 
     def make_client(responses: list[str]) -> OpenRouterGatewayClient:
@@ -442,9 +438,7 @@ def test_collect_teacher_gateway_trajectories_filters_by_gated_rubric() -> None:
             assert queue, f"unexpected gateway call #{len(responses) - len(queue) + 1}"
             return _gateway_response(queue.pop(0))
 
-        return OpenRouterGatewayClient(
-            GatewayConfig(api_key="test-key"), transport=transport
-        )
+        return OpenRouterGatewayClient(GatewayConfig(api_key="test-key"), transport=transport)
 
     # Premise check: the ungrounded episode scores below the gate on its own.
     bad_traj = run_teacher_gateway_episode(
@@ -461,9 +455,7 @@ def test_collect_teacher_gateway_trajectories_filters_by_gated_rubric() -> None:
     assert len(trajectories) == 1
     kept = trajectories[0]
     good_id = str(
-        getattr(good_scenario, "scenario_id", None)
-        or getattr(good_scenario, "id", None)
-        or ""
+        getattr(good_scenario, "scenario_id", None) or getattr(good_scenario, "id", None) or ""
     )
     assert kept.scenario_id == good_id
     assert kept.reward >= 0.95

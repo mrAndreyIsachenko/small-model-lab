@@ -231,8 +231,7 @@ def compute_blockwise_quantization_drift(
 
     with torch.no_grad():
         ref_log_probs = [
-            torch.nn.functional.log_softmax(_logits(model, p), dim=-1)
-            for p in cal_inputs
+            torch.nn.functional.log_softmax(_logits(model, p), dim=-1) for p in cal_inputs
         ]
         ref_probs = [lp.exp() for lp in ref_log_probs]
 
@@ -248,9 +247,7 @@ def compute_blockwise_quantization_drift(
             kl_per_prompt: list[torch.Tensor] = []
             with torch.no_grad():
                 for j, p in enumerate(cal_inputs):
-                    quant_log_probs = torch.nn.functional.log_softmax(
-                        _logits(model, p), dim=-1
-                    )
+                    quant_log_probs = torch.nn.functional.log_softmax(_logits(model, p), dim=-1)
                     kl = (
                         (ref_probs[j] * (ref_log_probs[j] - quant_log_probs))
                         .sum(dim=-1)
@@ -258,9 +255,7 @@ def compute_blockwise_quantization_drift(
                         .clamp_min(0.0)
                     )
                     kl_per_prompt.append(kl)
-            mean_kl = (
-                float(torch.stack(kl_per_prompt).mean()) if kl_per_prompt else 0.0
-            )
+            mean_kl = float(torch.stack(kl_per_prompt).mean()) if kl_per_prompt else 0.0
         finally:
             for m in linears:
                 m.weight.data = originals[id(m)]

@@ -55,14 +55,10 @@ def _forward_causal_logits(model: Any, input_ids: torch.Tensor) -> torch.Tensor:
 
 def _scenario_id(scenario: IncidentScenario) -> str:
     """Resolve a stable scenario identifier for trajectory bookkeeping."""
-    return str(
-        getattr(scenario, "scenario_id", None) or getattr(scenario, "id", None) or ""
-    )
+    return str(getattr(scenario, "scenario_id", None) or getattr(scenario, "id", None) or "")
 
 
-def _rag_context_for_scenario(
-    retriever: HybridRunbookRetriever, scenario: IncidentScenario
-) -> str:
+def _rag_context_for_scenario(retriever: HybridRunbookRetriever, scenario: IncidentScenario) -> str:
     """Retrieve the top-1 runbook document and format it as grounded prompt context."""
     query = f"{scenario.question} {scenario.root_cause_category}"
     doc, _score = retriever.retrieve(query, top_k=1)[0]
@@ -107,9 +103,7 @@ def collect_oracle_sft_trajectories(
             tool_name = str(trace["tool"])
             tool_args = dict(trace["args"])
 
-            assistant_payload = json.dumps(
-                {"name": tool_name, "arguments": tool_args}, default=str
-            )
+            assistant_payload = json.dumps({"name": tool_name, "arguments": tool_args}, default=str)
             messages.append(
                 {"role": "assistant", "content": f"<tool_call>{assistant_payload}</tool_call>"}
             )
@@ -125,9 +119,7 @@ def collect_oracle_sft_trajectories(
                 break
 
         breakdown = env.score_state(state)
-        input_ids, assistant_action_mask = build_masked_trajectory_tokens(
-            messages, tokenizer
-        )
+        input_ids, assistant_action_mask = build_masked_trajectory_tokens(messages, tokenizer)
         trajectory = RolloutTrajectory(
             scenario_id=_scenario_id(scenario),
             messages=messages,
@@ -183,9 +175,7 @@ def collect_partial_sft_trajectories(
             tool_name = str(trace["tool"])
             tool_args = dict(trace["args"])
 
-            assistant_payload = json.dumps(
-                {"name": tool_name, "arguments": tool_args}, default=str
-            )
+            assistant_payload = json.dumps({"name": tool_name, "arguments": tool_args}, default=str)
             messages.append(
                 {"role": "assistant", "content": f"<tool_call>{assistant_payload}</tool_call>"}
             )
@@ -201,9 +191,7 @@ def collect_partial_sft_trajectories(
                 break
 
         breakdown = env.score_state(state)
-        input_ids, assistant_action_mask = build_masked_trajectory_tokens(
-            messages, tokenizer
-        )
+        input_ids, assistant_action_mask = build_masked_trajectory_tokens(messages, tokenizer)
         trajectories.append(
             RolloutTrajectory(
                 scenario_id=_scenario_id(scenario),
@@ -284,9 +272,7 @@ def run_teacher_gateway_episode(
 
     breakdown = env.score_state(state, mode_override="gated_multiplicative")
     if tokenizer is not None:
-        input_ids, assistant_action_mask = build_masked_trajectory_tokens(
-            messages, tokenizer
-        )
+        input_ids, assistant_action_mask = build_masked_trajectory_tokens(messages, tokenizer)
     else:
         input_ids, assistant_action_mask = [], []
 
@@ -325,9 +311,7 @@ def collect_teacher_gateway_trajectories(
     trajectories: list[RolloutTrajectory] = []
     for scenario in env.scenarios:
         extra_context = (
-            _rag_context_for_scenario(retriever, scenario)
-            if retriever is not None
-            else ""
+            _rag_context_for_scenario(retriever, scenario) if retriever is not None else ""
         )
         trajectory = run_teacher_gateway_episode(
             env,
@@ -432,9 +416,7 @@ def train_lora_sft_llm(
     input_ids, action_mask = _batch_trajectories(trajectories, tokenizer, device)
     supervised_tokens = int(action_mask.sum().item())
 
-    optimizer = torch.optim.AdamW(
-        [p for p in model.parameters() if p.requires_grad], lr=lr
-    )
+    optimizer = torch.optim.AdamW([p for p in model.parameters() if p.requires_grad], lr=lr)
 
     def _eval_loss() -> float:
         """Average masked SFT loss across individual rows (no batched forward pass)."""
