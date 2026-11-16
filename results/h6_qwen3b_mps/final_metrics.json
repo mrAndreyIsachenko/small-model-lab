@@ -1,0 +1,13 @@
+{
+  "backend": "llm",
+  "h5_verified": true,
+  "h6_verified": false,
+  "h5_skill_difference": 0.1684,
+  "h6_skill_difference": 0.1067,
+  "rag_knowledge_score": 1.0,
+  "rag_retrieval_recall_at_1": 1.0,
+  "gated_grpo_skill_score": 0.6667,
+  "naive_grpo_skill_score": 0.0,
+  "tokens_processed": 24528,
+  "tokens_per_sec": 34.3
+}

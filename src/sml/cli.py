@@ -595,7 +595,7 @@ def _cmd_verify_env(args: argparse.Namespace) -> int:
 
 
 def _cmd_compare_adaptation(args: argparse.Namespace) -> int:
-    from sml.adaptation import run_adaptation_comparison
+    from sml.adaptation import run_adaptation_comparison, run_llm_adaptation_comparison
     from sml.config import load_experiment_spec
     from sml.tracking.manifest import RunRecorder
 
@@ -611,7 +611,19 @@ def _cmd_compare_adaptation(args: argparse.Namespace) -> int:
         mode="measured",
     )
 
-    comp = run_adaptation_comparison(split="test", count=args.episodes, seed=spec.seed)
+    if args.backend == "llm":
+        comp = run_llm_adaptation_comparison(
+            split="test",
+            count=args.episodes,
+            seed=spec.seed,
+            model_name=args.model_name,
+            device=args.device,
+            sft_steps=args.sft_steps,
+            grpo_steps=args.grpo_steps,
+            group_size=args.group_size,
+        )
+    else:
+        comp = run_adaptation_comparison(split="test", count=args.episodes, seed=spec.seed)
     by_name = {item["strategy_name"]: item for item in comp["results"]}
 
     for idx, item in enumerate(comp["results"], start=1):
@@ -632,7 +644,13 @@ def _cmd_compare_adaptation(args: argparse.Namespace) -> int:
         encoding="utf-8",
     )
 
+    elapsed = time.perf_counter() - t0
+    llm_backend = comp.get("llm_backend", {})
+    naive_item = by_name.get("6b_grpo_naive_additive")
+    tokens_processed = int(llm_backend.get("tokens_processed", 0))
+
     final_metrics = {
+        "backend": args.backend,
         "h5_verified": comp["hypotheses"]["H5_verified"],
         "h6_verified": comp["hypotheses"]["H6_verified"],
         "h5_skill_difference": comp["hypotheses"]["H5_skill_difference"],
@@ -640,12 +658,13 @@ def _cmd_compare_adaptation(args: argparse.Namespace) -> int:
         "rag_knowledge_score": by_name["3_hybrid_rag"]["knowledge_bound_score"],
         "rag_retrieval_recall_at_1": comp["rag_retrieval_recall_at_1"],
         "gated_grpo_skill_score": by_name["6_grpo_gated_rl"]["skill_bound_score"],
-        "naive_grpo_skill_score": by_name["6b_grpo_naive_additive"]["skill_bound_score"],
-        "tokens_processed": 0,
-        "tokens_per_sec": 0,
+        "naive_grpo_skill_score": (
+            naive_item["skill_bound_score"] if naive_item is not None else 0.0
+        ),
+        "tokens_processed": tokens_processed,
+        "tokens_per_sec": round(tokens_processed / max(elapsed, 1e-3), 1),
     }
 
-    elapsed = time.perf_counter() - t0
     run_path = recorder.finalize(
         final_metrics=final_metrics,
         active_seconds=elapsed,
@@ -662,6 +681,7 @@ def _cmd_compare_adaptation(args: argparse.Namespace) -> int:
 
     # Print JSON summary
     summary = {
+        "backend": args.backend,
         "h5_verified": comp["hypotheses"]["H5_verified"],
         "h6_verified": comp["hypotheses"]["H6_verified"],
         "run_path": str(run_path),
@@ -994,6 +1014,40 @@ def build_parser() -> argparse.ArgumentParser:
         type=int,
         default=18,
         help="Number of adaptation episodes to run.",
+    )
+    compare_adaptation_p.add_argument(
+        "--backend",
+        choices=["tabular", "llm"],
+        default="tabular",
+        help="Adaptation backend: tabular heuristics or a real HuggingFace LLM policy.",
+    )
+    compare_adaptation_p.add_argument(
+        "--model-name",
+        default="Qwen/Qwen2.5-0.5B-Instruct",
+        help="HuggingFace causal LM used when --backend llm.",
+    )
+    compare_adaptation_p.add_argument(
+        "--device",
+        default="auto",
+        help="Device override for the LLM backend: auto | cuda | mps | cpu.",
+    )
+    compare_adaptation_p.add_argument(
+        "--sft-steps",
+        type=int,
+        default=8,
+        help="LoRA SFT training steps for the LLM backend.",
+    )
+    compare_adaptation_p.add_argument(
+        "--grpo-steps",
+        type=int,
+        default=4,
+        help="GRPO training steps for the LLM backend.",
+    )
+    compare_adaptation_p.add_argument(
+        "--group-size",
+        type=int,
+        default=4,
+        help="GRPO group size per scenario for the LLM backend.",
     )
     compare_adaptation_p.set_defaults(func=_cmd_compare_adaptation)
 

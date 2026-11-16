@@ -1,6 +1,6 @@
 # Sprint 1 Experimental Report (Auto-Generated)
 
-> Generated strictly from machine-readable artifacts in `/Users/mr_a_i/Developer/personal/Small Model Lab/results` (`include_dry_runs=False`).
+> Generated strictly from machine-readable artifacts in `results` (`include_dry_runs=False`).
 
 ## Summary Table
 
@@ -12,6 +12,8 @@
 | `h4_induction_dynamics` | `H4` | `measured` | `sml-100m` | `75,516,672` | `4,000,317,440` | `1.0400` | `445,068` | `32.3%` | `nvidia-h100-sxm-80gb` | `$6.7161` | `uncommit` |
 | `h5_env_verification` | `H5` | `measured` | `sml-nano` | `3,148,032` | `0` | `n/a` | `0` | `n/a` | `apple-m4-pro-48gb` | `$0.0000` | `7cc965d9` |
 | `h6_adaptation_comparison` | `H6` | `measured` | `sml-nano` | `3,148,032` | `0` | `n/a` | `0` | `n/a` | `apple-m4-pro-48gb` | `$0.0000` | `a4dac8e2` |
+| `h6_qwen05b_mps_smoke` | `H6` | `measured` | `sml-nano` | `3,148,032` | `12,102` | `n/a` | `77` | `n/a` | `apple-m4-pro-48gb` | `$0.0000` | `e0bbfc83` |
+| `h6_qwen3b_mps` | `H6` | `measured` | `sml-nano` | `3,148,032` | `24,528` | `n/a` | `34` | `n/a` | `apple-m4-pro-48gb` | `$0.0000` | `e0bbfc83` |
 | `h7_h8_surgery_pareto` | `H7` | `measured` | `sml-nano` | `3,148,032` | `0` | `n/a` | `0` | `n/a` | `apple-m4-pro-48gb` | `$0.0000` | `05414f1c` |
 
 ## Run Conclusions
@@ -39,6 +41,14 @@
 ### `h6_adaptation_comparison` (`H6` — `measured`)
 - **Prediction:** 3_hybrid_rag achieves >= 0.85 knowledge_bound_score, while 6_grpo_gated_rl outperforms 3_hybrid_rag by >= 0.20 on skill_bound_score (G_evidence * R_correctness) and outperforms 6b_grpo_naive_additive by >= 0.15 (H5).
 - **Conclusion:** Adaptation comparison completed: H5_verified=True, H6_verified=True
+
+### `h6_qwen05b_mps_smoke` (`H6` — `measured`)
+- **Prediction:** 3_hybrid_rag achieves >= 0.85 knowledge_bound_score, while 6_grpo_gated_rl outperforms 3_hybrid_rag by >= 0.20 on skill_bound_score (G_evidence * R_correctness) and outperforms 6b_grpo_naive_additive by >= 0.15 (H5).
+- **Conclusion:** Adaptation comparison completed: H5_verified=False, H6_verified=False
+
+### `h6_qwen3b_mps` (`H6` — `measured`)
+- **Prediction:** 3_hybrid_rag achieves >= 0.85 knowledge_bound_score, while 6_grpo_gated_rl outperforms 3_hybrid_rag by >= 0.20 on skill_bound_score (G_evidence * R_correctness) and outperforms 6b_grpo_naive_additive by >= 0.15 (H5).
+- **Conclusion:** Adaptation comparison completed: H5_verified=True, H6_verified=False
 
 ### `h7_h8_surgery_pareto` (`H7` — `measured`)
 - **Prediction:** cka_guided 4/8-bit allocation achieves >= 20% lower KL divergence vs adapted_model than bottom_k_control at identical average bits-per-weight (5.33 bits), and rank-1 subspace ablation reduces targeted residual write projection below 1e-5.

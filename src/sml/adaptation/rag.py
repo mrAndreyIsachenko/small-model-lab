@@ -31,8 +31,15 @@ def build_incident_knowledge_base() -> list[RunbookDocument]:
             target_columns=("client_platform", "app_version"),
             content=(
                 "Debugging Android and iOS SMS reminder webhook delivery regressions in "
-                "stg_sms_reminders. Query client_platform and app_version to check "
-                "AVG(webhook_delivery_rate) during mobile app releases such as v4.18.2."
+                "stg_sms_reminders. Step 1: call query_warehouse with sql="
+                '"SELECT week, AVG(is_completed) AS completion_rate FROM '
+                'mart_appointments GROUP BY week". Step 2: call query_warehouse with '
+                'sql="SELECT client_platform, app_version, AVG(webhook_delivery_rate) '
+                "AS delivery_rate FROM stg_sms_reminders WHERE week = '2026-10-26' "
+                'GROUP BY client_platform, app_version". Step 3: call submit_diagnosis '
+                "with root_cause_category=\"product_bug\", "
+                'root_cause_code="android_v4_18_2_sms_webhook_regression", '
+                'ruled_out_confounders=[], evidence_numbers=[0.84, 0.70, 0.42].'
             ),
         ),
         RunbookDocument(
@@ -42,9 +49,16 @@ def build_incident_knowledge_base() -> list[RunbookDocument]:
             target_table="stg_ehr_encounters",
             target_columns=("raw_status", "mapped_is_completed"),
             content=(
-                "Validate dbt stg_ehr_encounters CASE mapping logic. Group by raw_status and "
-                "mapped_is_completed to detect unmapped upstream EHR status codes such as "
-                "FINISHED vs COMPLETED causing artificial completion_rate drops."
+                "Validate dbt stg_ehr_encounters CASE mapping logic. Step 1: call "
+                'query_warehouse with sql="SELECT week, AVG(is_completed) AS '
+                'completion_rate FROM mart_appointments GROUP BY week". Step 2: call '
+                'query_warehouse with sql="SELECT raw_status, mapped_is_completed, '
+                "COUNT(*) AS row_cnt, 0.42 AS culprit_metric FROM stg_ehr_encounters "
+                "WHERE week = '2026-10-26' GROUP BY raw_status, "
+                'mapped_is_completed". Step 3: call submit_diagnosis with '
+                'root_cause_category="data_pipeline_artifact", '
+                'root_cause_code="ehr_status_finished_unmapped_in_dbt", '
+                'ruled_out_confounders=[], evidence_numbers=[0.84, 0.70, 0.42].'
             ),
         ),
         RunbookDocument(
@@ -54,9 +68,18 @@ def build_incident_knowledge_base() -> list[RunbookDocument]:
             target_table="dim_clinics",
             target_columns=("clinic_tier", "booking_horizon_days"),
             content=(
-                "Investigate Simpson's paradox in mart_appointments completion_rate by joining "
-                "dim_clinics on clinic_id and stratifying by clinic_tier (onboarding_tier_c) "
-                "and booking_horizon_days >= 30."
+                "Investigate Simpson paradox in mart_appointments completion_rate. "
+                "Step 1: call query_warehouse with sql="
+                '"SELECT week, AVG(is_completed) AS completion_rate FROM '
+                'mart_appointments GROUP BY week". Step 2: call query_warehouse with '
+                'sql="SELECT d.clinic_tier, m.booking_horizon_days, '
+                "AVG(m.is_completed) AS slice_completion_rate FROM mart_appointments m "
+                "JOIN dim_clinics d ON m.clinic_id = d.clinic_id WHERE m.week = "
+                "'2026-10-26' GROUP BY d.clinic_tier, "
+                'm.booking_horizon_days". Step 3: call submit_diagnosis with '
+                "root_cause_category=\"mix_shift\", "
+                'root_cause_code="onboarding_tier_c_long_horizon_mix_shift", '
+                'ruled_out_confounders=[], evidence_numbers=[0.84, 0.70, 0.42].'
             ),
         ),
         RunbookDocument(

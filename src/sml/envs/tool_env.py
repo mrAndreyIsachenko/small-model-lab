@@ -2,6 +2,9 @@
 
 from __future__ import annotations
 
+import json
+import re
+from dataclasses import dataclass
 from decimal import Decimal
 from typing import Any, Literal
 
@@ -191,10 +194,16 @@ class StatefulToolEnv:
 
 
 def run_oracle_episode(env: StatefulToolEnv, scenario: IncidentScenario) -> dict[str, Any]:
-    """Execute a reference analytical trajectory that queries slices and rules out confounders."""
+    """Execute a reference analytical trajectory that queries slices and rules out confounders.
+
+    Every category takes exactly 4 steps: two shared `query_warehouse` probes
+    (Steps 1-2), one category-specific verification (Step 3), and the terminal
+    `submit_diagnosis` (Step 4). Only Step 3 differs by `root_cause_category`.
+    """
     state = env.setup_state(scenario)
 
-    # Step 1: Check weekly aggregate and confounder #1 (billing_tz_offset) on mart_appointments
+    # Step 1 (shared): Check weekly aggregate and confounder #1 (billing_tz_offset)
+    # on mart_appointments
     env.step(
         "query_warehouse",
         {
@@ -207,7 +216,9 @@ def run_oracle_episode(env: StatefulToolEnv, scenario: IncidentScenario) -> dict
         state,
     )
 
-    # Step 2: Check confounder #2 (is_regional_holiday) and onboarding mix on dim_clinics
+    # Step 2 (shared): Check confounder #2 (is_regional_holiday) and onboarding mix
+    # (clinic_tier, booking_horizon_days) via the mart_appointments JOIN dim_clinics
+    # slice query — this already covers the mix_shift slices on every category
     env.step(
         "query_warehouse",
         {
@@ -222,7 +233,12 @@ def run_oracle_episode(env: StatefulToolEnv, scenario: IncidentScenario) -> dict
         state,
     )
 
-    # Step 3: Drill into the specific upstream table for the hypothesis
+    # Step 3 (category-specific verification): all categories use query_warehouse.
+    #   - product_bug / data_pipeline_artifact: query_warehouse on the planted
+    #     upstream table (stg_sms_reminders / stg_ehr_encounters).
+    #   - mix_shift: query_warehouse on the mart_appointments JOIN dim_clinics
+    #     slice for the onboarding_tier_c cohort, surfacing the exact 0.42
+    #     culprit metric right before submit_diagnosis.
     if scenario.root_cause_category == "product_bug":
         env.step(
             "query_warehouse",
@@ -249,8 +265,20 @@ def run_oracle_episode(env: StatefulToolEnv, scenario: IncidentScenario) -> dict
             },
             state,
         )
-    else:
-        env.step("get_metric_lineage", {"table_name": "mart_appointments"}, state)
+    else:  # mix_shift
+        env.step(
+            "query_warehouse",
+            {
+                "sql": (
+                    "SELECT d.clinic_tier, m.booking_horizon_days, "
+                    "AVG(m.is_completed) AS culprit_metric "
+                    "FROM mart_appointments m JOIN dim_clinics d ON m.clinic_id = d.clinic_id "
+                    "WHERE m.week = '2026-10-26' AND d.clinic_tier = 'onboarding_tier_c' "
+                    "GROUP BY d.clinic_tier, m.booking_horizon_days"
+                )
+            },
+            state,
+        )
 
     # Step 4: Submit verified diagnosis
     env.step(
@@ -299,6 +327,279 @@ def run_unsafe_sql_episode(env: StatefulToolEnv, scenario: IncidentScenario) -> 
         state,
     )
     return state
+
+
+@dataclass
+class RolloutTrajectory:
+    """A scored multi-turn LLM rollout with token-level action masking."""
+
+    scenario_id: str
+    messages: list[dict[str, str]]
+    input_ids: list[int]
+    assistant_action_mask: list[int]
+    state: dict[str, Any]
+    reward: float
+    breakdown: RewardBreakdown | None = None
+
+
+_TOOL_CALL_ALIASES = {
+    "run_sql": "query_warehouse",
+    "inspect_schema": "get_metric_lineage",
+    "submit_root_cause": "submit_diagnosis",
+}
+
+_TOOL_CALL_PROMPT_SUFFIX = (
+    "Emit exactly one tool call per turn, formatted as:\n"
+    '<tool_call>{"name": "...", "arguments": {...}}</tool_call>\n'
+    "Wait for the tool observation before deciding your next action."
+)
+
+
+def _canonical_tool_name(name: str) -> str:
+    """Map legacy tool aliases onto the canonical `tool_schemas` names."""
+    stripped = name.strip()
+    return _TOOL_CALL_ALIASES.get(stripped, stripped)
+
+
+def _tool_call_from_payload(payload: Any) -> tuple[str, dict[str, Any]] | None:
+    """Interpret a decoded JSON object as a `(tool_name, args)` call, or return None."""
+    if not isinstance(payload, dict):
+        return None
+    name = payload.get("name") or payload.get("tool")
+    args = payload.get("arguments")
+    if args is None:
+        args = payload.get("args")
+    if not isinstance(name, str) or not name.strip():
+        return None
+    if not isinstance(args, dict):
+        args = {}
+    return _canonical_tool_name(name), dict(args)
+
+
+def _json_payload_candidates(text: str) -> list[Any]:
+    """Collect JSON payloads from `<tool_call>` tags, fenced blocks, and bare objects."""
+    decoder = json.JSONDecoder()
+    payloads: list[Any] = []
+
+    segments: list[str] = []
+    segments.extend(
+        match.strip()
+        for match in re.findall(r"<tool_call>(.*?)</tool_call>", text, flags=re.DOTALL)
+    )
+    segments.extend(
+        match.strip()
+        for match in re.findall(r"```(?:json)?[ \t]*\r?\n?(.*?)```", text, flags=re.DOTALL)
+    )
+    for segment in segments:
+        if not segment:
+            continue
+        try:
+            payloads.append(json.loads(segment))
+        except json.JSONDecodeError:
+            continue
+
+    for index, char in enumerate(text):
+        if char != "{":
+            continue
+        try:
+            payload, _ = decoder.raw_decode(text, index)
+        except json.JSONDecodeError:
+            continue
+        payloads.append(payload)
+    return payloads
+
+
+def parse_tool_call(text: str) -> tuple[str, dict[str, Any]] | None:
+    """Extract `(tool_name, arguments)` from an assistant response, or None if absent."""
+    if not isinstance(text, str):
+        return None
+    for payload in _json_payload_candidates(text):
+        parsed = _tool_call_from_payload(payload)
+        if parsed is not None:
+            return parsed
+    return None
+
+
+def format_incident_prompt(
+    env: StatefulToolEnv,
+    scenario: IncidentScenario,
+    extra_context: str = "",
+) -> list[dict[str, str]]:
+    """Build the `[system_msg, user_msg]` opening prompt for an incident rollout."""
+    tool_lines = "\n".join(
+        f"- {json.dumps(schema, sort_keys=True)}" for schema in env.tool_schemas()
+    )
+    system_msg = (
+        "You are an incident response agent investigating a data-quality incident in a "
+        "DuckDB warehouse. Investigate systematically: query slices, rule out confounders, "
+        "and gather verified numeric evidence before submitting a diagnosis. "
+        f"Available tools:\n{tool_lines}\n\n{_TOOL_CALL_PROMPT_SUFFIX}"
+    )
+    incident_fields = (
+        ("Symptom", getattr(scenario, "symptom", None)),
+        ("Affected metric", getattr(scenario, "affected_metric", None)),
+        ("Alert summary", getattr(scenario, "alert_summary", None)),
+        ("Window start", getattr(scenario, "window_start", None)),
+        ("Window end", getattr(scenario, "window_end", None)),
+        ("Incident description", scenario.question),
+    )
+    user_msg = "Incident report:\n" + "".join(
+        f"- {label}: {value}\n" for label, value in incident_fields if value is not None
+    )
+    if extra_context:
+        user_msg += f"\nAdditional context:\n{extra_context}\n"
+    user_msg += f"\n{_TOOL_CALL_PROMPT_SUFFIX}"
+    return [
+        {"role": "system", "content": system_msg},
+        {"role": "user", "content": user_msg},
+    ]
+
+
+def build_masked_trajectory_tokens(
+    messages: list[dict[str, str]],
+    tokenizer: Any,
+) -> tuple[list[int], list[int]]:
+    """Tokenize the full chat and mask 1 only on assistant-turn token spans."""
+    full_ids = _to_plain_ids(
+        tokenizer.apply_chat_template(messages, tokenize=True, add_generation_prompt=False)
+    )
+    mask = [0] * len(full_ids)
+    for index, message in enumerate(messages):
+        if message.get("role") != "assistant":
+            continue
+        prefix_ids = _to_plain_ids(
+            tokenizer.apply_chat_template(
+                messages[:index], tokenize=True, add_generation_prompt=True
+            )
+        )
+        with_assistant_ids = _to_plain_ids(
+            tokenizer.apply_chat_template(
+                messages[: index + 1], tokenize=True, add_generation_prompt=False
+            )
+        )
+        for position in range(len(prefix_ids), min(len(with_assistant_ids), len(full_ids))):
+            mask[position] = 1
+    return full_ids, mask
+
+
+def _to_plain_ids(value: Any) -> list[int]:
+    """Normalize tensors / nested sequences into a flat `list[int]`."""
+    if hasattr(value, "tolist"):
+        value = value.tolist()
+    flat = list(value)
+    if flat and isinstance(flat[0], (list, tuple)):
+        flat = list(flat[0])
+    return [int(token) for token in flat]
+
+
+def _resolve_model_device(model: Any) -> Any:
+    """Best-effort device lookup for HF / PyTorch models without failing on dummies."""
+    device = getattr(model, "device", None)
+    if device is not None:
+        return device
+    params_fn = getattr(model, "parameters", None)
+    if callable(params_fn):
+        first = next(iter(params_fn()), None)
+        if first is not None:
+            return first.device
+    return None
+
+
+def _coerce_model_inputs(prompt_ids: list[int], model: Any = None) -> dict[str, Any]:
+    """Wrap prompt ids in the batched tensor shape expected by `model.generate`."""
+    try:
+        import torch
+    except ImportError:  # pragma: no cover - torch is optional for dummy models
+        return {"input_ids": [list(prompt_ids)]}
+    device = _resolve_model_device(model)
+    input_ids = torch.tensor([prompt_ids], dtype=torch.long, device=device)
+    attention_mask = torch.ones_like(input_ids)
+    return {"input_ids": input_ids, "attention_mask": attention_mask}
+
+
+def run_llm_episode(
+    env: StatefulToolEnv,
+    scenario: IncidentScenario,
+    model: Any,
+    tokenizer: Any,
+    max_new_tokens: int = 192,
+    temperature: float = 0.7,
+    do_sample: bool = True,
+    extra_context: str = "",
+    rubric_mode: Literal["gated_multiplicative", "naive_additive"] | None = None,
+) -> RolloutTrajectory:
+    """Roll out an HF `AutoModelForCausalLM` policy against `env` for one scenario."""
+    state = env.setup_state(scenario)
+    messages = format_incident_prompt(env, scenario, extra_context=extra_context)
+
+    for _step in range(env.max_steps):
+        if state["done"]:
+            break
+
+        prompt_ids = _to_plain_ids(
+            tokenizer.apply_chat_template(messages, tokenize=True, add_generation_prompt=True)
+        )
+        inputs = _coerce_model_inputs(prompt_ids, model=model)
+        gen_kwargs: dict[str, Any] = {"max_new_tokens": max_new_tokens}
+        pad_token_id = getattr(tokenizer, "pad_token_id", None)
+        if pad_token_id is None:
+            pad_token_id = getattr(tokenizer, "eos_token_id", None)
+        if pad_token_id is not None:
+            gen_kwargs["pad_token_id"] = pad_token_id
+        if do_sample:
+            gen_kwargs["do_sample"] = True
+            gen_kwargs["temperature"] = temperature
+        else:
+            gen_kwargs["do_sample"] = False
+
+        output = model.generate(**inputs, **gen_kwargs)
+        generated_ids = _to_plain_ids(output[0] if isinstance(output, (list, tuple)) else output)
+        new_token_ids = generated_ids[len(prompt_ids):]
+        response_text = tokenizer.decode(new_token_ids, skip_special_tokens=True)
+
+        messages.append({"role": "assistant", "content": response_text})
+
+        parsed = parse_tool_call(response_text)
+        if parsed is None:
+            messages.append(
+                {
+                    "role": "user",
+                    "content": (
+                        "Format error: no valid tool call found. "
+                        f"{_TOOL_CALL_PROMPT_SUFFIX}"
+                    ),
+                }
+            )
+            continue
+
+        tool_name, tool_args = parsed
+        observation = env.step(tool_name, tool_args, state)
+        messages.append(
+            {
+                "role": "user",
+                "content": (
+                    f"Tool observation ({tool_name}): "
+                    f"{json.dumps(observation, default=str)}"
+                ),
+            }
+        )
+        if state["done"]:
+            break
+
+    breakdown = env.score_state(state, mode_override=rubric_mode)
+    input_ids, assistant_action_mask = build_masked_trajectory_tokens(messages, tokenizer)
+    scenario_id = str(
+        getattr(scenario, "scenario_id", None) or getattr(scenario, "id", None) or ""
+    )
+    return RolloutTrajectory(
+        scenario_id=scenario_id,
+        messages=messages,
+        input_ids=input_ids,
+        assistant_action_mask=assistant_action_mask,
+        state=state,
+        reward=breakdown.total_reward,
+        breakdown=breakdown,
+    )
 
 
 def load_environment(

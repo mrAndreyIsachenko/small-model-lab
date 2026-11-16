@@ -1,0 +1,115 @@
+{
+  "results": [
+    {
+      "strategy_name": "1_base_zero_shot",
+      "paradigm": "context_only",
+      "knowledge_bound_score": 0.5,
+      "skill_bound_score": 0.0,
+      "mean_gated_reward": 0.0,
+      "ci_95_low": 0.0,
+      "ci_95_high": 0.0,
+      "ungrounded_citation_rate": 1.0,
+      "mean_steps": 3.0
+    },
+    {
+      "strategy_name": "3_hybrid_rag",
+      "paradigm": "context_only",
+      "knowledge_bound_score": 1.0,
+      "skill_bound_score": 0.56,
+      "mean_gated_reward": 0.644,
+      "ci_95_low": 0.644,
+      "ci_95_high": 0.644,
+      "ungrounded_citation_rate": 0.0,
+      "mean_steps": 3.0
+    },
+    {
+      "strategy_name": "4_lora_sft",
+      "paradigm": "weight_update",
+      "knowledge_bound_score": 1.0,
+      "skill_bound_score": 0.4983,
+      "mean_gated_reward": 0.5231,
+      "ci_95_low": 0.0,
+      "ci_95_high": 1.0,
+      "ungrounded_citation_rate": 0.4444,
+      "mean_steps": 3.33
+    },
+    {
+      "strategy_name": "6_grpo_gated_rl",
+      "paradigm": "weight_update",
+      "knowledge_bound_score": 1.0,
+      "skill_bound_score": 0.6667,
+      "mean_gated_reward": 0.6667,
+      "ci_95_low": 0.0,
+      "ci_95_high": 1.0,
+      "ungrounded_citation_rate": 0.3333,
+      "mean_steps": 3.67
+    }
+  ],
+  "rag_retrieval_recall_at_1": 1.0,
+  "sft_diagnostics": {
+    "train_scenario_count": 3,
+    "num_oracle_trajectories": 3,
+    "num_partial_sft_trajectories": 3,
+    "initial_loss": 0.872472,
+    "final_loss": 0.009297,
+    "steps": 8,
+    "num_trajectories": 3,
+    "tokens_processed": 7600,
+    "lora_parameter_summary": {
+      "trainable_params": 7372800,
+      "total_params": 3093311488,
+      "trainable_pct": 0.2383
+    },
+    "grpo_sft_warmup": {
+      "initial_loss": 0.068803,
+      "final_loss": 0.000596,
+      "steps": 8,
+      "num_trajectories": 3,
+      "tokens_processed": 8800,
+      "lora_parameter_summary": {
+        "trainable_params": 7372800,
+        "total_params": 3093311488,
+        "trainable_pct": 0.2383
+      }
+    }
+  },
+  "grpo_policy_diagnostics": {
+    "gated_multiplicative": {
+      "rubric_mode": "gated_multiplicative",
+      "initial_mean_reward": 0.666667,
+      "final_mean_reward": 0.666667,
+      "mean_kl": 4.6e-05,
+      "steps": 2,
+      "tokens_processed": 4388,
+      "history": [
+        {
+          "step": 0,
+          "loss": 0.0,
+          "policy_obj": 0.0,
+          "kl_div": 8e-06,
+          "mean_ratio": 0.999886
+        },
+        {
+          "step": 1,
+          "loss": 3e-06,
+          "policy_obj": 0.0,
+          "kl_div": 8.4e-05,
+          "mean_ratio": 1.000506
+        }
+      ]
+    }
+  },
+  "llm_backend": {
+    "model_name": "Qwen/Qwen2.5-3B-Instruct",
+    "device": "mps",
+    "dtype": "bfloat16",
+    "tokens_processed": 24528
+  },
+  "hypotheses": {
+    "H5_verified": true,
+    "H5_skill_difference": 0.1684,
+    "H6_verified": false,
+    "H6_skill_difference": 0.1067,
+    "H6_rag_knowledge_score": 1.0
+  }
+}
