@@ -1,0 +1,66 @@
+experiment_id: h2_mfu_waterfall
+hypothesis_id: H2
+hypothesis: Cumulative systems optimizations (fp32 eager -> bf16 autocast -> SDPA/Flash
+  -> fused AdamW -> torch.compile -> custom @triton.jit FusedRMSNorm & FusedSwiGLU
+  kernels) yield monotonic throughput improvements and achieve >= 30% MFU on 1x H100
+  80GB SXM for sml-100m.
+prediction: Throughput increases by >= 2.5x from fp32 eager baseline to compiled bf16
+  + SDPA + fused AdamW + custom @triton.jit kernels, reaching >= 30% MFU (~415,000
+  tok/s on H100 SXM).
+acceptance_criterion: measured_mfu >= 0.30 and speedup_vs_eager_fp32 >= 2.5
+seed: 1337
+model:
+  name: sml-100m
+  vocab_size: 32768
+  d_model: 768
+  n_layers: 12
+  n_heads: 12
+  n_kv_heads: 4
+  d_ff: 2048
+  max_seq_len: 2048
+  norm_type: rmsnorm
+  pos_encoding: rope
+  mlp_type: swiglu
+  bias: false
+  tie_embeddings: true
+  rope_theta: 10000.0
+  norm_eps: 1.0e-05
+data:
+  name: fineweb-edu-4b
+  hf_dataset: HuggingFaceFW/fineweb-edu
+  hf_subset: sample-10BT
+  vocab_size: 32768
+  train_tokens: 4200000000
+  val_tokens: 10000000
+  test_tokens: 10000000
+  shard_size_tokens: 100000000
+  hf_repo_id: mrAndreyIsachenko/sml-fineweb-edu-32k-shards
+  license: ODC-By-1.0
+hardware:
+  name: nvidia-h100-sxm-80gb
+  accelerator: cuda
+  vram_gb: 80.0
+  peak_bf16_tflops: 989.5
+  hourly_rate_usd: 2.69
+  price_as_of: '2026-10-31'
+  provider_notes: Cloud on-demand 1x H100 80GB SXM5 (RunPod / Lambda reference rate)
+train:
+  batch_size_tokens: 524288
+  micro_batch_size: 32
+  seq_len: 2048
+  max_steps: 100
+  lr: 0.0006
+  min_lr_ratio: 0.0
+  weight_decay: 0.1
+  beta1: 0.9
+  beta2: 0.95
+  grad_clip: 1.0
+  schedule: wsd
+  warmup_steps: 20
+  decay_fraction: 0.2
+  branch_cooldown_tokens: null
+  precision: bf16
+  compile: true
+model_config_path: configs/model/sml_100m.yaml
+data_config_path: configs/data/fineweb_edu_4b.yaml
+hardware_config_path: configs/hardware/h100_sxm_80gb.yaml

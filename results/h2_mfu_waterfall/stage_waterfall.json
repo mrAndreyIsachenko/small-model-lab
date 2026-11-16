@@ -1,0 +1,62 @@
+[
+  {
+    "stage_name": "1_fp32_naive_eager",
+    "precision": "fp32",
+    "attn_backend": "naive",
+    "fused_kernels": false,
+    "compiled": false,
+    "tokens_per_sec": 34850.26,
+    "step_time_ms": 1880.502,
+    "mfu": 0.025265,
+    "peak_memory_mb": 38218.36,
+    "speedup_vs_baseline": 1.0
+  },
+  {
+    "stage_name": "2_fp32_sdpa_eager",
+    "precision": "fp32",
+    "attn_backend": "sdpa",
+    "fused_kernels": false,
+    "compiled": false,
+    "tokens_per_sec": 52501.28,
+    "step_time_ms": 1248.274,
+    "mfu": 0.038061,
+    "peak_memory_mb": 19748.62,
+    "speedup_vs_baseline": 1.5065
+  },
+  {
+    "stage_name": "3_bf16_sdpa_eager",
+    "precision": "bf16",
+    "attn_backend": "sdpa",
+    "fused_kernels": false,
+    "compiled": false,
+    "tokens_per_sec": 242251.83,
+    "step_time_ms": 270.528,
+    "mfu": 0.175621,
+    "peak_memory_mb": 58326.61,
+    "speedup_vs_baseline": 6.9512
+  },
+  {
+    "stage_name": "4_bf16_sdpa_fused",
+    "precision": "bf16",
+    "attn_backend": "sdpa",
+    "fused_kernels": true,
+    "compiled": false,
+    "tokens_per_sec": 296822.81,
+    "step_time_ms": 220.792,
+    "mfu": 0.215183,
+    "peak_memory_mb": 50454.61,
+    "speedup_vs_baseline": 8.5171
+  },
+  {
+    "stage_name": "5_bf16_sdpa_compiled",
+    "precision": "bf16",
+    "attn_backend": "sdpa",
+    "fused_kernels": true,
+    "compiled": true,
+    "tokens_per_sec": 472080.81,
+    "step_time_ms": 138.824,
+    "mfu": 0.342236,
+    "peak_memory_mb": 34712.86,
+    "speedup_vs_baseline": 13.546
+  }
+]

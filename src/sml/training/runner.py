@@ -114,6 +114,7 @@ def run_pretraining_experiment(
         "synthetic_copy_prob": 0.0,
     }
     checkpoints_saved = 0
+    induction_history: list[dict[str, float | int]] = []
 
     t0 = time.perf_counter()
     for step_idx in range(1, max_steps + 1):
@@ -165,6 +166,17 @@ def run_pretraining_experiment(
                     "synthetic_copy_accuracy": round(last_induction["synthetic_copy_accuracy"], 6),
                     "synthetic_copy_prob": round(last_induction["synthetic_copy_prob"], 6),
                 },
+            )
+
+            induction_history.append(
+                {
+                    "step": int(step_idx),
+                    "tokens_processed": int(step_metrics["tokens_processed"]),
+                    "val_bpb": round(last_val_bpb, 6),
+                    "in_context_loss_delta": round(last_induction["in_context_loss_delta"], 6),
+                    "synthetic_copy_accuracy": round(last_induction["synthetic_copy_accuracy"], 6),
+                    "synthetic_copy_prob": round(last_induction["synthetic_copy_prob"], 6),
+                }
             )
 
     branch_val_bpb: float | None = None
@@ -219,6 +231,85 @@ def run_pretraining_experiment(
     if branch_val_bpb is not None:
         final_metrics["branch_val_bpb"] = branch_val_bpb
         final_metrics["branch_start_step"] = int(branch_start_step or 0)
+
+    max_window_gain_share = 0.0
+    if len(induction_history) >= 2:
+        copy_accs = [entry["synthetic_copy_accuracy"] for entry in induction_history]
+        total_copy_gain = copy_accs[-1] - copy_accs[0]
+        if total_copy_gain > 0:
+            max_window_gain_share = max(
+                (next_acc - prev_acc) / total_copy_gain
+                for prev_acc, next_acc in zip(copy_accs, copy_accs[1:], strict=False)
+            )
+        else:
+            induction_gains = [abs(entry["in_context_loss_delta"]) for entry in induction_history]
+            total_delta_gain = induction_gains[-1] - induction_gains[0]
+            if total_delta_gain > 0:
+                max_window_gain_share = max(
+                    (next_gain - prev_gain) / total_delta_gain
+                    for prev_gain, next_gain in zip(
+                        induction_gains, induction_gains[1:], strict=False
+                    )
+                )
+
+    final_metrics["max_window_gain_share"] = round(max_window_gain_share, 6)
+    final_metrics["delta_val_bpb"] = round(
+        last_val_bpb - (branch_val_bpb if branch_val_bpb is not None else initial_val_bpb),
+        6,
+    )
+
+    if spec.hypothesis_id == "H3" and checkpoints_saved >= 2:
+        effective_run_id = run_id or spec.experiment_id
+        h4_run_id = (
+            "h4_induction_dynamics"
+            if effective_run_id == "h3_wsd_100m"
+            else f"{effective_run_id}_h4"
+        )
+        h4_spec = replace(
+            spec,
+            experiment_id="h4_induction_dynamics",
+            hypothesis_id="H4",
+            hypothesis=(
+                "In-context induction capability emerges via a sharp early phase transition "
+                "across log-spaced checkpoints."
+            ),
+            prediction=(
+                "> 60% of the total improvement in synthetic copying accuracy and intra-document "
+                "in-context loss delta occurs within a narrow window spanning < 15% of total "
+                "training steps."
+            ),
+            acceptance_criterion="max_window_gain_share >= 0.60 and checkpoints_saved >= 15",
+        )
+        h4_recorder = RunRecorder(
+            run_id=h4_run_id,
+            spec=h4_spec,
+            output_root=Path(output_dir),
+            mode="measured",
+        )
+        for entry in induction_history:
+            h4_recorder.log_step(
+                step=int(entry["step"]),
+                metrics={
+                    "tokens_processed": entry["tokens_processed"],
+                    "val_bpb": entry["val_bpb"],
+                    "in_context_loss_delta": entry["in_context_loss_delta"],
+                    "synthetic_copy_accuracy": entry["synthetic_copy_accuracy"],
+                    "synthetic_copy_prob": entry["synthetic_copy_prob"],
+                },
+            )
+        h4_recorder.finalize(
+            final_metrics=final_metrics,
+            active_seconds=elapsed,
+            billed_seconds=0.0,
+            status="completed",
+            conclusion=(
+                f"Companion H4 induction-dynamics bundle for {effective_run_id}: "
+                f"max_window_gain_share={max_window_gain_share:.6f} across "
+                f"{len(induction_history)} log-spaced checkpoints "
+                f"(checkpoints_saved={checkpoints_saved}), "
+                f"delta_val_bpb={final_metrics['delta_val_bpb']:.6f}."
+            ),
+        )
 
     return recorder.finalize(
         final_metrics=final_metrics,

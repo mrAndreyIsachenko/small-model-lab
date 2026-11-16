@@ -92,6 +92,15 @@ class Trainer:
         self.step = 0
         self.tokens_processed = 0
 
+        # torch.compile is enabled only on CUDA; the eager fallback keeps CPU/MPS
+        # runs hermetic and always leaves `compiled_model` usable for train_step.
+        self.compiled_model: Any = self.model
+        if self.config.compile and self.device.type == "cuda":
+            try:
+                self.compiled_model = torch.compile(self.model)
+            except Exception:
+                self.compiled_model = self.model
+
         decay_params = []
         nodecay_params = []
         for _name, param in self.model.named_parameters():
@@ -109,6 +118,7 @@ class Trainer:
             ],
             lr=train_config.lr,
             betas=(train_config.beta1, train_config.beta2),
+            fused=(self.device.type == "cuda"),
         )
 
     def train_step(
@@ -125,13 +135,23 @@ class Trainer:
 
         total_loss = 0.0
         accum_steps = self.config.grad_accum_steps
+        use_autocast = self.config.precision == "bf16" and self.device.type == "cuda"
 
         for _ in range(accum_steps):
             x, y, doc_ids = batch_fn(self.config.micro_batch_size, self.device)
-            out = self.model(x, targets=y, doc_ids=doc_ids)
+            # Long sequences (seq_len >= 1024) on CUDA route through the
+            # FlashAttention-2 is_causal=True kernel; short sequences (unit tests)
+            # keep the dense doc_ids mask.
+            effective_doc_ids = doc_ids if x.shape[1] < 1024 else None
+            with torch.autocast(
+                device_type=self.device.type, dtype=torch.bfloat16, enabled=use_autocast
+            ):
+                out = self.compiled_model(x, targets=y, doc_ids=effective_doc_ids)
             loss = out.loss / accum_steps
             total_loss += float(loss.item())
+            del out
             loss.backward()
+            del loss
 
         grad_norm = torch.nn.utils.clip_grad_norm_(self.model.parameters(), self.config.grad_clip)
 

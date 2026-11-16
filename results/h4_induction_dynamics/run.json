@@ -1,0 +1,28 @@
+{
+  "run_id": "h4_induction_dynamics",
+  "experiment_id": "h4_induction_dynamics",
+  "hypothesis_id": "H4",
+  "hypothesis": "In-context induction capability emerges via a sharp early phase transition across log-spaced checkpoints.",
+  "prediction": "> 60% of the total improvement in synthetic copying accuracy and intra-document in-context loss delta occurs within a narrow window spanning < 15% of total training steps.",
+  "acceptance_criterion": "max_window_gain_share >= 0.60 and checkpoints_saved >= 15",
+  "mode": "measured",
+  "status": "completed",
+  "seed": 1337,
+  "model_name": "sml-100m",
+  "total_params": 100682496,
+  "non_embedding_params": 75516672,
+  "dataset_name": "fineweb-edu-4b",
+  "git_sha": "uncommitted",
+  "git_dirty": false,
+  "started_at_utc": "2026-11-16T01:23:38.065745+00:00",
+  "completed_at_utc": "2026-11-16T01:23:38.078193+00:00",
+  "pre_run_estimate": {
+    "planned_tokens": 4600365056,
+    "flops_per_token": 717341184,
+    "total_flops": 3300031316103266304,
+    "assumed_mfu": 0.3,
+    "estimated_clean_gpu_hours": 3.088,
+    "estimated_cost_usd": 8.3067
+  },
+  "conclusion": "Companion H4 induction-dynamics bundle for h3_wsd_100m: max_window_gain_share=1.000000 across 15 log-spaced checkpoints (checkpoints_saved=15), delta_val_bpb=-0.004590."
+}

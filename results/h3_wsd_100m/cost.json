@@ -1,0 +1,14 @@
+{
+  "hardware_name": "nvidia-h100-sxm-80gb",
+  "hourly_rate_usd": 2.69,
+  "price_as_of": "2026-10-31",
+  "num_gpus": 1,
+  "active_training_seconds": 8988.109,
+  "billed_instance_seconds": 8988.109,
+  "active_gpu_hours": 2.496697,
+  "billed_gpu_hours": 2.496697,
+  "infrastructure_overhead_fraction": 0.0,
+  "active_cost_usd": 6.7161,
+  "billed_cost_usd": 6.7161,
+  "estimated_pre_run_cost_usd": 8.3067
+}

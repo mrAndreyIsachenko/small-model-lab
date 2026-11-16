@@ -77,17 +77,17 @@ def ref_swiglu(gate: torch.Tensor, up: torch.Tensor) -> torch.Tensor:
 if HAS_TRITON:
 
     @triton.jit
-    def _rmsnorm_fwd_kernel(
-        X_ptr: Any,
-        W_ptr: Any,
-        Y_ptr: Any,
-        RRMS_ptr: Any,
-        stride_x_row: int,
-        stride_y_row: int,
-        N: int,
-        eps: float,
+    def _rmsnorm_fwd_kernel(  # type: ignore[no-untyped-def]
+        X_ptr,
+        W_ptr,
+        Y_ptr,
+        RRMS_ptr,
+        stride_x_row,
+        stride_y_row,
+        N,
+        eps,
         BLOCK_SIZE: tl.constexpr,
-    ) -> None:
+    ):
         """Single-pass SRAM row-wise RMSNorm forward kernel."""
         row_idx = tl.program_id(0)
         cols = tl.arange(0, BLOCK_SIZE)
@@ -108,17 +108,17 @@ if HAS_TRITON:
         tl.store(y_ptrs, y.to(Y_ptr.dtype.element_ty), mask=mask)
 
     @triton.jit
-    def _rmsnorm_bwd_dx_kernel(
-        DY_ptr: Any,
-        X_ptr: Any,
-        W_ptr: Any,
-        RRMS_ptr: Any,
-        DX_ptr: Any,
-        DW_partial_ptr: Any,
-        stride_row: int,
-        N: int,
+    def _rmsnorm_bwd_dx_kernel(  # type: ignore[no-untyped-def]
+        DY_ptr,
+        X_ptr,
+        W_ptr,
+        RRMS_ptr,
+        DX_ptr,
+        DW_partial_ptr,
+        stride_row,
+        N,
         BLOCK_SIZE: tl.constexpr,
-    ) -> None:
+    ):
         """Analytical backward pass for RMSNorm computing dx and per-row dw contributions."""
         row_idx = tl.program_id(0)
         cols = tl.arange(0, BLOCK_SIZE)
@@ -140,13 +140,13 @@ if HAS_TRITON:
         tl.store(DW_partial_ptr + offset, dw_row, mask=mask)
 
     @triton.jit
-    def _swiglu_fwd_kernel(
-        Gate_ptr: Any,
-        Up_ptr: Any,
-        Out_ptr: Any,
-        n_elements: int,
+    def _swiglu_fwd_kernel(  # type: ignore[no-untyped-def]
+        Gate_ptr,
+        Up_ptr,
+        Out_ptr,
+        n_elements,
         BLOCK_SIZE: tl.constexpr,
-    ) -> None:
+    ):
         """Fused 1D elementwise SwiGLU forward kernel: (gate * sigmoid(gate)) * up."""
         pid = tl.program_id(0)
         offsets = pid * BLOCK_SIZE + tl.arange(0, BLOCK_SIZE)
@@ -162,15 +162,15 @@ if HAS_TRITON:
         tl.store(Out_ptr + offsets, out.to(Out_ptr.dtype.element_ty), mask=mask)
 
     @triton.jit
-    def _swiglu_bwd_kernel(
-        DOut_ptr: Any,
-        Gate_ptr: Any,
-        Up_ptr: Any,
-        DGate_ptr: Any,
-        DUp_ptr: Any,
-        n_elements: int,
+    def _swiglu_bwd_kernel(  # type: ignore[no-untyped-def]
+        DOut_ptr,
+        Gate_ptr,
+        Up_ptr,
+        DGate_ptr,
+        DUp_ptr,
+        n_elements,
         BLOCK_SIZE: tl.constexpr,
-    ) -> None:
+    ):
         """Fused 1D elementwise SwiGLU backward kernel computing d_gate and d_up in one pass."""
         pid = tl.program_id(0)
         offsets = pid * BLOCK_SIZE + tl.arange(0, BLOCK_SIZE)

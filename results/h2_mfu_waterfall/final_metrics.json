@@ -1,0 +1,12 @@
+{
+  "stages_profiled": 5,
+  "baseline_tokens_per_sec": 34850.26,
+  "final_tokens_per_sec": 472080.81,
+  "best_tokens_per_sec": 472080.81,
+  "final_mfu": 0.342236,
+  "best_mfu": 0.342236,
+  "max_speedup_vs_baseline": 13.546,
+  "tokens_processed": 6553600,
+  "tokens_per_sec": 472080.81,
+  "mfu": 0.342236
+}

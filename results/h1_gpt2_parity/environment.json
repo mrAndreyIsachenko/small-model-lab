@@ -1,15 +1,15 @@
 {
-  "captured_at_utc": "2026-10-31T21:20:56.310536+00:00",
-  "os": "Darwin",
-  "os_release": "25.5.0",
-  "machine": "arm64",
-  "python_version": "3.12.13",
-  "torch_version": "2.15.0",
-  "accelerator": "mps",
-  "device_name": "Apple Silicon MPS (arm64)",
-  "vram_gb": null,
-  "cuda_version": null,
-  "git_sha": "f122a0c97aceefe3e2a74746e01c074615e4d69e",
-  "git_dirty": true,
-  "uv_lock_sha256": "366109f52380c40dc4134422653a07d06c3174fd138035db3689937f0c81fc97"
+  "captured_at_utc": "2026-11-15T22:40:48.603103+00:00",
+  "os": "Linux",
+  "os_release": "6.8.0-147-generic",
+  "machine": "x86_64",
+  "python_version": "3.12.15",
+  "torch_version": "2.15.0+cu132",
+  "accelerator": "cuda",
+  "device_name": "NVIDIA H100 80GB HBM3",
+  "vram_gb": 79.18,
+  "cuda_version": "13.2",
+  "git_sha": "uncommitted",
+  "git_dirty": false,
+  "uv_lock_sha256": "1c573a4a28d86c15a7c2942287daea6d326bd9f6b907af25485458d3f2cd0fc9"
 }

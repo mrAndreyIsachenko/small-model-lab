@@ -70,28 +70,46 @@ def _execute_stage_step(
     use_autocast: bool,
 ) -> tuple[Any, bool]:
     optimizer.zero_grad(set_to_none=True)
-    try:
-        with torch.autocast(
-            device_type=autocast_device,
-            dtype=torch.bfloat16,
-            enabled=use_autocast,
+
+    # Naive attention materializes O(T^2) fp32 attention scores, and fp32 stages
+    # additionally hold fp32 activations/logits, so large batches (e.g. bsz=32 x
+    # seq_len=2048 across 12 layers) exceed 80GB HBM3. Split the step into
+    # micro-batches along dim 0; gradients accumulate so the step still processes
+    # all bsz * seq_len tokens. bf16 autocast stages run the full unchunked batch.
+    num_chunks = 1
+    if (
+        (attn_backend == "naive" or not use_autocast)
+        and input_ids.shape[0] >= 4
+        and input_ids.shape[0] * input_ids.shape[1] >= 32768
+    ):
+        num_chunks = 4
+
+    def _forward_backward(model: Any) -> None:
+        for chunk_ids, chunk_targets in zip(
+            input_ids.chunk(num_chunks), targets.chunk(num_chunks), strict=False
         ):
-            out = active_model(input_ids, targets=targets, attn_backend=attn_backend)
-            assert out.loss is not None
-        out.loss.backward()
-    except Exception:
-        if compiled_active:
-            active_model = base_model
-            compiled_active = False
-            optimizer.zero_grad(set_to_none=True)
             with torch.autocast(
                 device_type=autocast_device,
                 dtype=torch.bfloat16,
                 enabled=use_autocast,
             ):
-                out = active_model(input_ids, targets=targets, attn_backend=attn_backend)
+                out = model(
+                    chunk_ids, targets=chunk_targets, attn_backend=attn_backend
+                )
                 assert out.loss is not None
-            out.loss.backward()
+                loss = out.loss / num_chunks
+            del out
+            loss.backward()
+            del loss
+
+    try:
+        _forward_backward(active_model)
+    except Exception:
+        if compiled_active:
+            active_model = base_model
+            compiled_active = False
+            optimizer.zero_grad(set_to_none=True)
+            _forward_backward(active_model)
         else:
             raise
     optimizer.step()
@@ -212,6 +230,8 @@ def run_mfu_waterfall(
             )
         )
 
-        del active_model, base_model, optimizer
+        del active_model, base_model, optimizer, input_ids, targets
+        if dev.type == "cuda":
+            torch.cuda.empty_cache()
 
     return results
