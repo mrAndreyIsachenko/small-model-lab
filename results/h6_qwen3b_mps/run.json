@@ -6,16 +6,16 @@
   "prediction": "3_hybrid_rag achieves >= 0.85 knowledge_bound_score, while 6_grpo_gated_rl outperforms 3_hybrid_rag by >= 0.20 on skill_bound_score (G_evidence * R_correctness) and outperforms 6b_grpo_naive_additive by >= 0.15 (H5).",
   "acceptance_criterion": "H6_verified == True AND H5_verified == True AND rag_retrieval_recall_at_1 == 1.0",
   "mode": "measured",
-  "status": "failed",
+  "status": "completed",
   "seed": 2026,
-  "model_name": "sml-nano",
-  "total_params": 11536640,
-  "non_embedding_params": 3148032,
+  "model_name": "Qwen2.5-3B-Instruct",
+  "total_params": 3085846528,
+  "non_embedding_params": 2774681600,
   "dataset_name": "tinystories-smoke",
-  "git_sha": "e0bbfc83abe6f2b9eb2046c8cabb1fe50793c247",
+  "git_sha": "04adb51fcbe177d0bd0e6b7ddfd7e1146dab6866",
   "git_dirty": true,
-  "started_at_utc": "2026-11-16T12:40:56.412797+00:00",
-  "completed_at_utc": "2026-11-16T12:52:51.476921+00:00",
+  "started_at_utc": "2026-11-16T14:06:33.171917+00:00",
+  "completed_at_utc": "2026-11-16T14:18:10.391965+00:00",
   "pre_run_estimate": {
     "planned_tokens": 65536,
     "flops_per_token": 72365568,
@@ -24,5 +24,5 @@
     "estimated_clean_gpu_hours": 0.0002,
     "estimated_cost_usd": 0.0
   },
-  "conclusion": "Adaptation comparison completed: H5_verified=True, H6_verified=False"
+  "conclusion": "Adaptation comparison completed: H5_verified=True, H6_verified=True"
 }

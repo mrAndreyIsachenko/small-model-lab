@@ -16,12 +16,16 @@ from sml.adaptation.lora import (
 from sml.adaptation.rag import HybridRunbookRetriever
 from sml.envs.scenarios import IncidentScenario
 from sml.envs.tool_env import (
+    _TOOL_CALL_PROMPT_SUFFIX,
     RolloutTrajectory,
     StatefulToolEnv,
     build_masked_trajectory_tokens,
     format_incident_prompt,
+    format_tool_observation,
+    parse_tool_call,
     run_oracle_episode,
 )
+from sml.gateway import GatewayConfig, OpenRouterGatewayClient
 
 
 def _forward_causal_logits(model: Any, input_ids: torch.Tensor) -> torch.Tensor:
@@ -114,10 +118,7 @@ def collect_oracle_sft_trajectories(
             messages.append(
                 {
                     "role": "user",
-                    "content": (
-                        f"Tool observation ({tool_name}): "
-                        f"{json.dumps(observation, default=str)}"
-                    ),
+                    "content": format_tool_observation(tool_name, observation, state),
                 }
             )
             if state["done"]:
@@ -193,10 +194,7 @@ def collect_partial_sft_trajectories(
             messages.append(
                 {
                     "role": "user",
-                    "content": (
-                        f"Tool observation ({tool_name}): "
-                        f"{json.dumps(observation, default=str)}"
-                    ),
+                    "content": format_tool_observation(tool_name, observation, state),
                 }
             )
             if state["done"]:
@@ -217,6 +215,130 @@ def collect_partial_sft_trajectories(
                 breakdown=breakdown,
             )
         )
+
+    return trajectories
+
+
+def run_teacher_gateway_episode(
+    env: StatefulToolEnv,
+    scenario: IncidentScenario,
+    gateway_client: OpenRouterGatewayClient,
+    teacher_model: str = "qwen/qwen-2.5-72b-instruct",
+    tokenizer: Any = None,
+    extra_context: str = "",
+    max_tokens: int = 512,
+    temperature: float = 0.0,
+) -> RolloutTrajectory:
+    """Run one teacher-driven tool episode through the OpenRouter gateway.
+
+    The scenario prompt is seeded with `extra_context` (typically the retrieved
+    runbook), the teacher model is queried once per step via
+    `gateway_client.chat_completions`, and its reply is parsed with
+    `parse_tool_call`. Unparseable replies get a `Format error` user message
+    plus the tool-call prompt suffix and the step is retried on the next loop
+    iteration; valid replies are executed with `env.step` and the formatted
+    observation is appended. The episode is scored with the
+    `gated_multiplicative` rubric so ungrounded teacher traces score low.
+    """
+    state = env.setup_state(scenario)
+    messages = format_incident_prompt(env, scenario, extra_context=extra_context)
+
+    for step_idx in range(env.max_steps):
+        if state["done"]:
+            break
+        response = gateway_client.chat_completions(
+            {
+                "model": teacher_model,
+                "messages": messages,
+                "temperature": temperature,
+                "max_tokens": max_tokens,
+            },
+            request_id=f"{_scenario_id(scenario)}-step-{step_idx + 1}",
+        )
+        response_text = str(response["choices"][0]["message"]["content"])
+        messages.append({"role": "assistant", "content": response_text})
+
+        parsed = parse_tool_call(response_text)
+        if parsed is None:
+            messages.append(
+                {
+                    "role": "user",
+                    "content": (
+                        "Format error: could not parse a <tool_call> payload from "
+                        "your reply. " + _TOOL_CALL_PROMPT_SUFFIX
+                    ),
+                }
+            )
+            continue
+
+        tool_name, tool_args = parsed
+        observation = env.step(tool_name, tool_args, state)
+        messages.append(
+            {
+                "role": "user",
+                "content": format_tool_observation(tool_name, observation, state),
+            }
+        )
+        if state["done"]:
+            break
+
+    breakdown = env.score_state(state, mode_override="gated_multiplicative")
+    if tokenizer is not None:
+        input_ids, assistant_action_mask = build_masked_trajectory_tokens(
+            messages, tokenizer
+        )
+    else:
+        input_ids, assistant_action_mask = [], []
+
+    return RolloutTrajectory(
+        scenario_id=_scenario_id(scenario),
+        messages=messages,
+        input_ids=input_ids,
+        assistant_action_mask=assistant_action_mask,
+        state=state,
+        reward=breakdown.total_reward,
+        breakdown=breakdown,
+    )
+
+
+def collect_teacher_gateway_trajectories(
+    env: StatefulToolEnv,
+    tokenizer: Any = None,
+    gateway_client: OpenRouterGatewayClient | None = None,
+    teacher_model: str = "qwen/qwen-2.5-72b-instruct",
+    min_reward: float = 0.95,
+    use_rag_context: bool = True,
+) -> list[RolloutTrajectory]:
+    """Collect gated-rubric-filtered SFT trajectories from a teacher LLM.
+
+    Each scenario runs one `run_teacher_gateway_episode` through the gateway
+    (defaulting to `OpenRouterGatewayClient(GatewayConfig.from_env())`), and
+    only trajectories scoring `>= min_reward` under the `gated_multiplicative`
+    rubric are kept. When `use_rag_context` is True the scenario prompt is
+    grounded with the top-1 retrieved runbook document, mirroring the oracle
+    SFT collector so the policy conditions on the scenario category.
+    """
+    if gateway_client is None:
+        gateway_client = OpenRouterGatewayClient(GatewayConfig.from_env())
+    retriever = HybridRunbookRetriever() if use_rag_context else None
+
+    trajectories: list[RolloutTrajectory] = []
+    for scenario in env.scenarios:
+        extra_context = (
+            _rag_context_for_scenario(retriever, scenario)
+            if retriever is not None
+            else ""
+        )
+        trajectory = run_teacher_gateway_episode(
+            env,
+            scenario,
+            gateway_client,
+            teacher_model=teacher_model,
+            tokenizer=tokenizer,
+            extra_context=extra_context,
+        )
+        if trajectory.reward >= min_reward:
+            trajectories.append(trajectory)
 
     return trajectories
 

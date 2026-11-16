@@ -3,10 +3,12 @@
 from .cka import (
     collect_layer_activations,
     compute_layerwise_cka_drift,
+    get_transformer_layers,
     linear_cka,
 )
 from .pareto import (
     compute_logit_kl_divergence,
+    run_llm_surgery_and_pareto_suite,
     run_surgery_and_pareto_suite,
 )
 from .quantization import (
@@ -29,9 +31,11 @@ __all__ = [
     "compute_layerwise_cka_drift",
     "compute_logit_kl_divergence",
     "extract_contrastive_direction",
+    "get_transformer_layers",
     "linear_cka",
     "project_out_rank1_subspace",
     "prune_transformer_layers",
     "quantize_tensor_groupwise",
+    "run_llm_surgery_and_pareto_suite",
     "run_surgery_and_pareto_suite",
 ]

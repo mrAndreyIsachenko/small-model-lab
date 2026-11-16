@@ -7,7 +7,7 @@ import dataclasses
 
 import torch
 
-from sml.model.transformer import Transformer
+from sml.surgery.cka import get_transformer_layers
 
 
 def quantize_tensor_groupwise(
@@ -70,8 +70,8 @@ def quantize_tensor_groupwise(
     if activation_scale is not None:
         weight_q = weight_q / s.unsqueeze(0)
 
-    # Reshape to original shape and convert to original dtype
-    return weight_q.view(orig_shape).to(orig_dtype)
+    # Reshape to original shape and cast back to the original tensor dtype
+    return weight_q.reshape(orig_shape).to(dtype=orig_dtype)
 
 
 def allocate_mixed_precision_bits(
@@ -126,13 +126,13 @@ def allocate_mixed_precision_bits(
 
 
 def apply_mixed_precision_quantization(
-    model: Transformer, layer_bits: dict[int, int], group_size: int = 32
-) -> tuple[Transformer, dict[str, float]]:
+    model: torch.nn.Module, layer_bits: dict[int, int], group_size: int = 32
+) -> tuple[torch.nn.Module, dict[str, float]]:
     """
     Apply mixed precision quantization to a transformer model.
 
     Args:
-        model: Transformer model to quantize
+        model: Transformer model to quantize (HF or sml-nano)
         layer_bits: Mapping of layer indices to bit widths
         group_size: Group size for group-wise quantization
 
@@ -147,7 +147,7 @@ def apply_mixed_precision_quantization(
     weighted_bits_sum = 0
 
     # Quantize all linear layers in each layer block
-    for layer_idx, block in enumerate(copied.layers):
+    for layer_idx, block in enumerate(get_transformer_layers(copied)):
         bits = layer_bits.get(layer_idx, 4)  # Default to 4-bit
 
         # Quantize attention weights
@@ -224,12 +224,17 @@ def apply_mixed_precision_quantization(
     return copied, stats_dict
 
 
-def prune_transformer_layers(model: Transformer, drop_layer_indices: list[int]) -> Transformer:
+def prune_transformer_layers(
+    model: torch.nn.Module, drop_layer_indices: list[int]
+) -> torch.nn.Module:
     """
     Prune transformer layers by removing specified layer indices.
 
+    Supports both Hugging Face layouts (`model.model.layers`) and sml-nano
+    layouts (`model.layers`).
+
     Args:
-        model: Transformer model to prune
+        model: Transformer model to prune (HF or sml-nano)
         drop_layer_indices: List of layer indices to remove
 
     Returns:
@@ -238,11 +243,27 @@ def prune_transformer_layers(model: Transformer, drop_layer_indices: list[int]) 
     # Deep copy model
     copied = copy.deepcopy(model)
 
-    # Filter out layers whose index is in drop_layer_indices
-    kept_layers = [layer for i, layer in enumerate(copied.layers) if i not in drop_layer_indices]
+    if hasattr(copied, "model") and hasattr(copied.model, "layers"):
+        # Hugging Face layout: model.model.layers
+        kept_layers = [
+            layer for i, layer in enumerate(copied.model.layers) if i not in drop_layer_indices
+        ]
+        copied.model.layers = torch.nn.ModuleList(kept_layers)
+        if hasattr(copied.config, "num_hidden_layers"):
+            copied.config.num_hidden_layers = len(kept_layers)
+        else:
+            copied.config = dataclasses.replace(copied.config, n_layers=len(kept_layers))
+    else:
+        # sml-nano layout: model.layers
+        kept_layers = [
+            layer for i, layer in enumerate(copied.layers) if i not in drop_layer_indices
+        ]
+        copied.layers = torch.nn.ModuleList(kept_layers)
+        copied.config = dataclasses.replace(copied.config, n_layers=len(kept_layers))
 
-    # Update model layers and config
-    copied.layers = torch.nn.ModuleList(kept_layers)
-    copied.config = dataclasses.replace(copied.config, n_layers=len(copied.layers))
+    # Re-index attention layers after pruning
+    for new_idx, layer in enumerate(kept_layers):
+        if hasattr(layer, "self_attn") and hasattr(layer.self_attn, "layer_idx"):
+            layer.self_attn.layer_idx = new_idx
 
     return copied

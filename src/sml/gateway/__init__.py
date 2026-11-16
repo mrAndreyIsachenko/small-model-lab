@@ -5,6 +5,7 @@ from .client import (
     GatewayError,
     OpenRouterGatewayClient,
     find_forbidden_key_paths,
+    find_secret_leak_paths,
     validate_chat_payload,
 )
 
@@ -15,5 +16,6 @@ __all__ = [
     "GatewayError",
     "OpenRouterGatewayClient",
     "find_forbidden_key_paths",
+    "find_secret_leak_paths",
     "validate_chat_payload",
 ]

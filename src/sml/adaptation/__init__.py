@@ -23,7 +23,9 @@ from sml.adaptation.grpo import (
 )
 from sml.adaptation.llm_sft import (
     collect_oracle_sft_trajectories,
+    collect_teacher_gateway_trajectories,
     compute_masked_sft_loss,
+    run_teacher_gateway_episode,
     train_lora_sft_llm,
 )
 from sml.adaptation.lora import (
@@ -50,6 +52,7 @@ __all__ = [
     "build_incident_knowledge_base",
     "collect_oracle_sft_trajectories",
     "collect_rejection_sampled_trajectories",
+    "collect_teacher_gateway_trajectories",
     "compute_distillation_kl_loss",
     "compute_group_normalized_advantages",
     "compute_grpo_loss",
@@ -61,6 +64,7 @@ __all__ = [
     "run_incomplete_exploration_episode",
     "run_llm_adaptation_comparison",
     "run_partial_rag_episode",
+    "run_teacher_gateway_episode",
     "train_grpo_action_policy",
     "train_grpo_llm_policy",
     "train_lora_sft_llm",

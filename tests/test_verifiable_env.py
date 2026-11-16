@@ -252,6 +252,32 @@ def test_format_incident_prompt_lists_tools_and_incident_fields() -> None:
     assert "Dashboard link attached." in user
 
 
+def test_step_budget_in_prompt_and_tool_observation() -> None:
+    env = load_environment(split="val", count=1, base_seed=7, max_steps=3)
+    scenario = env.scenarios[0]
+
+    system_msg = format_incident_prompt(env, scenario)[0]["content"]
+    assert f"Step budget: {env.max_steps} steps max" in system_msg
+    assert f"call submit_diagnosis on step {env.max_steps}" in system_msg
+
+    tokenizer = _DummyTokenizer()
+    model = _DummyModel(
+        tokenizer,
+        [
+            '<tool_call>{"name": "inspect_changes", "arguments": {}}</tool_call>',
+            "Still gathering context.",
+        ],
+    )
+    traj = run_llm_episode(env, scenario, model, tokenizer)
+
+    observations = [
+        m["content"] for m in traj.messages if m["content"].startswith("Tool observation")
+    ]
+    assert len(observations) == 1
+    assert "[Step 1/" in observations[0]
+    assert "submit_diagnosis" in observations[0]
+
+
 def test_build_masked_trajectory_tokens_masks_assistant_spans_only() -> None:
     tokenizer = _DummyTokenizer()
     messages = [

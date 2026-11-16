@@ -1,5 +1,6 @@
 import json
 import os
+import re
 import time
 import urllib.request
 from collections.abc import Callable
@@ -14,6 +15,10 @@ FORBIDDEN_RAW_BODY_KEYS = {
     "raw_artifact_bodies",
     "raw_body",
     "raw_bodies",
+    "raw_rows",
+    "raw_db_rows",
+    "db_rows",
+    "raw_records",
     "credentials",
     "secrets",
     "tokens",
@@ -97,6 +102,36 @@ def find_forbidden_key_paths(value: Any, prefix: str = "body") -> list[str]:
     return paths
 
 
+SECRET_LEAK_PATTERNS = (
+    re.compile(r"sk-or-v1-[A-Za-z0-9_-]{16,}"),
+    re.compile(r"sk-[A-Za-z0-9_-]{20,}"),
+    re.compile(r"-----BEGIN [A-Z ]*PRIVATE KEY-----"),
+    re.compile(
+        r"(?i)(api_key|secret_key|password|access_token)\s*[:=]\s*[\"']?[A-Za-z0-9_\-]{8,}"
+    ),
+)
+
+
+def find_secret_leak_paths(value: Any, prefix: str = "body") -> list[str]:
+    """Recursively scan dictionaries, lists, and string values for secret patterns."""
+    paths = []
+
+    if isinstance(value, dict):
+        for key, val in value.items():
+            current_path = f"{prefix}.{key}" if prefix else str(key)
+            paths.extend(find_secret_leak_paths(val, current_path))
+    elif isinstance(value, list):
+        for i, item in enumerate(value):
+            current_path = f"{prefix}[{i}]"
+            paths.extend(find_secret_leak_paths(item, current_path))
+    elif isinstance(value, str) and any(
+        pattern.search(value) for pattern in SECRET_LEAK_PATTERNS
+    ):
+        paths.append(prefix)
+
+    return paths
+
+
 def validate_chat_payload(payload: dict[str, Any], config: GatewayConfig) -> dict[str, Any]:
     """Validate chat payload according to gateway rules."""
     # Validate model
@@ -153,6 +188,15 @@ def validate_chat_payload(payload: dict[str, Any], config: GatewayConfig) -> dic
             f"forbidden keys detected: {', '.join(forbidden_paths)}",
             status=403,
             code="raw_body_fields_not_allowed",
+        )
+
+    # Check for secret patterns leaking through the payload
+    secret_paths = find_secret_leak_paths(payload)
+    if secret_paths:
+        raise GatewayError(
+            f"potential secret leak detected: {', '.join(secret_paths)}",
+            status=403,
+            code="secret_leak_detected",
         )
 
     # Check size limits

@@ -433,6 +433,8 @@ def format_incident_prompt(
         "You are an incident response agent investigating a data-quality incident in a "
         "DuckDB warehouse. Investigate systematically: query slices, rule out confounders, "
         "and gather verified numeric evidence before submitting a diagnosis. "
+        f"Step budget: {env.max_steps} steps max. Always call submit_diagnosis on step "
+        f"{env.max_steps} (or earlier) before the budget runs out. "
         f"Available tools:\n{tool_lines}\n\n{_TOOL_CALL_PROMPT_SUFFIX}"
     )
     incident_fields = (
@@ -453,6 +455,32 @@ def format_incident_prompt(
         {"role": "system", "content": system_msg},
         {"role": "user", "content": user_msg},
     ]
+
+
+def format_tool_observation(
+    tool_name: str,
+    observation: dict[str, Any],
+    state: dict[str, Any],
+) -> str:
+    """Serialize a tool observation and append a live step-budget counter line."""
+    payload = json.dumps(observation, default=str)
+    message = f"Tool observation ({tool_name}): {payload}"
+    max_steps = int(state.get("max_steps", 0))
+    if max_steps > 0 and not state.get("done"):
+        steps_taken = int(state.get("steps_taken", 0))
+        remaining = max(0, max_steps - steps_taken)
+        if remaining <= 1:
+            counter = (
+                f"[Step {steps_taken}/{max_steps} — {remaining} step left; "
+                f"call submit_diagnosis NOW on step {max_steps}]"
+            )
+        else:
+            counter = (
+                f"[Step {steps_taken}/{max_steps} — {remaining} steps remaining; "
+                f"call submit_diagnosis on step {max_steps}]"
+            )
+        message = f"{message}\n{counter}"
+    return message
 
 
 def build_masked_trajectory_tokens(
@@ -577,10 +605,7 @@ def run_llm_episode(
         messages.append(
             {
                 "role": "user",
-                "content": (
-                    f"Tool observation ({tool_name}): "
-                    f"{json.dumps(observation, default=str)}"
-                ),
+                "content": format_tool_observation(tool_name, observation, state),
             }
         )
         if state["done"]:

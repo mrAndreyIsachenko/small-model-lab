@@ -282,7 +282,7 @@ def run_llm_adaptation_comparison(
     sft_steps: int = 8,
     grpo_steps: int = 4,
     group_size: int = 4,
-    max_new_tokens: int = 128,
+    max_new_tokens: int = 512,
     model: Any = None,
     tokenizer: Any = None,
 ) -> dict[str, Any]:

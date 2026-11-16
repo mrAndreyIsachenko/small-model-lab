@@ -2,11 +2,11 @@
 
 - **Experiment:** `h6_adaptation_comparison` (`H6`)
 - **Mode:** `measured`
-- **Status:** `failed`
-- **Model:** `sml-nano` (`11,536,640` total / `3,148,032` non-emb)
+- **Status:** `completed`
+- **Model:** `Qwen2.5-3B-Instruct` (`3,085,846,528` total / `2,774,681,600` non-emb)
 - **Dataset:** `tinystories-smoke`
 - **Hardware:** `apple-m4-pro-48gb` (`$0.00/hr`)
-- **Git SHA:** `e0bbfc83abe6f2b9eb2046c8cabb1fe50793c247` (dirty: `True`)
+- **Git SHA:** `04adb51fcbe177d0bd0e6b7ddfd7e1146dab6866` (dirty: `True`)
 
 ## Hypothesis & Prediction
 - **Hypothesis:** Enriching context via Hybrid RAG (BM25 + char n-gram RRF) resolves knowledge-bound table/schema lookups (>= 85% coverage), but weight updates via Rejection-Sampled Teacher Distillation + Multi-Turn Gated GRPO significantly outperform context-only strategies on skill-bound multi-step hypothesis elimination and confounder rejection (>= 20 pp gain).
@@ -16,20 +16,20 @@
 ## Final Metrics
 - **`backend`:** `llm`
 - **`h5_verified`:** `True`
-- **`h6_verified`:** `False`
-- **`h5_skill_difference`:** `0.1684`
-- **`h6_skill_difference`:** `0.1067`
+- **`h6_verified`:** `True`
+- **`h5_skill_difference`:** `0.1683`
+- **`h6_skill_difference`:** `0.44`
 - **`rag_knowledge_score`:** `1.0`
 - **`rag_retrieval_recall_at_1`:** `1.0`
-- **`gated_grpo_skill_score`:** `0.6667`
+- **`gated_grpo_skill_score`:** `1.0`
 - **`naive_grpo_skill_score`:** `0.0`
-- **`tokens_processed`:** `24528`
-- **`tokens_per_sec`:** `34.3`
+- **`tokens_processed`:** `24556`
+- **`tokens_per_sec`:** `35.2`
 
 ## Compute & Cost
-- **Active GPU-Hours:** `0.198629`
-- **Billed GPU-Hours:** `0.198629`
+- **Active GPU-Hours:** `0.193673`
+- **Billed GPU-Hours:** `0.193673`
 - **Billed Cost (USD):** `$0.0000` (pre-run estimate: `$0.0000`)
 
 ## Conclusion
-Adaptation comparison completed: H5_verified=True, H6_verified=False
+Adaptation comparison completed: H5_verified=True, H6_verified=True

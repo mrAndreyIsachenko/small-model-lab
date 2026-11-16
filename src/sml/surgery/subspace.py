@@ -7,7 +7,7 @@ import copy
 import torch
 
 from sml.model.transformer import Transformer
-from sml.surgery.cka import collect_layer_activations
+from sml.surgery.cka import collect_layer_activations, get_transformer_layers
 
 
 def extract_contrastive_direction(
@@ -61,21 +61,21 @@ def project_out_rank1_subspace(
     # Compute projection matrix
     proj = torch.outer(r, r @ weight.float())
 
-    # Apply projection and return in original dtype
-    return (weight.float() - scale * proj).to(weight.dtype)
+    # Apply projection and return in original dtype and device
+    return (weight.float() - scale * proj).to(device=weight.device, dtype=weight.dtype)
 
 
 def apply_subspace_ablation(
-    model: Transformer,
+    model: torch.nn.Module,
     direction: torch.Tensor,
     layer_indices: list[int] | None = None,
     scale: float = 1.0,
-) -> Transformer:
+) -> torch.nn.Module:
     """
     Apply subspace ablation to specific layers of a model.
 
     Args:
-        model: Transformer model instance
+        model: Transformer model instance (HF or sml-nano)
         direction: Direction vector to project out
         layer_indices: Indices of layers to modify (None means all layers)
         scale: Scaling factor for projection
@@ -85,15 +85,16 @@ def apply_subspace_ablation(
     """
     # Create deep copy of model
     modified_model = copy.deepcopy(model)
+    layers = get_transformer_layers(modified_model)
 
     # Determine which layers to modify
     if layer_indices is None:
-        layer_indices = list(range(len(modified_model.layers)))
+        layer_indices = list(range(len(layers)))
 
     # Apply projection to selected layers
     with torch.no_grad():
         for i in layer_indices:
-            layer = modified_model.layers[i]
+            layer = layers[i]
 
             # Update attention output projection
             layer.self_attn.o_proj.weight = torch.nn.Parameter(

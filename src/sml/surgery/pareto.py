@@ -12,6 +12,7 @@ import torch.nn.functional as F
 from sml.config import ModelConfig
 from sml.model.transformer import Transformer
 from sml.surgery.cka import collect_layer_activations, compute_layerwise_cka_drift
+from sml.surgery.llm_pareto import run_llm_surgery_and_pareto_suite
 from sml.surgery.quantization import (
     allocate_mixed_precision_bits,
     apply_mixed_precision_quantization,
@@ -22,6 +23,11 @@ from sml.surgery.subspace import (
     extract_contrastive_direction,
     project_out_rank1_subspace,
 )
+
+__all__ = [
+    "run_llm_surgery_and_pareto_suite",
+    "run_surgery_and_pareto_suite",
+]
 
 
 def compute_logit_kl_divergence(

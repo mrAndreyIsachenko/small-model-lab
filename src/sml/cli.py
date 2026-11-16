@@ -3,12 +3,13 @@
 from __future__ import annotations
 
 import argparse
+import dataclasses
 import json
 import math
 import time
 from pathlib import Path
 
-from sml.config import load_experiment_spec, load_model_config
+from sml.config import ModelConfig, load_experiment_spec, load_model_config
 from sml.model import (
     KVCache,
     Transformer,
@@ -594,6 +595,41 @@ def _cmd_verify_env(args: argparse.Namespace) -> int:
     return 0 if h5_passed else 1
 
 
+def _resolve_llm_model_config(model_name: str, fallback: ModelConfig) -> ModelConfig:
+    """Resolve architecture hyperparameters from a HF checkpoint config."""
+    try:
+        from transformers import AutoConfig
+
+        cfg = AutoConfig.from_pretrained(model_name)
+    except Exception:
+        return fallback
+    return ModelConfig(
+        name=model_name.split("/")[-1],
+        vocab_size=int(getattr(cfg, "vocab_size", fallback.vocab_size)),
+        d_model=int(getattr(cfg, "hidden_size", fallback.d_model)),
+        n_layers=int(getattr(cfg, "num_hidden_layers", fallback.n_layers)),
+        n_heads=int(getattr(cfg, "num_attention_heads", fallback.n_heads)),
+        n_kv_heads=int(
+            getattr(
+                cfg,
+                "num_key_value_heads",
+                getattr(cfg, "num_attention_heads", fallback.n_kv_heads),
+            )
+        ),
+        d_ff=int(getattr(cfg, "intermediate_size", fallback.d_ff)),
+        max_seq_len=int(getattr(cfg, "max_position_embeddings", fallback.max_seq_len)),
+        norm_type=fallback.norm_type,
+        pos_encoding=fallback.pos_encoding,
+        mlp_type=fallback.mlp_type,
+        bias=fallback.bias,
+        tie_embeddings=bool(
+            getattr(cfg, "tie_word_embeddings", fallback.tie_embeddings)
+        ),
+        rope_theta=float(getattr(cfg, "rope_theta", fallback.rope_theta)),
+        norm_eps=float(getattr(cfg, "rms_norm_eps", fallback.norm_eps)),
+    )
+
+
 def _cmd_compare_adaptation(args: argparse.Namespace) -> int:
     from sml.adaptation import run_adaptation_comparison, run_llm_adaptation_comparison
     from sml.config import load_experiment_spec
@@ -602,6 +638,11 @@ def _cmd_compare_adaptation(args: argparse.Namespace) -> int:
     spec = load_experiment_spec(args.experiment)
     output_dir = Path(args.output_dir)
     run_id = args.run_id or spec.experiment_id
+
+    if args.backend == "llm" and args.model_name:
+        spec = dataclasses.replace(
+            spec, model=_resolve_llm_model_config(args.model_name, spec.model)
+        )
 
     t0 = time.perf_counter()
     recorder = RunRecorder(
@@ -696,12 +737,20 @@ def _cmd_run_surgery(args: argparse.Namespace) -> int:
     import time
 
     from sml.config import load_experiment_spec
-    from sml.surgery.pareto import run_surgery_and_pareto_suite
+    from sml.surgery.pareto import (
+        run_llm_surgery_and_pareto_suite,
+        run_surgery_and_pareto_suite,
+    )
     from sml.tracking.manifest import RunRecorder
 
     spec = load_experiment_spec(args.experiment)
     output_dir = Path(args.output_dir)
     run_id = args.run_id or spec.experiment_id
+
+    if args.backend == "llm" and args.model_name:
+        spec = dataclasses.replace(
+            spec, model=_resolve_llm_model_config(args.model_name, spec.model)
+        )
 
     t0 = time.perf_counter()
     recorder = RunRecorder(
@@ -711,18 +760,38 @@ def _cmd_run_surgery(args: argparse.Namespace) -> int:
         mode="measured",
     )
 
-    res = run_surgery_and_pareto_suite(seed=spec.seed)
-
-    # Log Pareto frontier metrics
-    for idx, item in enumerate(res["pareto_frontier"], start=1):
-        recorder.log_step(
-            step=idx,
-            metrics={
-                "avg_bits": float(item["avg_bits"]),
-                "kl_vs_bf16": float(item["kl_vs_bf16"]),
-                "measured_cpu_tok_s": float(item["measured_cpu_tok_s"]),
-            },
+    if args.backend == "llm":
+        res = run_llm_surgery_and_pareto_suite(
+            model_name=args.model_name,
+            device=args.device,
+            seed=spec.seed,
+            episodes=args.episodes,
+            sft_steps=args.sft_steps,
+            grpo_steps=args.grpo_steps,
+            group_size=args.group_size,
         )
+    else:
+        res = run_surgery_and_pareto_suite(seed=spec.seed)
+
+    # Log Pareto frontier metrics ('measured_llm_tok_s' for llm, 'measured_cpu_tok_s' for nano)
+    for idx, item in enumerate(res["pareto_frontier"], start=1):
+        tok_s = float(
+            item.get(
+                "measured_llm_tok_s",
+                item.get("tok_per_sec", item.get("measured_cpu_tok_s", 0.0)),
+            )
+        )
+        metrics = {
+            "avg_bits": float(item["avg_bits"]),
+            "kl_vs_bf16": float(item["kl_vs_bf16"]),
+            "measured_cpu_tok_s": tok_s,
+        }
+        ttft_ms = item.get("measured_llm_ttft_ms", item.get("ttft_ms"))
+        if ttft_ms is not None:
+            metrics["ttft_ms"] = float(ttft_ms)
+        if "mean_gated_reward" in item:
+            metrics["mean_gated_reward"] = float(item["mean_gated_reward"])
+        recorder.log_step(step=idx, metrics=metrics)
 
     # Write surgery_pareto.json
     surgery_pareto_path = recorder.run_dir / "surgery_pareto.json"
@@ -730,6 +799,9 @@ def _cmd_run_surgery(args: argparse.Namespace) -> int:
         json.dumps(res, indent=2),
         encoding="utf-8",
     )
+
+    elapsed = time.perf_counter() - t0
+    tokens_processed = int(res.get("tokens_processed", 0))
 
     # Final metrics
     final_metrics = {
@@ -739,11 +811,14 @@ def _cmd_run_surgery(args: argparse.Namespace) -> int:
         "pareto_dominance_verified": res["pareto_dominance_verified"],
         "cka_guided_kl": res["kl_divergences"]["cka_guided"],
         "bottom_k_control_kl": res["kl_divergences"]["bottom_k_control"],
-        "tokens_processed": 0,
-        "tokens_per_sec": 0,
+        "backend": args.backend,
+        "model_name": res.get("model_name", "sml-surgery-6l"),
+        "tokens_processed": tokens_processed,
+        "tokens_per_sec": (
+            round(tokens_processed / max(elapsed, 1e-6), 1) if tokens_processed else 0
+        ),
     }
 
-    elapsed = time.perf_counter() - t0
     run_path = recorder.finalize(
         final_metrics=final_metrics,
         active_seconds=elapsed,
@@ -1067,6 +1142,34 @@ def build_parser() -> argparse.ArgumentParser:
         help="Directory for run output bundle.",
     )
     run_surgery_p.add_argument("--run-id", default=None, help="Optional explicit run_id override.")
+    run_surgery_p.add_argument(
+        "--backend",
+        choices=["nano", "llm"],
+        default="nano",
+        help="Surgery backend: 'nano' (built-in 6-layer model) or 'llm' (HF checkpoint).",
+    )
+    run_surgery_p.add_argument(
+        "--model-name",
+        default="Qwen/Qwen2.5-3B-Instruct",
+        help="HF model checkpoint used when --backend llm.",
+    )
+    run_surgery_p.add_argument(
+        "--device",
+        default="auto",
+        help="Torch device used when --backend llm.",
+    )
+    run_surgery_p.add_argument(
+        "--episodes", type=int, default=6, help="RL episodes when --backend llm."
+    )
+    run_surgery_p.add_argument(
+        "--sft-steps", type=int, default=8, help="SFT steps when --backend llm."
+    )
+    run_surgery_p.add_argument(
+        "--grpo-steps", type=int, default=4, help="GRPO steps when --backend llm."
+    )
+    run_surgery_p.add_argument(
+        "--group-size", type=int, default=4, help="GRPO group size when --backend llm."
+    )
     run_surgery_p.set_defaults(func=_cmd_run_surgery)
 
     return parser

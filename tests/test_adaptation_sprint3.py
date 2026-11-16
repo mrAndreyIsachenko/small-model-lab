@@ -18,6 +18,7 @@ from sml.adaptation import (
     apply_lora_to_transformer,
     collect_oracle_sft_trajectories,
     collect_rejection_sampled_trajectories,
+    collect_teacher_gateway_trajectories,
     compute_distillation_kl_loss,
     compute_group_normalized_advantages,
     compute_grpo_loss,
@@ -26,6 +27,7 @@ from sml.adaptation import (
     merge_lora_weights,
     run_adaptation_comparison,
     run_llm_adaptation_comparison,
+    run_teacher_gateway_episode,
     train_grpo_action_policy,
     train_grpo_llm_policy,
     train_lora_sft_llm,
@@ -34,6 +36,8 @@ from sml.adaptation.grpo import compute_token_level_grpo_loss, compute_token_log
 from sml.cli import main
 from sml.config import ModelConfig
 from sml.envs import load_environment
+from sml.envs.tool_env import run_oracle_episode
+from sml.gateway import GatewayConfig, OpenRouterGatewayClient
 from sml.model import Transformer
 
 
@@ -381,3 +385,89 @@ def test_run_llm_adaptation_comparison_with_tiny_model() -> None:
     assert comp["sft_diagnostics"]["steps"] == 2
     assert "gated_multiplicative" in comp["grpo_policy_diagnostics"]
     _assert_all_metrics_finite(comp)
+
+
+def _gateway_response(content: str) -> dict[str, object]:
+    """OpenAI-shaped chat-completions response body for the mocked transport."""
+    return {
+        "id": "chatcmpl-test",
+        "choices": [
+            {
+                "index": 0,
+                "message": {"role": "assistant", "content": content},
+                "finish_reason": "stop",
+            }
+        ],
+    }
+
+
+def test_collect_teacher_gateway_trajectories_filters_by_gated_rubric() -> None:
+    env = load_environment(split="train", count=2, base_seed=7)
+    assert len(env.scenarios) == 2
+    tokenizer = TinyChatTokenizer()
+
+    good_scenario = env.scenarios[0]
+    bad_scenario = env.scenarios[1]
+
+    # Scenario 0 replays the oracle trace verbatim -> reward >= 0.95.
+    oracle_state = run_oracle_episode(env, good_scenario)
+    good_responses: list[str] = []
+    for trace in oracle_state["tool_trace"]:
+        payload = json.dumps(
+            {"name": str(trace["tool"]), "arguments": dict(trace["args"])}, default=str
+        )
+        good_responses.append(f"<tool_call>{payload}</tool_call>")
+    assert str(oracle_state["tool_trace"][-1]["tool"]) == "submit_diagnosis"
+
+    # Scenario 1 submits an ungrounded, wrong diagnosis with zero verification
+    # queries (string diagnosis fields replaced by a fabricated guess).
+    bad_trace = run_oracle_episode(env, bad_scenario)["tool_trace"]
+    submit_args = dict(bad_trace[-1]["args"])
+    assert str(bad_trace[-1]["tool"]) == "submit_diagnosis"
+    wrong_args = {
+        key: ("ungrounded_guess_no_evidence" if isinstance(value, str) else value)
+        for key, value in submit_args.items()
+    }
+    bad_payload = json.dumps(
+        {"name": "submit_diagnosis", "arguments": wrong_args}, default=str
+    )
+    bad_responses = [f"<tool_call>{bad_payload}</tool_call>"]
+
+    def make_client(responses: list[str]) -> OpenRouterGatewayClient:
+        queue = list(responses)
+
+        def transport(
+            payload: dict[str, object], *args: object, **kwargs: object
+        ) -> dict[str, object]:
+            assert queue, f"unexpected gateway call #{len(responses) - len(queue) + 1}"
+            return _gateway_response(queue.pop(0))
+
+        return OpenRouterGatewayClient(
+            GatewayConfig(api_key="test-key"), transport=transport
+        )
+
+    # Premise check: the ungrounded episode scores below the gate on its own.
+    bad_traj = run_teacher_gateway_episode(
+        env, bad_scenario, make_client(bad_responses), tokenizer=tokenizer
+    )
+    assert bad_traj.reward < 0.95
+
+    trajectories = collect_teacher_gateway_trajectories(
+        env,
+        tokenizer=tokenizer,
+        gateway_client=make_client(good_responses + bad_responses),
+    )
+
+    assert len(trajectories) == 1
+    kept = trajectories[0]
+    good_id = str(
+        getattr(good_scenario, "scenario_id", None)
+        or getattr(good_scenario, "id", None)
+        or ""
+    )
+    assert kept.scenario_id == good_id
+    assert kept.reward >= 0.95
+    assert kept.state["tool_trace"]  # real executed tool calls, not just text
+    assert kept.breakdown.diagnostics  # gated-rubric audit of the episode
+    assert len(kept.input_ids) == len(kept.assistant_action_mask)
+    assert len(kept.messages) > 2

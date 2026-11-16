@@ -1,13 +1,13 @@
 {
   "backend": "llm",
   "h5_verified": true,
-  "h6_verified": false,
-  "h5_skill_difference": 0.1684,
-  "h6_skill_difference": 0.1067,
+  "h6_verified": true,
+  "h5_skill_difference": 0.1683,
+  "h6_skill_difference": 0.44,
   "rag_knowledge_score": 1.0,
   "rag_retrieval_recall_at_1": 1.0,
-  "gated_grpo_skill_score": 0.6667,
+  "gated_grpo_skill_score": 1.0,
   "naive_grpo_skill_score": 0.0,
-  "tokens_processed": 24528,
-  "tokens_per_sec": 34.3
+  "tokens_processed": 24556,
+  "tokens_per_sec": 35.2
 }

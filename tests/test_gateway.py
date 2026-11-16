@@ -7,6 +7,7 @@ from sml.gateway import (
     GatewayError,
     OpenRouterGatewayClient,
     find_forbidden_key_paths,
+    find_secret_leak_paths,
     validate_chat_payload,
 )
 
@@ -78,6 +79,82 @@ def test_validate_chat_payload_forbidden_keys():
         validate_chat_payload(payload, config)
     assert exc_info.value.code == "raw_body_fields_not_allowed"
     assert exc_info.value.status == 403
+
+
+def test_validate_chat_payload_rejects_nested_raw_rows():
+    """Test nested raw_db_rows/raw_rows keys are rejected."""
+    config = GatewayConfig()
+
+    payload = {
+        "model": "qwen/qwen3-coder",
+        "messages": [{"role": "user", "content": "hello"}],
+        "context": {"raw_db_rows": [{"id": 1}]},
+    }
+    with pytest.raises(GatewayError) as exc_info:
+        validate_chat_payload(payload, config)
+    assert exc_info.value.code == "raw_body_fields_not_allowed"
+    assert exc_info.value.status == 403
+
+    payload = {
+        "model": "qwen/qwen3-coder",
+        "messages": [{"role": "user", "content": "hello"}],
+        "history": [{"raw_rows": "row-data"}],
+    }
+    with pytest.raises(GatewayError) as exc_info:
+        validate_chat_payload(payload, config)
+    assert exc_info.value.code == "raw_body_fields_not_allowed"
+    assert exc_info.value.status == 403
+
+
+def test_validate_chat_payload_rejects_secret_leak_in_messages():
+    """Test secret patterns inside nested message strings are rejected."""
+    config = GatewayConfig()
+
+    payload = {
+        "model": "qwen/qwen3-coder",
+        "messages": [
+            {"role": "system", "content": "config dump: api_key = abcd1234efgh"},
+            {"role": "user", "content": "hello"},
+        ],
+    }
+    with pytest.raises(GatewayError) as exc_info:
+        validate_chat_payload(payload, config)
+    assert exc_info.value.code == "secret_leak_detected"
+    assert exc_info.value.status == 403
+
+    payload = {
+        "model": "qwen/qwen3-coder",
+        "messages": [
+            {"role": "user", "content": "leaked: -----BEGIN PRIVATE KEY-----\nMIIE..."},
+        ],
+    }
+    with pytest.raises(GatewayError) as exc_info:
+        validate_chat_payload(payload, config)
+    assert exc_info.value.code == "secret_leak_detected"
+    assert exc_info.value.status == 403
+
+
+def test_find_secret_leak_paths():
+    """Test recursive secret pattern detection in nested values."""
+    # OpenRouter key inside nested message content
+    payload = {"messages": [{"role": "user", "content": "key is sk-or-v1-abcd1234efgh5678"}]}
+    assert find_secret_leak_paths(payload) == ["body.messages[0].content"]
+
+    # Generic sk- key inside a nested dict
+    payload = {"notes": {"text": "sk-AbCdEf0123456789AbCdEf"}}
+    assert find_secret_leak_paths(payload) == ["body.notes.text"]
+
+    # Private key header inside a list
+    payload = {"blob": ["-----BEGIN RSA PRIVATE KEY-----"]}
+    assert find_secret_leak_paths(payload) == ["body.blob[0]"]
+
+    # key=value style secret inside a string
+    payload = {"text": "api_key=supersecret1"}
+    assert find_secret_leak_paths(payload) == ["body.text"]
+
+    # Clean payload should not be flagged
+    payload = {"model": "qwen/qwen3-coder", "messages": [{"role": "user", "content": "hello"}]}
+    assert find_secret_leak_paths(payload) == []
 
 
 def test_validate_chat_payload_size_limits():
