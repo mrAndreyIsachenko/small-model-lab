@@ -24,14 +24,14 @@
 
 ## H9–H11 Surgery, GRPO & Provider Readiness
 
-| Run ID | Hyp. | Verified | Provider Ready | Ready Checks | FP8 Retention | KL Red. (FP8) | KL Naive (FP8) | KL Lancet (FP8) | Re-leakage (Naive) | Re-leakage (Lancet) | Max Crest | Slop & Refusal | Gated vs Naive | Post-Surgery | Merged LoRA |
-| :--- | :--- | :--- | :--- | :--- | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: |
-| `h10_qwen3b_mps` | `H10` | ✅ | n/a | n/a | n/a | n/a | n/a | n/a | n/a | n/a | n/a | 0.0909 | 0.1602 | 0.3598 | 0 |
-| `h10_unslop_grpo` | `H10` | ✅ | n/a | n/a | n/a | n/a | n/a | n/a | n/a | n/a | n/a | 0.0077 | 0.2173 | 0.6698 | 0 |
-| `h11_provider_fp8_readiness` | `H11` | ✅ | ✅ | 7/7 | 0.9997 | 0.4558 | 0.0005 | 0.0003 | 0.4996 | 0.0310 | 1.8583 | n/a | n/a | n/a | n/a |
-| `h11_qwen3b_mps` | `H11` | ✅ | ✅ | 7/7 | 0.9541 | 0.5185 | 0.0975 | 0.0469 | 0.5003 | 0.0270 | 17.2706 | n/a | n/a | n/a | n/a |
-| `h9_biprojected_surgery` | `H9` | ✅ | n/a | n/a | n/a | n/a | n/a | n/a | n/a | n/a | n/a | n/a | n/a | n/a | n/a |
-| `h9_qwen3b_mps` | `H9` | ✅ | n/a | n/a | n/a | n/a | n/a | n/a | n/a | n/a | n/a | n/a | n/a | n/a | n/a |
+| Run ID | Hyp. | Verified | Target Supp. | KL Red. (H9) | Anchor Ortho | Tool Ortho | Row Drift | Provider Ready | Ready Checks | FP8 Retention | KL Red. (FP8) | KL Naive (FP8) | KL Lancet (FP8) | Re-leakage (Naive) | Re-leakage (Lancet) | Max Crest | Slop & Refusal | Gated vs Naive | Post-Surgery | Merged LoRA |
+| :--- | :--- | :--- | ---: | ---: | ---: | ---: | ---: | :--- | :--- | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: |
+| `h10_qwen3b_mps` | `H10` | ✅ | n/a | n/a | n/a | n/a | n/a | n/a | n/a | n/a | n/a | n/a | n/a | n/a | n/a | n/a | 0.0909 | 0.1602 | 0.3598 | 0 |
+| `h10_unslop_grpo` | `H10` | ✅ | n/a | n/a | n/a | n/a | n/a | n/a | n/a | n/a | n/a | n/a | n/a | n/a | n/a | n/a | 0.0077 | 0.2173 | 0.6698 | 0 |
+| `h11_provider_fp8_readiness` | `H11` | ✅ | n/a | n/a | n/a | n/a | n/a | ✅ | 7/7 | 0.9997 | 0.4558 | 0.0005 | 0.0003 | 0.4996 | 0.0310 | 1.8583 | n/a | n/a | n/a | n/a |
+| `h11_qwen3b_mps` | `H11` | ✅ | n/a | n/a | n/a | n/a | n/a | ✅ | 7/7 | 0.9541 | 0.5185 | 0.0975 | 0.0469 | 0.5003 | 0.0270 | 17.2706 | n/a | n/a | n/a | n/a |
+| `h9_biprojected_surgery` | `H9` | ✅ | 0.9810 | 0.6935 | 4.00e-08 | 4.00e-08 | 2.00e-08 | n/a | n/a | n/a | n/a | n/a | n/a | n/a | n/a | n/a | n/a | n/a | n/a | n/a |
+| `h9_qwen3b_mps` | `H9` | ✅ | 0.9704 | 0.9907 | 1.80e-07 | 1.40e-07 | 1.34e-03 | n/a | n/a | n/a | n/a | n/a | n/a | n/a | n/a | n/a | n/a | n/a | n/a | n/a |
 
 ## Run Conclusions
 
