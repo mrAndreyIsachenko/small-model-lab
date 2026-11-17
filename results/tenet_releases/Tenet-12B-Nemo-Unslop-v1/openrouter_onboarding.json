@@ -44,8 +44,8 @@
       "target_suppression_ratio": 0.991367
     }
   },
-  "hf_repo_id": "tenet-lab/Tenet-12B-Nemo-Unslop-v1",
-  "markdown_summary": "# OpenRouter Onboarding \u2014 tenet-lab/Tenet-12B-Nemo-Unslop-v1\n\n## Repository\n\n- **HF repo id:** `tenet-lab/Tenet-12B-Nemo-Unslop-v1`\n- **Base model:** `mistralai/Mistral-Nemo-Instruct-2407`\n- **Target providers:** Featherless, Chutes, Novita, DeepInfra\n\n## vLLM launch command\n\n```bash\nvllm serve --model tenet-lab/Tenet-12B-Nemo-Unslop-v1 --quantization fp8 --dtype bfloat16 --enable-auto-tool-choice\n```\n\nSettings: `quantization=fp8`, `dtype=bfloat16`, `trust_remote_code=False`, `enable-auto-tool-choice=True`.\n\n## FP8 Re-Leakage & Row Crest-Factor proof\n\n| Proof | Value |\n| --- | --- |\n| H11 FP8 retention ratio | 0.967803 |\n| H11 FP8 KL reduction ratio | 0.489211 |\n| H11 FP8 subspace Re-Leakage (Lancet) | 0.183885 |\n| H11 FP8 subspace Re-Leakage (naive) | 0.499639 |\n| H9 Lancet KL reduction ratio | 0.9672 |\n| H10 subspace-safe LoRA Re-Leakage | 0.12818 |\n| Max row crest factor | 10.6508 |\n| Max abs weight | 0.917969 |\n\n## Architectural compatibility checklist\n\n- [x] Standard, first-party architecture (no custom `auto_map`)\n- [x] No `trust_remote_code` escape hatches\n- [x] Chat template ready\n- Supported architectures: LlamaForCausalLM, Qwen2ForCausalLM, MistralForCausalLM\n",
+  "hf_repo_id": "mr-andrey-isachenko/Tenet-12B-Nemo-Unslop-v1",
+  "markdown_summary": "# OpenRouter Onboarding \u2014 mr-andrey-isachenko/Tenet-12B-Nemo-Unslop-v1\n\n## Repository\n\n- **HF repo id:** `mr-andrey-isachenko/Tenet-12B-Nemo-Unslop-v1`\n- **Base model:** `mistralai/Mistral-Nemo-Instruct-2407`\n- **Target providers:** Featherless, Chutes, Novita, DeepInfra\n\n## vLLM launch command\n\n```bash\nvllm serve --model mr-andrey-isachenko/Tenet-12B-Nemo-Unslop-v1 --quantization fp8 --dtype bfloat16 --enable-auto-tool-choice\n```\n\nSettings: `quantization=fp8`, `dtype=bfloat16`, `trust_remote_code=False`, `enable-auto-tool-choice=True`.\n\n## FP8 Re-Leakage & Row Crest-Factor proof\n\n| Proof | Value |\n| --- | --- |\n| H11 FP8 retention ratio | 0.967803 |\n| H11 FP8 KL reduction ratio | 0.489211 |\n| H11 FP8 subspace Re-Leakage (Lancet) | 0.183885 |\n| H11 FP8 subspace Re-Leakage (naive) | 0.499639 |\n| H9 Lancet KL reduction ratio | 0.9672 |\n| H10 subspace-safe LoRA Re-Leakage | 0.12818 |\n| Max row crest factor | 10.6508 |\n| Max abs weight | 0.917969 |\n\n## Architectural compatibility checklist\n\n- [x] Standard, first-party architecture (no custom `auto_map`)\n- [x] No `trust_remote_code` escape hatches\n- [x] Chat template ready\n- Supported architectures: LlamaForCausalLM, Qwen2ForCausalLM, MistralForCausalLM\n",
   "providers": [
     "Featherless",
     "Chutes",
@@ -55,7 +55,7 @@
   "vllm_launch_args": {
     "cli_args": [
       "--model",
-      "tenet-lab/Tenet-12B-Nemo-Unslop-v1",
+      "mr-andrey-isachenko/Tenet-12B-Nemo-Unslop-v1",
       "--quantization",
       "fp8",
       "--dtype",
@@ -63,7 +63,7 @@
       "--enable-auto-tool-choice"
     ],
     "dtype": "bfloat16",
-    "model": "tenet-lab/Tenet-12B-Nemo-Unslop-v1",
+    "model": "mr-andrey-isachenko/Tenet-12B-Nemo-Unslop-v1",
     "quantization": "fp8",
     "trust_remote_code": false
   }

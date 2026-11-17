@@ -41,7 +41,7 @@
       39
     ]
   },
-  "hf_repo_id": "tenet-lab/Tenet-12B-Nemo-Unslop-v1",
+  "hf_repo_id": "mr-andrey-isachenko/Tenet-12B-Nemo-Unslop-v1",
   "metrics_sources": {
     "h10": "results/h10_nemo12b_h100/final_metrics.json",
     "h11": "results/h11_nemo12b_h100/final_metrics.json",
