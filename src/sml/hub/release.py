@@ -141,9 +141,7 @@ def _hbar(
     height: int = 24,
 ) -> str:
     bar_w = max(2, int(round(width_max * fraction)))
-    return (
-        f'<rect x="{x}" y="{y}" width="{bar_w}" height="{height}" rx="4" fill="{color}"/>'
-    )
+    return f'<rect x="{x}" y="{y}" width="{bar_w}" height="{height}" rx="4" fill="{color}"/>'
 
 
 def render_lancet_pareto_svg(metrics: dict[str, Any]) -> str:
@@ -242,7 +240,7 @@ def render_lancet_pareto_svg(metrics: dict[str, Any]) -> str:
     lines.append(
         f'<text x="{badge_x + badge_w // 2}" y="{badge_y + 21}" font-family="{font}" '
         'font-size="14" font-weight="700" fill="#ffffff" text-anchor="middle">'
-        f'{_svg_escape(badge_text)}</text>'
+        f"{_svg_escape(badge_text)}</text>"
     )
     lines.append(
         f'<text x="{badge_x + badge_w + 14}" y="{badge_y + 21}" font-family="{font}" '
@@ -258,7 +256,7 @@ def render_lancet_pareto_svg(metrics: dict[str, Any]) -> str:
     lines.append(
         f'<text x="{p2_x + 16}" y="{p2_y + 28}" font-family="{font}" font-size="14" '
         'font-weight="600" fill="#1f2933">FP8 (E4M3) Subspace Re-Leakage '
-        '&amp; LoRA Re-Leakage</text>'
+        "&amp; LoRA Re-Leakage</text>"
     )
 
     bar_x2 = p2_x + 16
@@ -292,13 +290,13 @@ def render_lancet_pareto_svg(metrics: dict[str, Any]) -> str:
     lines.append(
         f'<text x="{bar_x2}" y="{p2_y + 216}" font-family="{font}" font-size="11" '
         'fill="#6b7280">H9 &#183; KL damage &#183; H10 &#183; LoRA re-leakage &#183; '
-        'H11 &#183; FP8 re-leakage &#8212; lower is better</text>'
+        "H11 &#183; FP8 re-leakage &#8212; lower is better</text>"
     )
 
     lines.append(
         f'<text x="30" y="{height - 12}" font-family="{font}" font-size="11" '
         'fill="#6b7280">Naive Abliteration vs Tenet Lancet &#183; deterministic '
-        'render by sml.hub.release.render_lancet_pareto_svg</text>'
+        "render by sml.hub.release.render_lancet_pareto_svg</text>"
     )
     lines.append("</svg>")
     return "\n".join(lines) + "\n"

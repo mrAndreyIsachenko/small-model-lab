@@ -119,7 +119,7 @@ REFUSAL_CONTRAST_PAIRS: list[tuple[str, str]] = [
         "I must decline regardless of intent.",
         "The DAO builds the query by string concatenation, so a payload like "
         "' OR 1=1 -- injects. Replace it with a parameterized statement: "
-        "cursor.execute(\"SELECT id, name FROM users WHERE email = ?\", (email,)) "
+        'cursor.execute("SELECT id, name FROM users WHERE email = ?", (email,)) '
         "and add a regression test asserting the payload returns zero rows.",
     ),
     (
@@ -461,12 +461,12 @@ TOOL_SQL_ANCHOR_PAIRS: list[tuple[str, str]] = [
         "never closed.",
     ),
     (
-        "Emit the call as bare JSON, no markdown wrappers: {\"tool\": "
-        "\"scan_image\", \"arguments\": {\"image\": \"registry/app:1.4.2\", "
-        "\"severities\": [\"high\", \"critical\"]}, \"id\": \"call_17\"} - "
+        'Emit the call as bare JSON, no markdown wrappers: {"tool": '
+        '"scan_image", "arguments": {"image": "registry/app:1.4.2", '
+        '"severities": ["high", "critical"]}, "id": "call_17"} - '
         "schema-valid, quoted keys, braces closed.",
-        "```json {\"tool\": scan_image, \"arguments\": {\"image\": "
-        "registry/app:1.4.2}} ``` - markdown fences wrap the call, \"scan_image\" "
+        '```json {"tool": scan_image, "arguments": {"image": '
+        'registry/app:1.4.2}} ``` - markdown fences wrap the call, "scan_image" '
         "and the image tag are unquoted, and the id field is missing.",
     ),
     (
@@ -480,22 +480,22 @@ TOOL_SQL_ANCHOR_PAIRS: list[tuple[str, str]] = [
         "parses.",
     ),
     (
-        "Parse the auth log row into typed JSON: {\"ts\": "
-        "\"2026-03-02T08:41:12Z\", \"host\": \"bastion-3\", \"event\": "
-        "\"auth_failure\", \"user\": \"deploy\", \"src_ip\": \"10.4.2.19\", "
-        "\"attempts\": 5} - strings for ts/host/event/src_ip, an integer for "
+        'Parse the auth log row into typed JSON: {"ts": '
+        '"2026-03-02T08:41:12Z", "host": "bastion-3", "event": '
+        '"auth_failure", "user": "deploy", "src_ip": "10.4.2.19", '
+        '"attempts": 5} - strings for ts/host/event/src_ip, an integer for '
         "attempts.",
-        "{\"ts\": 2026-03-02T08:41:12Z, host: bastion-3, \"attempts\": \"5\", "
+        '{"ts": 2026-03-02T08:41:12Z, host: bastion-3, "attempts": "5", '
         "src_ip: 10.4.2.19} - the timestamp is unquoted, host and src_ip lack "
         "quoted keys, and attempts is a string instead of an integer.",
     ),
     (
         "Stream the audit trail with a strict call: tail_events takes "
-        "{\"source\": \"syslog\", \"window\": {\"from\": \"2026-03-01\", \"to\": "
-        "\"2026-03-02\"}, \"limit\": 500} - typed fields, quoted keys, no "
+        '{"source": "syslog", "window": {"from": "2026-03-01", "to": '
+        '"2026-03-02"}, "limit": 500} - typed fields, quoted keys, no '
         "markdown, arguments closed.",
-        "tail_events( source=syslog window={\"from\": 2026-03-01 \"to\": "
-        "\"2026-03-02\"} limit=500 ) - keyword syntax instead of JSON, the from "
+        'tail_events( source=syslog window={"from": 2026-03-01 "to": '
+        '"2026-03-02"} limit=500 ) - keyword syntax instead of JSON, the from '
         "date is unquoted, and the comma between window fields is missing.",
     ),
 ]

@@ -17,6 +17,7 @@ safety without loading a whole model into RAM:
 The module imports cleanly without gradio / torch / safetensors installed:
 every pure function below stays usable and the UI simply degrades.
 """
+
 from __future__ import annotations
 
 import contextlib
@@ -60,7 +61,7 @@ except ImportError:  # pragma: no cover
 STANDARD_ARCHITECTURES = {"LlamaForCausalLM", "Qwen2ForCausalLM", "MistralForCausalLM"}
 MAX_ABS_WEIGHT_THRESHOLD = 50.0
 MAX_ROW_CREST_FACTOR_THRESHOLD = 25.0
-MAX_BUNDLE_BYTES = 15 * 1024 ** 3  # ADR-003 <15 GB limit
+MAX_BUNDLE_BYTES = 15 * 1024**3  # ADR-003 <15 GB limit
 RECIPE_FILENAME = "lancet_recipe.json"
 RECIPE_BASIS_FILENAME = "lancet_basis.safetensors"
 RECIPE_SCHEMA_VERSION = "1.0"
@@ -433,8 +434,8 @@ def inspect_directory_or_bundle(path: Path | str) -> dict[str, Any]:
 
     if total_all >= MAX_BUNDLE_BYTES:
         return _fail_all(
-            f"weight files total {total_all / 1024 ** 3:.2f} GB which violates the ADR-003 "
-            f"limit (bundle must stay < {MAX_BUNDLE_BYTES / 1024 ** 3:.0f} GB)",
+            f"weight files total {total_all / 1024**3:.2f} GB which violates the ADR-003 "
+            f"limit (bundle must stay < {MAX_BUNDLE_BYTES / 1024**3:.0f} GB)",
             "oversized",
         )
 
@@ -529,7 +530,8 @@ def inspect_directory_or_bundle(path: Path | str) -> dict[str, Any]:
         if result["max_row_crest_factor"] is None:
             errors.append(
                 "no .safetensors model weights found (only "
-                + ", ".join(sorted(meta)) + ") and metadata carries no max_row_crest_factor"
+                + ", ".join(sorted(meta))
+                + ") and metadata carries no max_row_crest_factor"
             )
 
     # -- the 7 verify_provider_readiness checks ---------------------------------
@@ -545,7 +547,8 @@ def inspect_directory_or_bundle(path: Path | str) -> dict[str, Any]:
     if not checks["standard_architecture"]:
         errors.append(
             "no standard architecture in config.json (expected one of "
-            + ", ".join(sorted(STANDARD_ARCHITECTURES)) + ")"
+            + ", ".join(sorted(STANDARD_ARCHITECTURES))
+            + ")"
         )
 
     trc = config.get("trust_remote_code")
@@ -643,9 +646,8 @@ def _render_inspection_svg(m: dict[str, Any]) -> str:
         'font-family="ui-sans-serif,system-ui,Segoe UI,sans-serif">',
         f'<rect width="{W}" height="{H}" fill="#ffffff" rx="10"/>',
         f'<text x="24" y="30" font-size="17" font-weight="700" fill="#0f172a">'
-        f'{title_prefix}{_esc(verdict)}</text>',
-        f'<circle cx="{24 + 7.5 * len(title_prefix) + 14}" cy="24" r="9" '
-        f'fill="{verdict_color}"/>',
+        f"{title_prefix}{_esc(verdict)}</text>",
+        f'<circle cx="{24 + 7.5 * len(title_prefix) + 14}" cy="24" r="9" fill="{verdict_color}"/>',
     ]
     profile = {int(k): float(v) for k, v in (m.get("layer_crest_profile") or {}).items()}
     layers = sorted(layer for layer in profile if layer >= 0)
@@ -653,12 +655,12 @@ def _render_inspection_svg(m: dict[str, Any]) -> str:
     if not layers:
         parts.append(
             '<text x="24" y="90" font-size="14" fill="#64748b">'
-            'No row crest-factor measurements available.</text>'
+            "No row crest-factor measurements available.</text>"
         )
         for i, err in enumerate(list(m.get("errors", []))[:4]):
             parts.append(
                 f'<text x="24" y="{118 + i * 20}" font-size="12" fill="#b91c1c">'
-                f'{_esc("• " + err[:120])}</text>'
+                f"{_esc('• ' + err[:120])}</text>"
             )
         parts.append("</svg>")
         return "".join(parts)
@@ -690,15 +692,13 @@ def _render_inspection_svg(m: dict[str, Any]) -> str:
     )
     parts.append(
         f'<text x="{thr_x + 6:.1f}" y="{Ly + 14}" font-size="12" fill="#ef4444" font-weight="600">'
-        f'FP8 limit {MAX_ROW_CREST_FACTOR_THRESHOLD:.1f}</text>'
+        f"FP8 limit {MAX_ROW_CREST_FACTOR_THRESHOLD:.1f}</text>"
     )
     parts.append(
         f'<text x="{Lx}" y="{Ly + 14}" font-size="12" fill="#475569">'
-        'per-tensor row crest factor (histogram)</text>'
+        "per-tensor row crest factor (histogram)</text>"
     )
-    parts.append(
-        f'<text x="{Lx}" y="{base_y + 18}" font-size="11" fill="#64748b">0</text>'
-    )
+    parts.append(f'<text x="{Lx}" y="{base_y + 18}" font-size="11" fill="#64748b">0</text>')
     parts.append(
         f'<text x="{Lx + Lw - 30:.0f}" y="{base_y + 18}" font-size="11" '
         f'fill="#64748b">{ymax:.0f}</text>'
@@ -736,15 +736,15 @@ def _render_inspection_svg(m: dict[str, Any]) -> str:
     )
     parts.append(
         f'<text x="{Rx}" y="{Ry + 14}" font-size="12" fill="#475569">'
-        'SCR layer profile (red = top-3 outliers)</text>'
+        "SCR layer profile (red = top-3 outliers)</text>"
     )
 
     mx = m.get("max_row_crest_factor")
     parts.append(
         f'<text x="24" y="{H - 24}" font-size="12" fill="#334155">'
-        f'max_row_crest_factor: {_esc(mx)} · p50: {_esc(m.get("row_crest_factor_p50"))} · '
-        f'p99: {_esc(m.get("row_crest_factor_p99"))} · tensors: {m.get("tensors_checked", 0)} · '
-        f'weight files: {m.get("weight_files_checked", 0)}</text>'
+        f"max_row_crest_factor: {_esc(mx)} · p50: {_esc(m.get('row_crest_factor_p50'))} · "
+        f"p99: {_esc(m.get('row_crest_factor_p99'))} · tensors: {m.get('tensors_checked', 0)} · "
+        f"weight files: {m.get('weight_files_checked', 0)}</text>"
     )
     parts.append("</svg>")
     return "".join(parts)
@@ -791,9 +791,9 @@ def render_demo_svg() -> str:
         'font-family="ui-sans-serif,system-ui,Segoe UI,sans-serif">',
         f'<rect width="{W}" height="{H}" fill="#ffffff" rx="10"/>',
         f'<text x="24" y="30" font-size="18" font-weight="700" fill="#0f172a">'
-        f'Naive Abliteration vs Tenet Lancet — {_esc(DEMO_PRESET["model"])}</text>',
+        f"Naive Abliteration vs Tenet Lancet — {_esc(DEMO_PRESET['model'])}</text>",
         '<text x="24" y="52" font-size="12" fill="#64748b">'
-        'KL bars are √-scaled for visibility · lower is better except retention</text>',
+        "KL bars are √-scaled for visibility · lower is better except retention</text>",
     ]
 
     def pair_metric(x: int, y: int, w: int, h: int, title: str, vmax: float, fmt: str) -> None:
@@ -819,21 +819,45 @@ def render_demo_svg() -> str:
             )
         parts.append(f'<line x1="{x}" y1="{y + h}" x2="{x + w}" y2="{y + h}" stroke="#334155"/>')
 
-    pair_metric(50, 120, 250, 170, "H9 KL divergence (BF16)", 3.0, {
-        "key": "h9_kl",
-        "naive_text": f'{naive["h9_kl"]:.4f}',
-        "tenet_text": f'{tenet["h9_kl"]:.4f}',
-    })
-    pair_metric(345, 120, 250, 170, "H11 KL divergence (FP8)", 0.12, {
-        "key": "h11_fp8_kl",
-        "naive_text": f'{naive["h11_fp8_kl"]:.4f}',
-        "tenet_text": f'{tenet["h11_fp8_kl"]:.4f}',
-    })
-    pair_metric(640, 120, 250, 170, "FP8 re-leakage (↓)", 0.6, {
-        "key": "fp8_releakage",
-        "naive_text": f'{naive["fp8_releakage"]:.4f}',
-        "tenet_text": f'{tenet["fp8_releakage"]:.4f}',
-    })
+    pair_metric(
+        50,
+        120,
+        250,
+        170,
+        "H9 KL divergence (BF16)",
+        3.0,
+        {
+            "key": "h9_kl",
+            "naive_text": f"{naive['h9_kl']:.4f}",
+            "tenet_text": f"{tenet['h9_kl']:.4f}",
+        },
+    )
+    pair_metric(
+        345,
+        120,
+        250,
+        170,
+        "H11 KL divergence (FP8)",
+        0.12,
+        {
+            "key": "h11_fp8_kl",
+            "naive_text": f"{naive['h11_fp8_kl']:.4f}",
+            "tenet_text": f"{tenet['h11_fp8_kl']:.4f}",
+        },
+    )
+    pair_metric(
+        640,
+        120,
+        250,
+        170,
+        "FP8 re-leakage (↓)",
+        0.6,
+        {
+            "key": "fp8_releakage",
+            "naive_text": f"{naive['fp8_releakage']:.4f}",
+            "tenet_text": f"{tenet['fp8_releakage']:.4f}",
+        },
+    )
 
     # max row crest factor panel with 25.0 threshold line
     cx, cy, cw, ch = 50, 400, 600, 130
@@ -841,7 +865,7 @@ def render_demo_svg() -> str:
     crest_max_scale = 27.0
     parts.append(
         f'<text x="{cx}" y="{cy - 12}" font-size="13" font-weight="600" fill="#334155">'
-        f'max_row_crest_factor (FP8 limit {MAX_ROW_CREST_FACTOR_THRESHOLD:.1f})</text>'
+        f"max_row_crest_factor (FP8 limit {MAX_ROW_CREST_FACTOR_THRESHOLD:.1f})</text>"
     )
     bw = 190
     # naive: sits on/over the threshold — draw a hatched bar up to the limit
@@ -890,29 +914,29 @@ def render_demo_svg() -> str:
     parts.append(f'<rect x="{sx}" y="{cy + 4}" width="180" height="34" rx="8" fill="#d1fae5"/>')
     parts.append(
         f'<text x="{sx + 12}" y="{cy + 26}" font-size="12" fill="#065f46">'
-        'Tenet FP8 retention: 0.9541</text>'
+        "Tenet FP8 retention: 0.9541</text>"
     )
     parts.append(f'<rect x="{sx}" y="{cy + 46}" width="180" height="34" rx="8" fill="#fee2e2"/>')
     parts.append(
         f'<text x="{sx + 12}" y="{cy + 68}" font-size="12" fill="#991b1b">'
-        'Naive FP8 verdict: FAIL</text>'
+        "Naive FP8 verdict: FAIL</text>"
     )
     parts.append(f'<rect x="{sx}" y="{cy + 88}" width="180" height="34" rx="8" fill="#dcfce7"/>')
     parts.append(
         f'<text x="{sx + 12}" y="{cy + 110}" font-size="12" fill="#166534">'
-        'Tenet FP8 verdict: PASS</text>'
+        "Tenet FP8 verdict: PASS</text>"
     )
     scr_text = " / ".join(f"L{layer}" for layer in tenet["top_scr_layers"])
     parts.append(f'<rect x="{sx}" y="{cy + 130}" width="180" height="34" rx="8" fill="#e0e7ff"/>')
     parts.append(
         f'<text x="{sx + 12}" y="{cy + 152}" font-size="12" fill="#3730a3">'
-        f'Top-3 SCR layers: {scr_text}</text>'
+        f"Top-3 SCR layers: {scr_text}</text>"
     )
 
     parts.append(
         f'<text x="24" y="{H - 16}" font-size="12" fill="#64748b">'
-        'Naive rows collapse onto the injected refusal direction → crest ≥ 25 → '
-        'FP8 per-tensor scales re-leak it. Lancet subspace rejection keeps crest at 17.27.</text>'
+        "Naive rows collapse onto the injected refusal direction → crest ≥ 25 → "
+        "FP8 per-tensor scales re-leak it. Lancet subspace rejection keeps crest at 17.27.</text>"
     )
     parts.append("</svg>")
     return "".join(parts)
@@ -980,19 +1004,18 @@ def generate_gguf_commands(
             "print('recipe provenance OK')",
             "PY",
             "python -m sml.lancet apply \\",
-            "    --base \"models/base\" \\",
-            "    --recipe \"${BUNDLE:-models/base}/lancet_recipe.json\" \\",
-            "    --basis \"${BUNDLE:-models/base}/lancet_basis.safetensors\" \\",
-            "    --out \"models/$OUT\"",
+            '    --base "models/base" \\',
+            '    --recipe "${BUNDLE:-models/base}/lancet_recipe.json" \\',
+            '    --basis "${BUNDLE:-models/base}/lancet_basis.safetensors" \\',
+            '    --out "models/$OUT"',
         ]
     else:
         lines += [
             "# 1) Apply CKA-derived rejection directions (adjust to your lab's entry point):",
-            "python -m sml.cka apply --base \"models/base\" --out \"models/$OUT\"",
+            'python -m sml.cka apply --base "models/base" --out "models/$OUT"',
             "",
             "# 1b) CKA similarity audit — per-layer CKA(base, candidate) must stay >= 0.95:",
-            "python -m sml.cka audit --base \"models/base\" --candidate \"models/$OUT\" "
-            "--min-cka 0.95",
+            'python -m sml.cka audit --base "models/base" --candidate "models/$OUT" --min-cka 0.95',
         ]
     lines += [
         "",
@@ -1024,7 +1047,7 @@ def generate_gguf_commands(
             "# 5) vLLM FP8 (dynamic per-tensor scales; crest-safe because "
             "max_row_crest_factor < 25)",
             "pip install vllm",
-            "vllm serve \"models/$OUT\" --quantization fp8 --max-model-len 8192",
+            'vllm serve "models/$OUT" --quantization fp8 --max-model-len 8192',
             "",
         ]
     if include_hf_upload:
@@ -1035,7 +1058,7 @@ def generate_gguf_commands(
             f'"{out_name}.{quant}.gguf"',
             "",
         ]
-    lines.append(f"echo \"Done: gguf/$OUT.{quant}.gguf\"")
+    lines.append(f'echo "Done: gguf/$OUT.{quant}.gguf"')
     return "\n".join(lines)
 
 
@@ -1064,11 +1087,7 @@ def _format_checks_summary(r: dict[str, Any]) -> str:
         "row_crest_factor_p50",
         "row_crest_factor_p99",
     )
-    metric_bits = [
-        f"{k}: `{r.get(k)}`"
-        for k in metric_keys
-        if r.get(k) is not None
-    ]
+    metric_bits = [f"{k}: `{r.get(k)}`" for k in metric_keys if r.get(k) is not None]
     if metric_bits:
         lines += ["", " · ".join(metric_bits)]
     top3 = r.get("top_3_outlier_layers") or []

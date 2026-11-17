@@ -1,4 +1,5 @@
 """H12 subspace-safe merge: unit + acceptance tests."""
+
 import pytest
 import torch
 

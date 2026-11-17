@@ -111,9 +111,9 @@ def naive_linear_merge(
 ) -> dict[str, Any]:
     """Plain ``W0 + d_sql + d_unslop`` merge (the baseline H12 rejects)."""
     return {
-        "merged_weight": (
-            base_weight.float() + delta_sql.float() + delta_unslop.float()
-        ).to(base_weight.dtype),
+        "merged_weight": (base_weight.float() + delta_sql.float() + delta_unslop.float()).to(
+            base_weight.dtype
+        ),
         "merged_delta": (delta_sql.float() + delta_unslop.float()).to(base_weight.dtype),
     }
 
@@ -384,9 +384,7 @@ def run_h12_subspace_safe_merge_benchmark(
         deq = _fp8_roundtrip(merged_weight)
         fp8_cos.append(
             float(
-                torch.nn.functional.cosine_similarity(
-                    deq.flatten(), merged_weight.flatten(), dim=0
-                )
+                torch.nn.functional.cosine_similarity(deq.flatten(), merged_weight.flatten(), dim=0)
             )
         )
 
@@ -412,9 +410,7 @@ def run_h12_subspace_safe_merge_benchmark(
             "g_evidence": float(min(1.0, max(0.0, sql_ret * 0.97))),
             "r_correctness": float(min(1.0, max(0.0, sql_ret * 0.97))),
             "unslop_gated_score": float(unslop_ret * 0.92),
-            "joint_benchmark_score": float(
-                0.5 * sql_ret * 0.94 + 0.5 * unslop_ret * 0.92
-            ),
+            "joint_benchmark_score": float(0.5 * sql_ret * 0.94 + 0.5 * unslop_ret * 0.92),
         }
 
     safe_arm = arms[ARM_SUBSPACE_SAFE]
@@ -555,8 +551,7 @@ def _load_or_extract_h12_basis(
         with torch.no_grad():
             out = model(ids.to(resolved_device), output_hidden_states=True)
         return {
-            idx: out.hidden_states[idx + 1][:, -1, :].float().mean(dim=0).cpu()
-            for idx in selected
+            idx: out.hidden_states[idx + 1][:, -1, :].float().mean(dim=0).cpu() for idx in selected
         }
 
     rp, rn = _mean_hidden(ref_pos), _mean_hidden(ref_neg)
@@ -601,11 +596,7 @@ def _capture_down_proj_inputs(
         for h in hooks:
             h.remove()
 
-    return {
-        idx: torch.stack(vecs, dim=0).mean(dim=0)
-        for idx, vecs in captured.items()
-        if vecs
-    }
+    return {idx: torch.stack(vecs, dim=0).mean(dim=0) for idx, vecs in captured.items() if vecs}
 
 
 def _evaluate_h12_arms(
@@ -682,9 +673,7 @@ def _evaluate_h12_arms(
         deq = _fp8_roundtrip(merged_weight)
         fp8_cos.append(
             float(
-                torch.nn.functional.cosine_similarity(
-                    deq.flatten(), merged_weight.flatten(), dim=0
-                )
+                torch.nn.functional.cosine_similarity(deq.flatten(), merged_weight.flatten(), dim=0)
             )
         )
 
@@ -710,9 +699,7 @@ def _evaluate_h12_arms(
             "g_evidence": float(min(1.0, max(0.0, sql_ret * 0.97))),
             "r_correctness": float(min(1.0, max(0.0, sql_ret * 0.97))),
             "unslop_gated_score": float(unslop_ret * 0.92),
-            "joint_benchmark_score": float(
-                0.5 * sql_ret * 0.94 + 0.5 * unslop_ret * 0.92
-            ),
+            "joint_benchmark_score": float(0.5 * sql_ret * 0.94 + 0.5 * unslop_ret * 0.92),
         }
 
     safe_arm = arms[ARM_SUBSPACE_SAFE]
@@ -848,9 +835,7 @@ def run_llm_h12_subspace_safe_merge_benchmark(
             x_unslop = x_unslop.float() / (x_unslop.float().norm() + _TINY)
 
             # Real SQL output direction from W_base @ x_sql, projected off forbidden subspace.
-            y_sql = _project_delta_orthogonal(
-                (w_base @ x_sql).unsqueeze(1), forbidden
-            ).squeeze(1)
+            y_sql = _project_delta_orthogonal((w_base @ x_sql).unsqueeze(1), forbidden).squeeze(1)
             p_sql = y_sql / (y_sql.norm() + _TINY)
             x_sql_alt = _unit_nonneg(d_in, lgen)
             y_sql_alt = _project_delta_orthogonal(
@@ -872,10 +857,7 @@ def run_llm_h12_subspace_safe_merge_benchmark(
             unslop_target = scale * (
                 0.90 * torch.outer(p_unslop, x_unslop)
                 + 0.55 * torch.outer(p_sql, x_unslop)
-                + 0.30 * (
-                    torch.outer(forbidden[0], x_unslop)
-                    + torch.outer(forbidden[1], x_unslop)
-                )
+                + 0.30 * (torch.outer(forbidden[0], x_unslop) + torch.outer(forbidden[1], x_unslop))
             )
 
             delta_sql = _train_lora_delta(
@@ -947,12 +929,8 @@ def run_llm_h12_subspace_safe_merge_benchmark(
         and result["ties_biprojected_vs_naive_merge_gain"] >= 0.15
     )
     checks["llm_gate_slop_and_refusal_rate"] = result["slop_and_refusal_rate"] <= 0.10
-    checks["llm_gate_sql_incident_retention"] = (
-        result["sql_incident_retention_ratio"] >= 0.95
-    )
-    checks["llm_gate_merge_gain"] = (
-        result["ties_biprojected_vs_naive_merge_gain"] >= 0.15
-    )
+    checks["llm_gate_sql_incident_retention"] = result["sql_incident_retention_ratio"] >= 0.95
+    checks["llm_gate_merge_gain"] = result["ties_biprojected_vs_naive_merge_gain"] >= 0.15
     result["acceptance_checks"] = checks
     result["provider_ready"] = bool(checks["provider_ready"])
     return result
