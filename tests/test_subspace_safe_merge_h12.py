@@ -113,7 +113,10 @@ def test_h12_benchmark_acceptance():
 
 
 def test_llm_h12_benchmark_acceptance():
-    result = run_llm_h12_subspace_safe_merge_benchmark(seed=2026)
+    result = run_llm_h12_subspace_safe_merge_benchmark(
+        model_name="sml-nonexistent/ci-fallback",
+        seed=2026,
+    )
     assert result["backend"] in {"nano", "llm"}
     checks = result.get("acceptance_checks", {})
     assert checks.get("llm_gate_slop_and_refusal_rate") is True
