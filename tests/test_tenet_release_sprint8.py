@@ -246,3 +246,86 @@ def test_run_tenet_foundry_script_dry_run():
     assert "Tenet-12B-Nemo-Unslop-v1" in proc.stdout
     assert "uv run sml build-tenet" in proc.stdout
     assert "huggingface-cli upload" in proc.stdout
+
+
+_DRY_RUN_CASES = [
+    ("8b-h100", "llama8b_h100"),
+    ("12b-h100", "nemo12b_h100"),
+]
+
+
+@pytest.mark.parametrize(("profile", "run_suffix"), _DRY_RUN_CASES)
+def test_run_tenet_foundry_script_dry_run_profiles(profile: str, run_suffix: str):
+    assert FOUNDRY_SCRIPT.is_file()
+
+    env = {**os.environ, "DRY_RUN": "1", "TENET_PROFILE": profile}
+    proc = subprocess.run(
+        ["bash", str(FOUNDRY_SCRIPT)], capture_output=True, text=True, env=env, check=False
+    )
+
+    assert proc.returncode == 0, proc.stderr
+    stdout = proc.stdout
+    for command in (
+        "uv run sml verify-h9",
+        "uv run sml verify-h10",
+        "uv run sml verify-h11",
+        "uv run sml verify-h12",
+        "uv run sml build-tenet",
+        "uv run sml export-hub",
+        "uv run sml report",
+    ):
+        assert command in stdout, command
+    assert f"h9_{run_suffix}" in stdout
+    # Benchmarks run sequentially before build-tenet; export/report after it.
+    assert stdout.index("uv run sml verify-h9") < stdout.index("uv run sml build-tenet")
+    assert stdout.index("uv run sml verify-h10") < stdout.index("uv run sml build-tenet")
+    assert stdout.index("uv run sml verify-h11") < stdout.index("uv run sml build-tenet")
+    assert stdout.index("uv run sml verify-h12") < stdout.index("uv run sml build-tenet")
+    assert stdout.index("uv run sml export-hub") > stdout.index("uv run sml build-tenet")
+    assert stdout.index("uv run sml report") > stdout.index("uv run sml build-tenet")
+
+
+_SMOKE_CASES = [
+    ("8b-h100", "Tenet-8B-Llama3.1-Unslop-v1", 32, 4096),
+    ("12b-h100", "Tenet-12B-Nemo-Unslop-v1", 40, 5120),
+]
+
+
+@pytest.mark.parametrize(("profile", "release_id", "num_layers", "hidden_size"), _SMOKE_CASES)
+def test_run_tenet_foundry_script_smoke_only(
+    tmp_path: Path, profile: str, release_id: str, num_layers: int, hidden_size: int
+):
+    assert FOUNDRY_SCRIPT.is_file()
+
+    env = {
+        **os.environ,
+        "TENET_PROFILE": profile,
+        "SMOKE_ONLY": "1",
+        "OUTPUT_DIR": str(tmp_path),
+    }
+    proc = subprocess.run(
+        ["bash", str(FOUNDRY_SCRIPT)], capture_output=True, text=True, env=env, check=False
+    )
+
+    assert proc.returncode == 0, proc.stderr
+    release_dir = tmp_path / release_id
+    for artifact in (
+        "README.md",
+        "assets/lancet_vs_naive_pareto.svg",
+        "cka_quant_recipe.json",
+        "provider_readiness.json",
+        "openrouter_onboarding.json",
+        "release_manifest.json",
+        "config.json",
+    ):
+        assert (release_dir / artifact).is_file(), artifact
+
+    release_manifest = json.loads((release_dir / "release_manifest.json").read_text())
+    assert release_manifest["ready"] is True
+
+    cka_quant_recipe = json.loads((release_dir / "cka_quant_recipe.json").read_text())
+    assert cka_quant_recipe["num_hidden_layers"] == num_layers
+
+    config = json.loads((release_dir / "config.json").read_text())
+    assert config["num_hidden_layers"] == num_layers
+    assert config["hidden_size"] == hidden_size

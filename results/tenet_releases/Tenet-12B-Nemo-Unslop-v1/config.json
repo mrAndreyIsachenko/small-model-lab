@@ -1,0 +1,9 @@
+{
+  "architectures": [
+    "MistralForCausalLM"
+  ],
+  "hidden_size": 5120,
+  "model_type": "mistral",
+  "num_hidden_layers": 40,
+  "torch_dtype": "bfloat16"
+}

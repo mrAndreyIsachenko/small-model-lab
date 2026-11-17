@@ -545,6 +545,7 @@ def build_tenet_release_bundle(
         artifacts = _write_llm_checkpoint(release_dir, model_name, seed)
     else:
         artifacts = _write_nano_checkpoint(release_dir, model_name, seed)
+        _reconcile_recipe_geometry(release_dir, model_name)
 
     lancet_recipe_path = release_dir / "lancet_recipe.json"
     if lancet_recipe_path.exists():
@@ -718,17 +719,35 @@ def _extract_selected_layers(data: Any) -> list[int]:
     return []
 
 
+def _preferred_run_tokens(base_model: str, release_id: str = "") -> tuple[str, ...]:
+    """Preferred run-id suffix tokens for ranking stage metric directories.
+
+    Larger models should prefer runs produced by their own profile
+    (``llama8b_h100`` / ``nemo12b_h100``) before falling back to the smaller
+    Qwen runs.
+    """
+    lowered = f"{base_model} {release_id}".lower()
+    if "llama-3.1-8b" in lowered or "tenet-8b" in lowered:
+        return ("llama8b_h100", "llama8b", "qwen3b_mps", "qwen3b")
+    if "mistral-nemo" in lowered or "tenet-12b" in lowered:
+        return ("nemo12b_h100", "nemo12b", "qwen3b_mps", "qwen3b")
+    return ("qwen3b_mps", "qwen3b")
+
+
 def _load_stage_metrics(
     results_root: Path,
     stage_prefix: str,
     base_model: str,
+    release_id: str = "",
 ) -> tuple[dict[str, Any], str | None]:
     """Load ``final_metrics.json`` for one H-stage from ``results_root``.
 
-    Prioritises real ``llm`` runs (``*_qwen3b_*`` / ``backend == "llm"``)
-    matching ``base_model`` over ``nano`` runs, even if a ``nano`` run also
-    records ``model_name == base_model``.
+    Prioritises real ``llm`` runs (``backend == "llm"``) matching
+    ``base_model`` over ``nano`` runs, even if a ``nano`` run also records
+    ``model_name == base_model``. Ties are broken by the preferred run-id
+    tokens from :func:`_preferred_run_tokens`.
     """
+    tokens = _preferred_run_tokens(base_model, release_id)
     candidates = sorted(results_root.glob(f"{stage_prefix}_*/final_metrics.json"))
     loaded: list[tuple[Path, dict[str, Any]]] = []
     for path in candidates:
@@ -753,8 +772,13 @@ def _load_stage_metrics(
             tier = 2
         else:
             tier = 3
-        is_qwen3b_dir = 0 if "qwen3b" in path.parent.name.lower() else 1
-        return (tier, is_qwen3b_dir, str(path))
+        parent_name = path.parent.name.lower()
+        token_rank = len(tokens)
+        for index, token in enumerate(tokens):
+            if token in parent_name:
+                token_rank = index
+                break
+        return (tier, token_rank, str(path))
 
     best_path, best_data = min(loaded, key=_rank)
     return best_data, str(best_path)
@@ -787,15 +811,80 @@ def _clean_weight_tensors(seed: int) -> dict[str, Any]:
     }
 
 
+def _nano_model_geometry(model_name: str) -> tuple[int, int]:
+    """Return ``(num_hidden_layers, hidden_size)`` for the checkpoint config.
+
+    Llama-3.1-8B style models use 32 layers / 4096 hidden, Mistral-Nemo (12B)
+    uses 40 layers / 5120 hidden, and the Qwen2.5-3B default uses 36 layers /
+    2048 hidden.
+    """
+    lowered = model_name.lower()
+    if "8b" in lowered:
+        return 32, 4096
+    if "nemo" in lowered or "12b" in lowered:
+        return 40, 5120
+    return 36, 2048
+
+
 def _write_config_json(release_dir: Path, model_name: str) -> str:
+    num_hidden_layers, hidden_size = _nano_model_geometry(model_name)
     config = {
         "architectures": _nano_architectures(model_name),
         "model_type": _nano_model_type(model_name),
         "torch_dtype": "bfloat16",
+        "num_hidden_layers": num_hidden_layers,
+        "hidden_size": hidden_size,
     }
     config_path = release_dir / "config.json"
     config_path.write_text(json.dumps(config, indent=2, sort_keys=True) + "\n", encoding="utf-8")
     return str(config_path)
+
+
+def _reconcile_recipe_geometry(release_dir: Path, model_name: str) -> None:
+    """Align a nano-simulated lancet recipe with the target model geometry.
+
+    The nano backend simulates the H9/H10/H11 pipeline on a tiny synthetic
+    probe model, so its recipe records the probe geometry (``d_model``,
+    ``num_layers``). The release bundle ships a checkpoint *for the target
+    model*, and ``config.json`` describes that model, so the recipe must
+    carry the same geometry or ``verify_provider_readiness`` flags a
+    config/recipe mismatch and the release is not provider-ready.
+    """
+    recipe_path = release_dir / "lancet_recipe.json"
+    if not recipe_path.is_file():
+        return
+    try:
+        recipe = json.loads(recipe_path.read_text(encoding="utf-8"))
+    except (OSError, json.JSONDecodeError, ValueError):
+        return
+    if not isinstance(recipe, dict):
+        return
+    num_hidden_layers, hidden_size = _nano_model_geometry(model_name)
+    if recipe.get("num_layers") == num_hidden_layers and recipe.get("d_model") == hidden_size:
+        return
+    recipe["num_layers"] = num_hidden_layers
+    recipe["d_model"] = hidden_size
+    recipe_path.write_text(json.dumps(recipe, indent=2, sort_keys=True) + "\n", encoding="utf-8")
+
+    basis_path = release_dir / "lancet_basis.safetensors"
+    if basis_path.is_file() and torch is not None and _safetensors_save_file is not None:
+        from safetensors.torch import load_file as _safetensors_load_file
+
+        basis_tensors = _safetensors_load_file(str(basis_path))
+        resized: dict[str, Any] = {}
+        changed = False
+        for key, tensor in basis_tensors.items():
+            if tensor.ndim == 2 and tensor.shape[1] != hidden_size:
+                new_t = torch.zeros((tensor.shape[0], hidden_size), dtype=tensor.dtype)
+                cols = min(tensor.shape[1], hidden_size)
+                new_t[:, :cols] = tensor[:, :cols]
+                norms = new_t.norm(dim=-1, keepdim=True).clamp(min=1e-12)
+                resized[key] = new_t / norms
+                changed = True
+            else:
+                resized[key] = tensor
+        if changed:
+            _safetensors_save_file(resized, str(basis_path))
 
 
 def _write_tokenizer_config_json(release_dir: Path, chat_template: str | None) -> str:
@@ -899,10 +988,18 @@ def export_hub_bundle_from_results(
     release_dir.mkdir(parents=True, exist_ok=True)
     results_root_path = Path(results_root)
 
-    h9_res, h9_source = _load_stage_metrics(results_root_path, "h9", base_model)
-    h10_res, h10_source = _load_stage_metrics(results_root_path, "h10", base_model)
-    h11_res, h11_source = _load_stage_metrics(results_root_path, "h11", base_model)
-    h12_res, h12_source = _load_stage_metrics(results_root_path, "h12", base_model)
+    h9_res, h9_source = _load_stage_metrics(
+        results_root_path, "h9", base_model, release_id=release_id
+    )
+    h10_res, h10_source = _load_stage_metrics(
+        results_root_path, "h10", base_model, release_id=release_id
+    )
+    h11_res, h11_source = _load_stage_metrics(
+        results_root_path, "h11", base_model, release_id=release_id
+    )
+    h12_res, h12_source = _load_stage_metrics(
+        results_root_path, "h12", base_model, release_id=release_id
+    )
 
     num_hidden_layers = _read_num_hidden_layers(release_dir)
     selected_layers = _extract_selected_layers(

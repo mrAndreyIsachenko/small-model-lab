@@ -1,0 +1,21 @@
+{
+  "base_model": "sml-surgery-6l",
+  "d_model": 4096,
+  "extraction_mode": "activation_contrastive",
+  "layer_weights": {
+    "0": 0.829195,
+    "4": 0.979317,
+    "5": 1.0
+  },
+  "model_id": "Tenet-8B-Llama3.1-Unslop-v1",
+  "num_layers": 32,
+  "probes_sha256": "2a95d50c1dd69cd9c0d3250e3d4752142711cd7ac92f2e7e3847801590004c00",
+  "scale": 1.0,
+  "schema_version": "1.0",
+  "selected_layers": [
+    5,
+    4,
+    0
+  ],
+  "top_k_layers": 3
+}
