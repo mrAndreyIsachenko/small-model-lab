@@ -1,0 +1,38 @@
+{
+  "artifacts": {
+    "config": "results/tenet_releases/Tenet-3B-Qwen2.5-Unslop-v1/config.json",
+    "lancet_basis": "results/tenet_releases/Tenet-3B-Qwen2.5-Unslop-v1/lancet_basis.safetensors",
+    "lancet_recipe": "results/tenet_releases/Tenet-3B-Qwen2.5-Unslop-v1/lancet_recipe.json",
+    "openrouter_onboarding_json": "results/tenet_releases/Tenet-3B-Qwen2.5-Unslop-v1/openrouter_onboarding.json",
+    "openrouter_onboarding_md": "results/tenet_releases/Tenet-3B-Qwen2.5-Unslop-v1/OPENROUTER_ONBOARDING.md",
+    "readme": "results/tenet_releases/Tenet-3B-Qwen2.5-Unslop-v1/README.md",
+    "release_manifest": "results/tenet_releases/Tenet-3B-Qwen2.5-Unslop-v1/release_manifest.json",
+    "tokenizer_config": "results/tenet_releases/Tenet-3B-Qwen2.5-Unslop-v1/tokenizer_config.json",
+    "weights": "results/tenet_releases/Tenet-3B-Qwen2.5-Unslop-v1/model.safetensors"
+  },
+  "backend": "nano",
+  "hf_repo_id": "tenet-lab/Tenet-3B-Qwen2.5-Unslop-v1",
+  "model_name": "Qwen/Qwen2.5-3B-Instruct",
+  "provider_readiness": {
+    "architectures": [
+      "Qwen2ForCausalLM"
+    ],
+    "checks": {
+      "acceptable_row_crest_factor": true,
+      "no_nan_inf": true,
+      "no_trust_remote_code": true,
+      "no_unmerged_lora": true,
+      "recipe_provenance": true,
+      "standard_architecture": true,
+      "valid_chat_template": true,
+      "weight_outliers_ok": true
+    },
+    "errors": [],
+    "max_abs_weight": 0.0848047137260437,
+    "max_row_crest_factor": 3.6828184127807617,
+    "ready": true,
+    "weight_files_checked": 1
+  },
+  "ready": true,
+  "release_id": "Tenet-3B-Qwen2.5-Unslop-v1"
+}

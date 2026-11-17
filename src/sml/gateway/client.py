@@ -28,6 +28,9 @@ FORBIDDEN_RAW_BODY_KEYS = {
 
 OPENROUTER_DEFAULT_URL = "https://openrouter.ai/api/v1"
 
+# Tenet-targeted OpenRouter upstream providers for FP8 onboarding.
+OPENROUTER_TENET_PROVIDERS = ["Featherless", "Chutes", "Novita", "DeepInfra"]
+
 
 class GatewayError(ValueError):
     def __init__(self, message: str, status: int = 400, code: str = "invalid_request"):
@@ -221,6 +224,180 @@ def validate_chat_payload(payload: dict[str, Any], config: GatewayConfig) -> dic
     return {"model": model, "message_chars": total_chars}
 
 
+def _first_metric(metrics: dict[str, Any], *keys: str, default: Any = None) -> Any:
+    """Return the first present, non-None value among ``keys``."""
+    for key in keys:
+        value = metrics.get(key)
+        if value is not None:
+            return value
+    return default
+
+
+def _format_metric(value: Any) -> str:
+    if value is None:
+        return "n/a"
+    if isinstance(value, float):
+        return f"{value:.6g}"
+    return str(value)
+
+
+def build_openrouter_onboarding_manifest(
+    hf_repo_id: str,
+    base_model: str,
+    h9_metrics: dict[str, Any],
+    h10_metrics: dict[str, Any],
+    h11_metrics: dict[str, Any],
+) -> dict[str, Any]:
+    """Build a structured OpenRouter provider-onboarding manifest.
+
+    Bundles the FP8 Re-Leakage / survival proof and Row Crest-Factor /
+    max-abs-weight weight-hygiene evidence (H11), plus key H9 Lancet
+    surgery and H10 subspace-safe GRPO metrics, a vLLM launch command,
+    and an architectural compatibility checklist.
+    """
+    vllm_launch_args = {
+        "model": hf_repo_id,
+        "quantization": "fp8",
+        "dtype": "bfloat16",
+        "trust_remote_code": False,
+        "cli_args": [
+            "--model",
+            hf_repo_id,
+            "--quantization",
+            "fp8",
+            "--dtype",
+            "bfloat16",
+            "--enable-auto-tool-choice",
+        ],
+    }
+
+    fp8_and_crest_proof = {
+        "h11_fp8_provider_audit": {
+            "fp8_retention_ratio": _first_metric(h11_metrics, "fp8_retention_ratio"),
+            "h11_fp8_kl_reduction_ratio": _first_metric(h11_metrics, "h11_fp8_kl_reduction_ratio"),
+            "fp8_subspace_releakage_naive": _first_metric(
+                h11_metrics,
+                "fp8_subspace_releakage_naive",
+                "fp8_releakage_naive",
+            ),
+            "fp8_subspace_releakage_lancet": _first_metric(
+                h11_metrics,
+                "fp8_subspace_releakage_lancet",
+                "fp8_releakage_lancet",
+            ),
+            "fp8_subspace_releakage_naive_per_tensor": _first_metric(
+                h11_metrics, "fp8_subspace_releakage_naive_per_tensor"
+            ),
+            "fp8_subspace_releakage_lancet_per_tensor": _first_metric(
+                h11_metrics, "fp8_subspace_releakage_lancet_per_tensor"
+            ),
+            "kl_naive_fp8": _first_metric(h11_metrics, "kl_naive_fp8"),
+            "kl_lancet_fp8": _first_metric(h11_metrics, "kl_lancet_fp8"),
+            "max_row_crest_factor": _first_metric(
+                h11_metrics, "max_row_crest_factor", "row_crest_factor"
+            ),
+            "max_abs_weight": _first_metric(h11_metrics, "max_abs_weight"),
+        },
+        "h9_lancet_surgery": {
+            "h9_verified": _first_metric(h9_metrics, "h9_verified"),
+            "h9_kl_reduction_ratio": _first_metric(h9_metrics, "h9_kl_reduction_ratio"),
+            "target_suppression_ratio": _first_metric(h9_metrics, "target_suppression_ratio"),
+            "naive_kl_collateral": _first_metric(h9_metrics, "naive_kl_collateral"),
+            "lancet_kl_collateral": _first_metric(h9_metrics, "lancet_kl_collateral"),
+            "max_row_norm_drift": _first_metric(h9_metrics, "max_row_norm_drift"),
+            "anchor_orthogonality_error": _first_metric(h9_metrics, "anchor_orthogonality_error"),
+        },
+        "h10_subspace_safe_grpo": {
+            "h10_verified": _first_metric(h10_metrics, "h10_verified"),
+            "subspace_safe_lora_releakage": _first_metric(
+                h10_metrics, "subspace_safe_lora_releakage"
+            ),
+            "unprojected_lora_releakage": _first_metric(h10_metrics, "unprojected_lora_releakage"),
+            "post_merge_suppression_retention": _first_metric(
+                h10_metrics, "post_merge_suppression_retention"
+            ),
+            "h10_gated_vs_naive_gain": _first_metric(h10_metrics, "h10_gated_vs_naive_gain"),
+            "h10_post_surgery_gain": _first_metric(h10_metrics, "h10_post_surgery_gain"),
+            "merged_lora_count": _first_metric(h10_metrics, "merged_lora_count"),
+            "length_collapse_rate": _first_metric(h10_metrics, "length_collapse_rate"),
+        },
+    }
+
+    architectural_compatibility = {
+        "standard_architecture": True,
+        "trust_remote_code": False,
+        "auto_map": None,
+        "chat_template_ready": True,
+        "supported_architectures": [
+            "LlamaForCausalLM",
+            "Qwen2ForCausalLM",
+            "MistralForCausalLM",
+        ],
+    }
+
+    audit = fp8_and_crest_proof["h11_fp8_provider_audit"]
+    h9_proof = fp8_and_crest_proof["h9_lancet_surgery"]
+    h10_proof = fp8_and_crest_proof["h10_subspace_safe_grpo"]
+    vllm_command = "vllm serve " + " ".join(vllm_launch_args["cli_args"])
+    supported = ", ".join(architectural_compatibility["supported_architectures"])
+    retention = _format_metric(audit["fp8_retention_ratio"])
+    kl_reduction = _format_metric(audit["h11_fp8_kl_reduction_ratio"])
+    releakage_lancet = _format_metric(audit["fp8_subspace_releakage_lancet"])
+    releakage_naive = _format_metric(audit["fp8_subspace_releakage_naive"])
+    h9_kl_ratio = _format_metric(h9_proof["h9_kl_reduction_ratio"])
+    h10_lora_releakage = _format_metric(h10_proof["subspace_safe_lora_releakage"])
+    crest = _format_metric(audit["max_row_crest_factor"])
+    max_abs = _format_metric(audit["max_abs_weight"])
+    markdown_summary = (
+        f"# OpenRouter Onboarding — {hf_repo_id}\n"
+        "\n"
+        "## Repository\n"
+        "\n"
+        f"- **HF repo id:** `{hf_repo_id}`\n"
+        f"- **Base model:** `{base_model}`\n"
+        f"- **Target providers:** {', '.join(OPENROUTER_TENET_PROVIDERS)}\n"
+        "\n"
+        "## vLLM launch command\n"
+        "\n"
+        "```bash\n"
+        f"{vllm_command}\n"
+        "```\n"
+        "\n"
+        "Settings: `quantization=fp8`, `dtype=bfloat16`, "
+        "`trust_remote_code=False`, `enable-auto-tool-choice=True`.\n"
+        "\n"
+        "## FP8 Re-Leakage & Row Crest-Factor proof\n"
+        "\n"
+        "| Proof | Value |\n"
+        "| --- | --- |\n"
+        f"| H11 FP8 retention ratio | {retention} |\n"
+        f"| H11 FP8 KL reduction ratio | {kl_reduction} |\n"
+        f"| H11 FP8 subspace Re-Leakage (Lancet) | {releakage_lancet} |\n"
+        f"| H11 FP8 subspace Re-Leakage (naive) | {releakage_naive} |\n"
+        f"| H9 Lancet KL reduction ratio | {h9_kl_ratio} |\n"
+        f"| H10 subspace-safe LoRA Re-Leakage | {h10_lora_releakage} |\n"
+        f"| Max row crest factor | {crest} |\n"
+        f"| Max abs weight | {max_abs} |\n"
+        "\n"
+        "## Architectural compatibility checklist\n"
+        "\n"
+        "- [x] Standard, first-party architecture (no custom `auto_map`)\n"
+        "- [x] No `trust_remote_code` escape hatches\n"
+        "- [x] Chat template ready\n"
+        f"- Supported architectures: {supported}\n"
+    )
+
+    return {
+        "hf_repo_id": hf_repo_id,
+        "base_model": base_model,
+        "providers": list(OPENROUTER_TENET_PROVIDERS),
+        "vllm_launch_args": vllm_launch_args,
+        "fp8_and_crest_proof": fp8_and_crest_proof,
+        "architectural_compatibility": architectural_compatibility,
+        "markdown_summary": markdown_summary,
+    }
+
+
 class OpenRouterGatewayClient:
     def __init__(
         self,
@@ -232,11 +409,34 @@ class OpenRouterGatewayClient:
         self.audit_log: list[dict[str, Any]] = []
 
     def chat_completions(
-        self, payload: dict[str, Any], request_id: str | None = None
+        self,
+        payload: dict[str, Any],
+        request_id: str | None = None,
+        provider_order: list[str] | None = None,
     ) -> dict[str, Any]:
         """Process chat completions request through the gateway."""
-        # Validate payload
-        audit_summary = validate_chat_payload(payload, self.config)
+        # Work on a copy so the caller's payload dict is never mutated.
+        outbound_payload = dict(payload)
+
+        # Optional OpenRouter provider routing order.
+        if provider_order is not None:
+            if (
+                not isinstance(provider_order, list)
+                or len(provider_order) == 0
+                or not all(isinstance(name, str) and name for name in provider_order)
+            ):
+                raise GatewayError(
+                    "provider_order must be a non-empty list of provider names",
+                    status=400,
+                    code="invalid_provider_order",
+                )
+            outbound_payload["provider"] = {
+                "order": list(provider_order),
+                "allow_fallbacks": True,
+            }
+
+        # Validate payload (egress security filters run on the outbound body)
+        audit_summary = validate_chat_payload(outbound_payload, self.config)
 
         # Check API key
         if not self.config.api_key:
@@ -257,7 +457,7 @@ class OpenRouterGatewayClient:
             headers["X-Harness-Task-Id"] = self.config.task_id
 
         # Serialize payload
-        data = json.dumps(payload).encode("utf-8")
+        data = json.dumps(outbound_payload).encode("utf-8")
 
         # Create request
         req = urllib.request.Request(url, data=data, headers=headers, method="POST")

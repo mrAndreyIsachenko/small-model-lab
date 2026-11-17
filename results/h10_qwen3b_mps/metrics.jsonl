@@ -1,0 +1,5 @@
+{"step": 1, "timestamp_utc": "2026-11-17T11:52:48.868095+00:00", "slop_and_refusal_rate": 2e-05, "h10_gated_vs_naive_gain": -0.00057, "h10_post_surgery_gain": -0.000349, "max_abs_logit_diff": 0.06332016}
+{"step": 1, "timestamp_utc": "2026-11-17T13:57:01.698316+00:00", "slop_and_refusal_rate": 0.000324, "h10_gated_vs_naive_gain": 0.012836, "h10_post_surgery_gain": 0.051516, "max_abs_logit_diff": 0.05381012}
+{"step": 1, "timestamp_utc": "2026-11-17T14:08:44.626432+00:00", "slop_and_refusal_rate": 0.12281, "h10_gated_vs_naive_gain": -0.183238, "h10_post_surgery_gain": -0.062401, "max_abs_logit_diff": 1.15252686}
+{"step": 1, "timestamp_utc": "2026-11-17T14:19:44.408850+00:00", "slop_and_refusal_rate": 0.090889, "h10_gated_vs_naive_gain": 0.160164, "h10_post_surgery_gain": 0.359802, "max_abs_logit_diff": 0.09113312}
+{"step": 1, "timestamp_utc": "2026-11-17T14:30:52.781321+00:00", "slop_and_refusal_rate": 0.090889, "h10_gated_vs_naive_gain": 0.160164, "h10_post_surgery_gain": 0.359802, "max_abs_logit_diff": 0.09113312}

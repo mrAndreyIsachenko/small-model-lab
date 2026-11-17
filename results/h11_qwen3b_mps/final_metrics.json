@@ -1,0 +1,32 @@
+{
+  "h11_verified": true,
+  "fp8_retention_ratio": 0.9541449546813965,
+  "h11_fp8_kl_reduction_ratio": 0.5184877587336594,
+  "kl_naive_fp8": 0.09748386591672897,
+  "kl_lancet_fp8": 0.0469396747648716,
+  "fp8_subspace_releakage_naive": 0.5002509978921169,
+  "fp8_subspace_releakage_lancet": 0.027005735006194635,
+  "fp8_subspace_releakage_naive_per_tensor": 0.5001845181117502,
+  "fp8_subspace_releakage_lancet_per_tensor": 0.02703204800644877,
+  "kl_naive_fp8_per_tensor": 0.11129428446292877,
+  "kl_lancet_fp8_per_tensor": 0.04703763127326965,
+  "provider_ready": true,
+  "readiness_checks": {
+    "standard_architecture": true,
+    "no_trust_remote_code": true,
+    "valid_chat_template": true,
+    "no_nan_inf": true,
+    "no_unmerged_lora": true,
+    "weight_outliers_ok": true,
+    "acceptable_row_crest_factor": true
+  },
+  "max_abs_weight": 1.4296875,
+  "max_row_crest_factor": 17.270610809326172,
+  "backend": "llm",
+  "model_name": "Qwen/Qwen2.5-3B-Instruct",
+  "model_cards": [
+    "Tenet-3B-Qwen2.5-Unslop-v1",
+    "Tenet-8B-Llama3.1-Unslop-v1",
+    "Tenet-12B-Nemo-Unslop-v1"
+  ]
+}

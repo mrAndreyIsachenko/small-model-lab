@@ -8,7 +8,7 @@
 3. When updating model weights (LoRA, SFT, Rejection-Sampled Distillation, multi-turn `GRPO`) outperforms enriching runtime context (Prompting, Hybrid RAG) on `knowledge-bound` vs. `skill-bound` failures.
 4. How pretraining mechanics, post-training weight changes, and quantization interact under production GPU serving constraints (`vLLM`).
 
-## 2. Four-Sprint Program Structure (~10–12 Weeks @ 10h/week)
+## 2. Sprint Program Structure (~10–12 Weeks @ 10h/week for Sprints 1–4, plus Sprints 5–7)
 
 | Sprint | Target Duration | Core Engineering & Research Scope | Primary Public Artifacts |
 | :--- | :--- | :--- | :--- |
@@ -16,6 +16,9 @@
 | **Sprint 2: Trainable Analytical & Incident RL Environment (`StatefulToolEnv`)** | Weeks 5–6 (~20–25h) | Build `verifiers`-compatible multi-turn environment (`StatefulToolEnv` + `load_environment`) on `dbt Core + DuckDB + sqlglot`, isolated MCP tools (`query_warehouse`, `get_metric_lineage`, `inspect_changes`, `submit_diagnosis`), multi-seed counterfactual fault injection (`product_bug`, `data_pipeline_artifact`, `mix_shift` + confounders), and Gated Multiplicative `Rubric` (`G_safety · G_complete · R_correctness · G_evidence · (1 + α R_efficiency)`). | Installable `verifiers` environment package (`src/sml/envs/`) + counterfactual scenario benchmark + anti-hacking unit suite + Report #2. |
 | **Sprint 3: Adaptation, Distillation & Multi-Turn RL (`Context vs. Weights`)** | Weeks 7–9 (~25–30h) | Baseline eval $\rightarrow$ trajectory collection $\rightarrow$ Teacher (`30B+`) Rejection-Sampled SFT $\rightarrow$ Multi-Turn `GRPO` into `1.5B–3B` open weights; run controlled ablation comparing Gated Multiplicative `Rubric` vs. Naive Additive reward on held-out fault seeds (`H5`). | Distilled & RL-tuned specialist models (`1.5B–3B`) + verified multi-turn trajectory dataset + Report #3. |
 | **Sprint 4: Specialist Surgery & Production Inference (`vLLM`)** | Weeks 10–11 (~20–25h) | Inspect layer-wise CKA drift (Base vs. SFT vs. GRPO Student), evaluate `FP8` / `INT4 AWQ` and layer-pruning degradation on multi-turn tool calls, benchmark `vLLM` continuous batching & prefix caching (`TTFT`, `TPOT`, `$/1k` incidents Pareto frontier), test CKA-guided non-uniform mixed-precision bit allocation (RCO principle), surgical rank-1 weight projection (W' = W - r(r^T W)) sensitivity across Gated Rubric components. | Quantized specialist checkpoints + `vLLM` benchmark suite + Final Pareto Report #4. |
+| **Sprint 5: Lancet Dual-Anchor Soft-SCR Surgery (`H9`)** | Extension (`H9`) | Modified Gram-Schmidt biprojection of refusal & slop probes against reasoning + tool/SQL anchors, per-row L2-norm-preserving projection (`o_proj`, `down_proj`), and soft-SCR layer selection ([ADR-005](decisions/005-lancet-biprojected-surgery.md)). | Lancet surgical engine (`src/sml/surgery/`) + `H9` verification bundles (`nano` & `Qwen2.5-3B-Instruct`). |
+| **Sprint 6: Tenet Subspace-Safe Unslop GRPO (`H10`)** | Extension (`H10`) | Gated unslop `GRPO` (`TenetUnslopRubric`), orthogonal LoRA merge (`I - U U^T`) with row-norm preservation, and merge equivalence verification (`max_abs_logit_diff < 1e-4`, `merged_lora_count == 0`). | `Tenet` family (`Tenet-3B-Qwen2.5-Unslop-v1`, `Tenet-8B-Llama3.1-Unslop-v1`, `Tenet-12B-Nemo-Unslop-v1`) + `H10` bundles. |
+| **Sprint 7: FP8 Provider Survival & Readiness (`H11`)** | Extension (`H11`) | Server-side FP8 (E4M3) survival (`per_channel` vs. `per_tensor`), `FP8 Subspace Re-Leakage`, `Row Crest-Factor < 25.0` weight hygiene gate, and provider readiness validation (`vLLM` / OpenRouter). | Provider readiness validator (`src/sml/hub/`) + `Tenet` model cards + `H11` bundles. |
 
 ## 3. Sprint 1 Milestone Plan
 
@@ -74,3 +77,11 @@ Measuring degradation across individual Gated Rubric factors (G_safety, G_comple
 | :--- | :--- | :--- | :--- |
 | **H7** | **CKA-Guided Mixed-Precision vs. Uniform Low-Bit Quantization on Multi-Turn Tool Use:** protecting top-25% CKA-drift layers recovers >= 85% of BF16 G_evidence * R_correctness and beats uniform low-bit quantization by >= 10 pp on held-out episodes. | CKA-guided mixed-precision preserves >= 85% of BF16 performance on G_evidence * R_correctness while beating uniform low-bit by >= 10 pp on held-out episodes. | `Sprint 4` |
 | **H8** | **Rank-1 Subspace Weight Projection Sensitivity W' = W - r(r^T W):** selective mid-to-late layer rank-1 projection shifts verification behavior while keeping G_safety * G_complete >= 0.95, whereas all-layer projection degrades G_evidence and confounder rejection first. | Selective mid-to-late layer rank-1 projection maintains G_safety * G_complete >= 0.95 while all-layer projection degrades G_evidence and confounder rejection first. | `Sprint 4` |
+
+## 6. Sprints 5–7 Specification: Lancet Engine & Tenet Provider-Ready Release ([ADR-005](decisions/005-lancet-biprojected-surgery.md))
+
+| ID | Hypothesis | Pre-Registered Acceptance Criterion | Sprint |
+| :--- | :--- | :--- | :--- |
+| **H9** | **Lancet Dual-Anchor Soft-SCR Surgery:** Bi-projecting refusal & slop probes against reasoning/tool anchors with per-row L2-norm preservation and SCR layer selection suppresses target writes while cutting anchor KL collateral vs. naive ablation. | `anchor_orthogonality_error < 1e-6`, `max_row_norm_drift < 1e-5` (`fp32`), `target_suppression_ratio >= 0.90`, `h9_kl_reduction_ratio >= 0.35`. | `Sprint 5` |
+| **H10** | **Tenet Subspace-Safe Unslop GRPO:** Gated unslop GRPO eliminates residual slop/refusal mass, and projecting LoRA deltas onto `I - U U^T` before in-place merge prevents subspace re-leakage. | `slop_and_refusal_rate <= 0.02`, `h10_gated_vs_naive_gain >= 0.15`, `max_abs_logit_diff < 1e-4`, `merged_lora_count == 0`, `subspace_safe_lora_releakage < 1e-5`. | `Sprint 6` |
+| **H11** | **FP8 Provider Survival & Readiness:** Lancet norm-preserving surgery survives E4M3 quantization with lower KL drift and lower `FP8 Subspace Re-Leakage` than naive ablation, and passes provider hygiene (`Row Crest-Factor < 25.0`). | `fp8_retention_ratio >= 0.96`, `h11_fp8_kl_reduction_ratio >= 0.25`, `max_row_crest_factor < 25.0`, `provider_ready == True`. | `Sprint 7` |

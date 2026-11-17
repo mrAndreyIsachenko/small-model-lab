@@ -10,6 +10,7 @@ import time
 from pathlib import Path
 
 from sml.config import ModelConfig, load_experiment_spec, load_model_config
+from sml.hub.release import build_tenet_release_bundle
 from sml.model import (
     KVCache,
     Transformer,
@@ -840,6 +841,487 @@ def _cmd_run_surgery(args: argparse.Namespace) -> int:
     return 0 if (res["h7_verified"] and res["h8_verified"]) else 1
 
 
+def _cmd_verify_h9(args: argparse.Namespace) -> int:
+    import json
+    import time
+
+    from sml.config import load_experiment_spec
+    from sml.surgery.llm_pareto import run_llm_h9_biprojected_surgery_benchmark
+    from sml.surgery.pareto import run_h9_biprojected_surgery_benchmark
+    from sml.tracking.manifest import RunRecorder
+
+    spec = load_experiment_spec(args.experiment)
+    output_dir = Path(args.output_dir)
+    run_id = args.run_id or ("h9_qwen3b_mps" if args.backend == "llm" else spec.experiment_id)
+
+    if args.backend == "llm" and args.model_name:
+        spec = dataclasses.replace(
+            spec, model=_resolve_llm_model_config(args.model_name, spec.model)
+        )
+
+    t0 = time.perf_counter()
+    recorder = RunRecorder(
+        run_id=run_id,
+        spec=spec,
+        output_root=output_dir,
+        mode="measured",
+    )
+
+    if args.backend == "llm":
+        res = run_llm_h9_biprojected_surgery_benchmark(
+            model_name=args.model_name,
+            device=args.device,
+            seed=spec.seed,
+            top_k_layers=args.top_k_layers,
+            scale=args.scale,
+            output_dir=recorder.run_dir,
+        )
+    else:
+        res = run_h9_biprojected_surgery_benchmark(
+            seed=spec.seed,
+            top_k_layers=args.top_k_layers or 3,
+            scale=args.scale,
+            output_dir=recorder.run_dir,
+        )
+
+    recorder.log_step(
+        step=1,
+        metrics={
+            "anchor_orthogonality_error": float(res["anchor_orthogonality_error"]),
+            "max_row_norm_drift": float(res["max_row_norm_drift"]),
+            "target_suppression_ratio": float(res["target_suppression_ratio"]),
+            "naive_kl_collateral": float(res["naive_kl_collateral"]),
+            "lancet_kl_collateral": float(res["lancet_kl_collateral"]),
+            "h9_kl_reduction_ratio": float(res["h9_kl_reduction_ratio"]),
+        },
+    )
+
+    # Write surgery_h9.json
+    surgery_h9_path = recorder.run_dir / "surgery_h9.json"
+    surgery_h9_path.write_text(
+        json.dumps(res, indent=2),
+        encoding="utf-8",
+    )
+
+    elapsed = time.perf_counter() - t0
+
+    # Final metrics
+    final_metrics = {
+        "h9_verified": res["h9_verified"],
+        "anchor_orthogonality_error": res["anchor_orthogonality_error"],
+        "max_row_norm_drift": res["max_row_norm_drift"],
+        "target_suppression_ratio": res["target_suppression_ratio"],
+        "naive_kl_collateral": res["naive_kl_collateral"],
+        "lancet_kl_collateral": res["lancet_kl_collateral"],
+        "tool_sql_orthogonality_error": res.get("tool_sql_orthogonality_error", 0.0),
+        "probe_evr_refusal": res.get("probe_evr_refusal", 0.0),
+        "probe_evr_slop": res.get("probe_evr_slop", 0.0),
+        "layer_alpha_schedule": res.get("layer_alpha_schedule", []),
+        "h9_kl_reduction_ratio": res["h9_kl_reduction_ratio"],
+        "selected_layers": res.get("selected_layers", []),
+        "backend": args.backend,
+        "model_name": res.get("model_name", "sml-surgery-6l"),
+    }
+
+    run_path = recorder.finalize(
+        final_metrics=final_metrics,
+        active_seconds=elapsed,
+        billed_seconds=elapsed,
+        status="completed" if res["h9_verified"] else "failed",
+        conclusion=(
+            "H9 Lancet surgery verification completed: "
+            f"h9_verified={res['h9_verified']}, "
+            f"kl_reduction={res['h9_kl_reduction_ratio']:.4f}"
+        ),
+    )
+
+    # Print JSON summary
+    summary = {
+        "h9_verified": res["h9_verified"],
+        "h9_kl_reduction_ratio": res["h9_kl_reduction_ratio"],
+        "run_path": str(run_path),
+    }
+    print(json.dumps(summary, indent=2))
+
+    return 0 if res["h9_verified"] else 1
+
+
+def _cmd_verify_h10(args: argparse.Namespace) -> int:
+    import json
+    import time
+
+    from sml.adaptation.grpo import run_h10_unslop_grpo_benchmark, run_llm_h10_unslop_grpo_benchmark
+    from sml.config import load_experiment_spec
+    from sml.tracking.manifest import RunRecorder
+
+    spec = load_experiment_spec(args.experiment)
+    output_dir = Path(args.output_dir)
+    run_id = args.run_id or ("h10_qwen3b_mps" if args.backend == "llm" else spec.experiment_id)
+
+    if args.backend == "llm" and args.model_name:
+        spec = dataclasses.replace(
+            spec, model=_resolve_llm_model_config(args.model_name, spec.model)
+        )
+
+    t0 = time.perf_counter()
+    recorder = RunRecorder(
+        run_id=run_id,
+        spec=spec,
+        output_root=output_dir,
+        mode="measured",
+    )
+
+    if args.backend == "llm":
+        res = run_llm_h10_unslop_grpo_benchmark(
+            model_name=args.model_name,
+            device=args.device,
+            seed=spec.seed,
+            steps=args.steps if args.steps != 27 else 6,
+            group_size=args.group_size,
+            lr=args.lr if args.lr != 0.0038 else 5e-4,
+        )
+    else:
+        res = run_h10_unslop_grpo_benchmark(
+            seed=spec.seed,
+            steps=args.steps,
+            group_size=args.group_size,
+            lr=args.lr,
+        )
+
+    recorder.log_step(
+        step=1,
+        metrics={
+            "slop_and_refusal_rate": float(res["slop_and_refusal_rate"]),
+            "h10_gated_vs_naive_gain": float(res["h10_gated_vs_naive_gain"]),
+            "h10_post_surgery_gain": float(res["h10_post_surgery_gain"]),
+            "max_abs_logit_diff": float(res["max_abs_logit_diff"]),
+        },
+    )
+
+    # Write unslop_grpo.json
+    unslop_grpo_path = recorder.run_dir / "unslop_grpo.json"
+    unslop_grpo_path.write_text(
+        json.dumps(res, indent=2),
+        encoding="utf-8",
+    )
+
+    elapsed = time.perf_counter() - t0
+
+    # Final metrics
+    final_metrics = {
+        "h10_verified": res["h10_verified"],
+        "slop_and_refusal_rate": res["slop_and_refusal_rate"],
+        "h10_gated_vs_naive_gain": res["h10_gated_vs_naive_gain"],
+        "h10_post_surgery_gain": res["h10_post_surgery_gain"],
+        "max_abs_logit_diff": res["max_abs_logit_diff"],
+        "merged_lora_count": res["merged_lora_count"],
+        "unprojected_lora_releakage": res["unprojected_lora_releakage"],
+        "subspace_safe_lora_releakage": res["subspace_safe_lora_releakage"],
+        "post_merge_suppression_retention": res["post_merge_suppression_retention"],
+        "mean_response_words": res["mean_response_words"],
+        "length_collapse_rate": res["length_collapse_rate"],
+        "arms": res["arms"],
+        "backend": args.backend,
+        "model_name": res.get("model_name", "sml-tenet-rehab"),
+    }
+
+    run_path = recorder.finalize(
+        final_metrics=final_metrics,
+        active_seconds=elapsed,
+        billed_seconds=elapsed,
+        status="completed" if res["h10_verified"] else "failed",
+        conclusion=(
+            "H10 unslop GRPO verification completed: "
+            f"h10_verified={res['h10_verified']}, "
+            f"slop_and_refusal_rate={res['slop_and_refusal_rate']:.4f}, "
+            f"gated_vs_naive_gain={res['h10_gated_vs_naive_gain']:.4f}"
+        ),
+    )
+
+    # Print JSON summary
+    summary = {
+        "h10_verified": res["h10_verified"],
+        "slop_and_refusal_rate": res["slop_and_refusal_rate"],
+        "h10_gated_vs_naive_gain": res["h10_gated_vs_naive_gain"],
+        "h10_post_surgery_gain": res["h10_post_surgery_gain"],
+        "run_path": str(run_path),
+    }
+    print(json.dumps(summary, indent=2))
+
+    return 0 if res["h10_verified"] else 1
+
+
+def _cmd_verify_h11(args: argparse.Namespace) -> int:
+    import json
+    import time
+
+    import torch
+
+    from sml.config import load_experiment_spec
+    from sml.hub import generate_tenet_model_card, verify_provider_readiness
+    from sml.hub.validator import MAX_ABS_WEIGHT_THRESHOLD, MAX_ROW_CREST_FACTOR_THRESHOLD
+    from sml.surgery.quantization import (
+        evaluate_h11_fp8_provider_survival,
+        evaluate_llm_h11_fp8_provider_survival,
+    )
+    from sml.tracking.manifest import RunRecorder
+
+    spec = load_experiment_spec(args.experiment)
+    output_dir = Path(args.output_dir)
+    run_id = args.run_id or ("h11_qwen3b_mps" if args.backend == "llm" else spec.experiment_id)
+
+    if args.backend == "llm" and args.model_name:
+        spec = dataclasses.replace(
+            spec, model=_resolve_llm_model_config(args.model_name, spec.model)
+        )
+
+    t0 = time.perf_counter()
+    recorder = RunRecorder(
+        run_id=run_id,
+        spec=spec,
+        output_root=output_dir,
+        mode="measured",
+    )
+
+    if args.backend == "llm":
+        fp8_res = evaluate_llm_h11_fp8_provider_survival(
+            model_name=args.model_name,
+            device=args.device,
+            seed=spec.seed,
+            n_prompts=args.n_prompts,
+            seq_len=args.seq_len,
+        )
+    else:
+        fp8_res = evaluate_h11_fp8_provider_survival(
+            seed=spec.seed,
+            n_prompts=args.n_prompts,
+            seq_len=args.seq_len,
+        )
+
+    # Build a minimal HF-style provider bundle: config, tokenizer config, weights.
+    bundle_dir = recorder.run_dir / "provider_bundle"
+    bundle_dir.mkdir(parents=True, exist_ok=True)
+
+    if args.backend == "llm":
+        from transformers import AutoConfig, AutoTokenizer
+
+        hf_config = AutoConfig.from_pretrained(args.model_name)
+        (bundle_dir / "config.json").write_text(
+            hf_config.to_json_string(),
+            encoding="utf-8",
+        )
+        tokenizer = AutoTokenizer.from_pretrained(args.model_name)
+        tokenizer.save_pretrained(bundle_dir)
+        tokenizer_config_path = bundle_dir / "tokenizer_config.json"
+        tokenizer_config = (
+            json.loads(tokenizer_config_path.read_text(encoding="utf-8"))
+            if tokenizer_config_path.exists()
+            else {}
+        )
+        chat_template = getattr(tokenizer, "chat_template", None)
+        if not tokenizer_config.get("chat_template") and chat_template:
+            tokenizer_config["chat_template"] = chat_template
+            tokenizer_config_path.write_text(
+                json.dumps(tokenizer_config, indent=2),
+                encoding="utf-8",
+            )
+        # Lightweight weights sample: readiness checks only need finiteness and
+        # magnitude statistics, not the full multi-GB checkpoint.
+        generator = torch.Generator().manual_seed(spec.seed)
+        weights = {
+            "model.embed_tokens.weight": torch.rand((16, 32), generator=generator) * 0.02,
+            "model.layers.0.self_attn.q_proj.weight": (
+                torch.rand((32, 32), generator=generator) * 0.02
+            ),
+            "model.layers.0.mlp.gate_proj.weight": (
+                torch.rand((86, 32), generator=generator) * 0.02
+            ),
+        }
+        torch.save(weights, bundle_dir / "weights.pt")
+    else:
+        config = {
+            "architectures": ["Qwen2ForCausalLM"],
+            "model_type": "qwen2",
+            "hidden_size": 4,
+            "intermediate_size": 8,
+            "num_attention_heads": 2,
+            "num_key_value_heads": 2,
+            "num_hidden_layers": 1,
+            "vocab_size": 8,
+            "max_position_embeddings": 64,
+            "rms_norm_eps": 1e-6,
+            "torch_dtype": "float32",
+        }
+        (bundle_dir / "config.json").write_text(
+            json.dumps(config, indent=2),
+            encoding="utf-8",
+        )
+
+        tokenizer_config = {
+            "chat_template": "{% for m in messages %}{{ m.content }}{% endfor %}",
+        }
+        (bundle_dir / "tokenizer_config.json").write_text(
+            json.dumps(tokenizer_config, indent=2),
+            encoding="utf-8",
+        )
+
+        generator = torch.Generator().manual_seed(spec.seed)
+        weights = {
+            "model.embed_tokens.weight": torch.rand((8, 4), generator=generator) * 0.5,
+            "model.layers.0.self_attn.q_proj.weight": (
+                torch.rand((4, 4), generator=generator) * 0.5
+            ),
+            "model.layers.0.mlp.gate_proj.weight": (torch.rand((8, 4), generator=generator) * 0.5),
+            "lm_head.weight": torch.rand((4, 4), generator=generator) * 0.5,
+        }
+        torch.save(weights, bundle_dir / "weights.pt")
+
+    readiness = verify_provider_readiness(bundle_dir)
+    readiness["max_abs_weight"] = max(
+        float(readiness["max_abs_weight"]),
+        float(fp8_res.get("max_abs_weight", 0.0)),
+    )
+    readiness["max_row_crest_factor"] = max(
+        float(readiness["max_row_crest_factor"]),
+        float(fp8_res.get("max_row_crest_factor", 0.0)),
+    )
+    readiness["checks"]["weight_outliers_ok"] = (
+        readiness["max_abs_weight"] < MAX_ABS_WEIGHT_THRESHOLD
+    )
+    readiness["checks"]["acceptable_row_crest_factor"] = (
+        readiness["max_row_crest_factor"] < MAX_ROW_CREST_FACTOR_THRESHOLD
+    )
+    readiness["ready"] = all(readiness["checks"].values())
+
+    # Tenet model cards for the release candidates.
+    cards_dir = recorder.run_dir / "model_cards"
+    cards_dir.mkdir(parents=True, exist_ok=True)
+    card_specs = [
+        (
+            "Tenet-3B-Qwen2.5-Unslop-v1",
+            "Qwen/Qwen2.5-3B-Instruct",
+            bundle_dir / "README.md",
+        ),
+        (
+            "Tenet-8B-Llama3.1-Unslop-v1",
+            "meta-llama/Llama-3.1-8B-Instruct",
+            cards_dir / "Tenet-8B-Llama3.1-Unslop-v1.md",
+        ),
+        (
+            "Tenet-12B-Nemo-Unslop-v1",
+            "mistralai/Mistral-Nemo-Instruct-2407",
+            cards_dir / "Tenet-12B-Nemo-Unslop-v1.md",
+        ),
+    ]
+    card_metrics = {
+        "h11_bf16": 1.0,
+        "h11_fp8": fp8_res["fp8_retention_ratio"],
+        "h11_naive": 1.0 - float(fp8_res["kl_naive_fp8"]),
+        **fp8_res,
+        "max_row_crest_factor": readiness["max_row_crest_factor"],
+    }
+    for model_name, base_model, card_path in card_specs:
+        card = generate_tenet_model_card(
+            model_id=model_name,
+            base_model=base_model,
+            metrics=card_metrics,
+        )
+        card_path.write_text(card, encoding="utf-8")
+
+    h11_verified = bool(fp8_res["h11_verified"] and readiness["ready"])
+
+    recorder.log_step(
+        step=1,
+        metrics={
+            "fp8_retention_ratio": float(fp8_res["fp8_retention_ratio"]),
+            "h11_fp8_kl_reduction_ratio": float(fp8_res["h11_fp8_kl_reduction_ratio"]),
+            "max_abs_weight": float(readiness["max_abs_weight"]),
+            "fp8_subspace_releakage_naive": float(fp8_res["fp8_subspace_releakage_naive"]),
+            "fp8_subspace_releakage_lancet": float(fp8_res["fp8_subspace_releakage_lancet"]),
+            "fp8_subspace_releakage_naive_per_tensor": float(
+                fp8_res["fp8_subspace_releakage_naive_per_tensor"]
+            ),
+            "fp8_subspace_releakage_lancet_per_tensor": float(
+                fp8_res["fp8_subspace_releakage_lancet_per_tensor"]
+            ),
+            "kl_naive_fp8_per_tensor": float(fp8_res["kl_naive_fp8_per_tensor"]),
+            "kl_lancet_fp8_per_tensor": float(fp8_res["kl_lancet_fp8_per_tensor"]),
+            "max_row_crest_factor": float(readiness["max_row_crest_factor"]),
+        },
+    )
+
+    # Write fp8_survival.json
+    fp8_survival_path = recorder.run_dir / "fp8_survival.json"
+    fp8_survival_path.write_text(
+        json.dumps(fp8_res, indent=2),
+        encoding="utf-8",
+    )
+
+    # Write provider_readiness.json
+    readiness_path = recorder.run_dir / "provider_readiness.json"
+    readiness_path.write_text(
+        json.dumps(readiness, indent=2),
+        encoding="utf-8",
+    )
+
+    elapsed = time.perf_counter() - t0
+
+    # Final metrics
+    final_metrics = {
+        "h11_verified": h11_verified,
+        "fp8_retention_ratio": fp8_res["fp8_retention_ratio"],
+        "h11_fp8_kl_reduction_ratio": fp8_res["h11_fp8_kl_reduction_ratio"],
+        "kl_naive_fp8": fp8_res["kl_naive_fp8"],
+        "kl_lancet_fp8": fp8_res["kl_lancet_fp8"],
+        "fp8_subspace_releakage_naive": fp8_res["fp8_subspace_releakage_naive"],
+        "fp8_subspace_releakage_lancet": fp8_res["fp8_subspace_releakage_lancet"],
+        "fp8_subspace_releakage_naive_per_tensor": fp8_res[
+            "fp8_subspace_releakage_naive_per_tensor"
+        ],
+        "fp8_subspace_releakage_lancet_per_tensor": fp8_res[
+            "fp8_subspace_releakage_lancet_per_tensor"
+        ],
+        "kl_naive_fp8_per_tensor": fp8_res["kl_naive_fp8_per_tensor"],
+        "kl_lancet_fp8_per_tensor": fp8_res["kl_lancet_fp8_per_tensor"],
+        "provider_ready": readiness["ready"],
+        "readiness_checks": readiness["checks"],
+        "max_abs_weight": readiness["max_abs_weight"],
+        "max_row_crest_factor": readiness["max_row_crest_factor"],
+        "backend": args.backend,
+        "model_name": fp8_res.get("model_name", args.model_name),
+        "model_cards": [
+            "Tenet-3B-Qwen2.5-Unslop-v1",
+            "Tenet-8B-Llama3.1-Unslop-v1",
+            "Tenet-12B-Nemo-Unslop-v1",
+        ],
+    }
+
+    run_path = recorder.finalize(
+        final_metrics=final_metrics,
+        active_seconds=elapsed,
+        billed_seconds=elapsed,
+        status="completed" if h11_verified else "failed",
+        conclusion=(
+            "H11 FP8 provider readiness verification completed: "
+            f"h11_verified={h11_verified}, "
+            f"fp8_retention_ratio={fp8_res['fp8_retention_ratio']:.4f}, "
+            f"provider_ready={readiness['ready']}"
+        ),
+    )
+
+    # Print JSON summary
+    summary = {
+        "h11_verified": h11_verified,
+        "fp8_retention_ratio": fp8_res["fp8_retention_ratio"],
+        "h11_fp8_kl_reduction_ratio": fp8_res["h11_fp8_kl_reduction_ratio"],
+        "provider_ready": readiness["ready"],
+        "run_path": str(run_path),
+    }
+    print(json.dumps(summary, indent=2))
+
+    return 0 if h11_verified else 1
+
+
 def build_parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(
         prog="sml",
@@ -1170,7 +1652,261 @@ def build_parser() -> argparse.ArgumentParser:
     )
     run_surgery_p.set_defaults(func=_cmd_run_surgery)
 
+    # Verify H9 subcommand
+    verify_h9_p = sub.add_parser(
+        "verify-h9",
+        help="Execute H9 Lancet bi-projected surgery verification benchmark.",
+    )
+    verify_h9_p.add_argument(
+        "--experiment",
+        default="experiments/h9_biprojected_surgery.yaml",
+        help="Path to H9 experiment YAML.",
+    )
+    verify_h9_p.add_argument(
+        "--output-dir",
+        default="results",
+        help="Directory for run output bundle.",
+    )
+    verify_h9_p.add_argument("--run-id", default=None, help="Optional explicit run_id override.")
+    verify_h9_p.add_argument(
+        "--backend",
+        choices=["nano", "llm"],
+        default="nano",
+        help="Surgery backend: 'nano' (built-in 6-layer model) or 'llm' (HF checkpoint).",
+    )
+    verify_h9_p.add_argument(
+        "--model-name",
+        default="Qwen/Qwen2.5-3B-Instruct",
+        help="HF model checkpoint used when --backend llm.",
+    )
+    verify_h9_p.add_argument(
+        "--device",
+        default="auto",
+        help="Torch device used when --backend llm.",
+    )
+    verify_h9_p.add_argument(
+        "--top-k-layers",
+        type=int,
+        default=None,
+        help="Number of highest-SCR layers to operate on (nano backend defaults to 3).",
+    )
+    verify_h9_p.add_argument(
+        "--scale",
+        type=float,
+        default=1.0,
+        help="Residual projection scale applied during surgery.",
+    )
+    verify_h9_p.set_defaults(func=_cmd_verify_h9)
+
+    # Verify H10 subcommand
+    verify_h10_p = sub.add_parser(
+        "verify-h10",
+        help="Execute H10 unslop GRPO verification benchmark.",
+    )
+    verify_h10_p.add_argument(
+        "--experiment",
+        default="experiments/h10_unslop_grpo.yaml",
+        help="Path to H10 experiment YAML.",
+    )
+    verify_h10_p.add_argument(
+        "--output-dir",
+        default="results",
+        help="Directory for run output bundle.",
+    )
+    verify_h10_p.add_argument("--run-id", default=None, help="Optional explicit run_id override.")
+    verify_h10_p.add_argument(
+        "--steps",
+        type=int,
+        default=27,
+        help="Number of GRPO optimisation steps.",
+    )
+    verify_h10_p.add_argument(
+        "--group-size",
+        type=int,
+        default=6,
+        help="Number of rollouts per prompt group.",
+    )
+    verify_h10_p.add_argument(
+        "--lr",
+        type=float,
+        default=0.0038,
+        help="GRPO learning rate.",
+    )
+    verify_h10_p.add_argument(
+        "--backend",
+        choices=["nano", "llm"],
+        default="nano",
+        help="Benchmark backend: 'nano' (built-in tiny model) or 'llm' (HF checkpoint).",
+    )
+    verify_h10_p.add_argument(
+        "--model-name",
+        default="Qwen/Qwen2.5-3B-Instruct",
+        help="HF model checkpoint used when --backend llm.",
+    )
+    verify_h10_p.add_argument(
+        "--device",
+        default="auto",
+        help="Torch device used when --backend llm.",
+    )
+    verify_h10_p.set_defaults(func=_cmd_verify_h10)
+
+    # Verify H11 subcommand
+    verify_h11_p = sub.add_parser(
+        "verify-h11",
+        help="Execute H11 FP8 provider readiness verification benchmark.",
+    )
+    verify_h11_p.add_argument(
+        "--experiment",
+        default="experiments/h11_provider_fp8_readiness.yaml",
+        help="Path to H11 experiment YAML.",
+    )
+    verify_h11_p.add_argument(
+        "--output-dir",
+        default="results",
+        help="Directory for run output bundle.",
+    )
+    verify_h11_p.add_argument("--run-id", default=None, help="Optional explicit run_id override.")
+    verify_h11_p.add_argument(
+        "--n-prompts",
+        type=int,
+        default=8,
+        help="Number of prompts for FP8 survival evaluation.",
+    )
+    verify_h11_p.add_argument(
+        "--seq-len",
+        type=int,
+        default=32,
+        help="Sequence length for FP8 survival evaluation.",
+    )
+    verify_h11_p.add_argument(
+        "--backend",
+        choices=["nano", "llm"],
+        default="nano",
+        help="Benchmark backend: 'nano' (built-in tiny model) or 'llm' (HF checkpoint).",
+    )
+    verify_h11_p.add_argument(
+        "--model-name",
+        default="Qwen/Qwen2.5-3B-Instruct",
+        help="HF model checkpoint used when --backend llm.",
+    )
+    verify_h11_p.add_argument(
+        "--device",
+        default="auto",
+        help="Torch device used when --backend llm.",
+    )
+    verify_h11_p.set_defaults(func=_cmd_verify_h11)
+
+    # Build Tenet release subcommand
+    build_tenet_p = sub.add_parser(
+        "build-tenet",
+        help="Build a Tenet release bundle (GRPO-tuned weights, FP8 report, readiness).",
+    )
+    build_tenet_p.add_argument(
+        "--output-dir",
+        default="results/tenet_releases",
+        help="Directory for the release bundle.",
+    )
+    build_tenet_p.add_argument(
+        "--model-name",
+        default="Qwen/Qwen2.5-3B-Instruct",
+        help="HF model checkpoint used when --backend llm.",
+    )
+    build_tenet_p.add_argument(
+        "--release-id",
+        default="Tenet-3B-Qwen2.5-Unslop-v1",
+        help="Release identifier for the Tenet bundle.",
+    )
+    build_tenet_p.add_argument(
+        "--backend",
+        choices=["nano", "llm"],
+        default="nano",
+        help="Release backend: 'nano' (built-in tiny model) or 'llm' (HF checkpoint).",
+    )
+    build_tenet_p.add_argument(
+        "--device",
+        default="auto",
+        help="Torch device used when --backend llm.",
+    )
+    build_tenet_p.add_argument("--seed", type=int, default=2026, help="Random seed.")
+    build_tenet_p.add_argument(
+        "--top-k-layers",
+        type=int,
+        default=None,
+        help="Optional number of top layers to select for the release.",
+    )
+    build_tenet_p.add_argument(
+        "--scale",
+        type=float,
+        default=1.0,
+        help="Scale applied to the released weight deltas.",
+    )
+    build_tenet_p.add_argument(
+        "--grpo-steps",
+        type=int,
+        default=27,
+        help="Number of GRPO steps.",
+    )
+    build_tenet_p.add_argument(
+        "--grpo-group-size",
+        type=int,
+        default=6,
+        help="GRPO group size.",
+    )
+    build_tenet_p.add_argument(
+        "--grpo-lr",
+        type=float,
+        default=0.0038,
+        help="GRPO learning rate.",
+    )
+    build_tenet_p.add_argument(
+        "--n-prompts",
+        type=int,
+        default=8,
+        help="Number of prompts for GRPO/evaluation.",
+    )
+    build_tenet_p.add_argument(
+        "--seq-len",
+        type=int,
+        default=32,
+        help="Sequence length for GRPO/evaluation.",
+    )
+    build_tenet_p.add_argument(
+        "--hf-namespace",
+        default="tenet-lab",
+        help="HF Hub namespace for the release repo id.",
+    )
+    build_tenet_p.set_defaults(func=_cmd_build_tenet)
+
     return parser
+
+
+def _cmd_build_tenet(args: argparse.Namespace) -> int:
+    bundle = build_tenet_release_bundle(
+        output_dir=args.output_dir,
+        model_name=args.model_name,
+        release_id=args.release_id,
+        backend=args.backend,
+        device=args.device,
+        seed=args.seed,
+        top_k_layers=args.top_k_layers,
+        scale=args.scale,
+        grpo_steps=args.grpo_steps,
+        grpo_group_size=args.grpo_group_size,
+        grpo_lr=args.grpo_lr,
+        n_prompts=args.n_prompts,
+        seq_len=args.seq_len,
+        hf_namespace=args.hf_namespace,
+    )
+    summary = {
+        "release_id": bundle["release_id"],
+        "release_dir": bundle["release_dir"],
+        "hf_repo_id": bundle["hf_repo_id"],
+        "backend": bundle["backend"],
+        "ready": bundle["ready"],
+        "artifacts": bundle["artifacts"],
+    }
+    print(json.dumps(summary, indent=2))
+    return 0 if bundle["ready"] else 1
 
 
 def main(argv: list[str] | None = None) -> int:

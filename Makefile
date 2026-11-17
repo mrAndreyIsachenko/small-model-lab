@@ -1,4 +1,4 @@
-.PHONY: help sync test lint format verify-h1 verify-env compare-adaptation run-surgery train-smoke profile-h2-local gpu-smoke smoke report clean
+.PHONY: help sync test lint format verify-h1 verify-env compare-adaptation run-surgery verify-h9 verify-h10 verify-h11 build-tenet train-smoke profile-h2-local gpu-smoke smoke report clean
 
 help:
 	@echo "Small Model Lab — Available Commands:"
@@ -10,6 +10,10 @@ help:
 	@echo "  make verify-env         Run H5 StatefulToolEnv & Gated Rubric anti-hacking verification"
 	@echo "  make compare-adaptation Run H6 Context vs. Weights adaptation comparison (7 strategies)"
 	@echo "  make run-surgery        Run H7/H8 CKA mixed-precision, rank-1 subspace & Pareto verification"
+	@echo "  make verify-h9          Run H9 Lancet bi-projected surgery verification (nano/LLM)"
+	@echo "  make verify-h10         Run H10 unslop GRPO verification (gated reward shaping)"
+	@echo "  make verify-h11         Run H11 OpenRouter FP8 provider readiness & HF Hub verification"
+	@echo "  make build-tenet        Build Tenet release bundle (GRPO-tuned weights + readiness report)"
 	@echo "  make train-smoke        Run end-to-end M2+M3 local pretraining smoke test (MPS/CUDA/CPU)"
 	@echo "  make profile-h2-local   Run 5-stage MFU throughput waterfall locally (MPS/CPU)"
 	@echo "  make gpu-smoke          Dry-run the full M4-M5 GPU script in fast smoke mode"
@@ -40,6 +44,18 @@ compare-adaptation:
 
 run-surgery:
 	uv run sml run-surgery --experiment experiments/h7_h8_surgery_pareto.yaml --output-dir results --run-id h7_h8_surgery_pareto
+
+verify-h9:
+	uv run sml verify-h9 --experiment experiments/h9_biprojected_surgery.yaml --output-dir results --run-id h9_biprojected_surgery
+
+verify-h10:
+	uv run sml verify-h10 --experiment experiments/h10_unslop_grpo.yaml --output-dir results --run-id h10_unslop_grpo
+
+verify-h11:
+	uv run sml verify-h11 --experiment experiments/h11_provider_fp8_readiness.yaml --output-dir results --run-id h11_provider_fp8_readiness
+
+build-tenet:
+	uv run sml build-tenet --output-dir results/tenet_releases --release-id Tenet-3B-Qwen2.5-Unslop-v1
 
 train-smoke:
 	uv run sml train-smoke --steps 20 --device auto

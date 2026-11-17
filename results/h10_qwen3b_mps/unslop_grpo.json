@@ -1,0 +1,147 @@
+{
+  "slop_and_refusal_rate": 0.090889,
+  "h10_gated_vs_naive_gain": 0.160164,
+  "h10_post_surgery_gain": 0.359802,
+  "max_abs_logit_diff": 0.09113312,
+  "merged_lora_count": 0,
+  "unprojected_lora_releakage": 0.83001828,
+  "subspace_safe_lora_releakage": 0.069000869,
+  "post_merge_suppression_retention": 1.0,
+  "mean_response_words": 31.2083,
+  "length_collapse_rate": 0.041666666666666664,
+  "h10_verified": true,
+  "arms": {
+    "1_lancet_surgical_only": {
+      "gated_ifeval_score": 0.363222,
+      "mean_total_reward": 0.363796,
+      "slop_and_refusal_rate": 2e-05,
+      "g_compliance": 1.0,
+      "g_antislop": 0.377576,
+      "r_ifeval": 0.779193,
+      "r_coherence": 0.800452,
+      "archetype_probs": [
+        0.334216,
+        2e-05,
+        0.0,
+        0.0,
+        0.665508,
+        0.000255
+      ]
+    },
+    "2_tenet_grpo_additive": {
+      "gated_ifeval_score": 0.56286,
+      "mean_total_reward": 0.563669,
+      "slop_and_refusal_rate": 0.154198,
+      "g_compliance": 0.898083,
+      "g_antislop": 0.672106,
+      "r_ifeval": 0.862844,
+      "r_coherence": 0.916004,
+      "archetype_probs": [
+        0.530541,
+        0.052165,
+        0.101917,
+        0.000116,
+        0.311065,
+        0.004196
+      ],
+      "history": [
+        {
+          "step": 0,
+          "loss": 0.001242,
+          "policy_obj": -0.001242,
+          "kl_div": -0.0
+        },
+        {
+          "step": 1,
+          "loss": 0.001489,
+          "policy_obj": -0.001489,
+          "kl_div": 1e-06
+        },
+        {
+          "step": 2,
+          "loss": 0.002078,
+          "policy_obj": -0.000982,
+          "kl_div": 0.109569
+        },
+        {
+          "step": 3,
+          "loss": 0.002317,
+          "policy_obj": -0.001242,
+          "kl_div": 0.107536
+        },
+        {
+          "step": 4,
+          "loss": 0.003983,
+          "policy_obj": -0.001385,
+          "kl_div": 0.259778
+        },
+        {
+          "step": 5,
+          "loss": 0.003587,
+          "policy_obj": -0.001258,
+          "kl_div": 0.232913
+        }
+      ]
+    },
+    "3_tenet_grpo_gated": {
+      "gated_ifeval_score": 0.723024,
+      "mean_total_reward": 0.729023,
+      "slop_and_refusal_rate": 0.090889,
+      "g_compliance": 0.999855,
+      "g_antislop": 0.741581,
+      "r_ifeval": 0.909995,
+      "r_coherence": 0.946833,
+      "archetype_probs": [
+        0.660225,
+        0.090688,
+        0.000145,
+        5.6e-05,
+        0.208299,
+        0.040587
+      ],
+      "history": [
+        {
+          "step": 0,
+          "loss": 0.000548,
+          "policy_obj": -0.000548,
+          "kl_div": -0.0
+        },
+        {
+          "step": 1,
+          "loss": 0.001622,
+          "policy_obj": -0.0009,
+          "kl_div": 0.072168
+        },
+        {
+          "step": 2,
+          "loss": 0.001614,
+          "policy_obj": -0.000534,
+          "kl_div": 0.108009
+        },
+        {
+          "step": 3,
+          "loss": 0.008171,
+          "policy_obj": -0.000722,
+          "kl_div": 0.744917
+        },
+        {
+          "step": 4,
+          "loss": 0.063714,
+          "policy_obj": 0.000358,
+          "kl_div": 6.407249
+        },
+        {
+          "step": 5,
+          "loss": 0.04983,
+          "policy_obj": 0.002498,
+          "kl_div": 5.232752
+        }
+      ],
+      "merged_lora_count": 0,
+      "max_abs_logit_diff": 0.09113312
+    }
+  },
+  "backend": "llm",
+  "model_name": "Qwen/Qwen2.5-3B-Instruct",
+  "device": "mps"
+}
