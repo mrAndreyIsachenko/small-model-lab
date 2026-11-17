@@ -48,12 +48,13 @@ def _surgery_section_lines(bundles: list[dict[str, Any]]) -> list[str]:
     lines = [
         "## H9–H11 Surgery, GRPO & Provider Readiness",
         "",
-        "| Run ID | Hyp. | Verified | Provider Ready | Ready Checks | FP8 Retention "
+        "| Run ID | Hyp. | Verified | Target Supp. | KL Red. (H9) | Anchor Ortho | Tool Ortho "
+        "| Row Drift | Provider Ready | Ready Checks | FP8 Retention "
         "| KL Red. (FP8) | KL Naive (FP8) | KL Lancet (FP8) | Re-leakage (Naive) "
         "| Re-leakage (Lancet) | Max Crest | Slop & Refusal "
         "| Gated vs Naive | Post-Surgery | Merged LoRA |",
-        "| :--- | :--- | :--- | :--- | :--- | ---: | ---: | ---: | ---: | ---: | "
-        "---: | ---: | ---: | ---: | ---: | ---: |",
+        "| :--- | :--- | :--- | ---: | ---: | ---: | ---: | ---: | :--- | :--- | "
+        "---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: |",
     ]
 
     for bundle in surgery_bundles:
@@ -63,6 +64,11 @@ def _surgery_section_lines(bundles: list[dict[str, Any]]) -> list[str]:
         verified = metrics.get(f"{hypothesis_id.lower()}_verified")
         lines.append(
             f"| `{run['run_id']}` | `{hypothesis_id}` | {_format_flag(verified)} "
+            f"| {_format_metric(metrics.get('target_suppression_ratio'))} "
+            f"| {_format_metric(metrics.get('h9_kl_reduction_ratio'))} "
+            f"| {_format_metric(metrics.get('anchor_orthogonality_error'), '.2e')} "
+            f"| {_format_metric(metrics.get('tool_sql_orthogonality_error'), '.2e')} "
+            f"| {_format_metric(metrics.get('max_row_norm_drift'), '.2e')} "
             f"| {_format_flag(metrics.get('provider_ready'))} "
             f"| {_format_readiness_checks(metrics.get('readiness_checks'))} "
             f"| {_format_metric(metrics.get('fp8_retention_ratio'))} "
