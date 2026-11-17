@@ -1,0 +1,19 @@
+{
+  "ready": true,
+  "errors": [],
+  "checks": {
+    "standard_architecture": true,
+    "no_trust_remote_code": true,
+    "valid_chat_template": true,
+    "no_nan_inf": true,
+    "no_unmerged_lora": true,
+    "weight_outliers_ok": true,
+    "acceptable_row_crest_factor": true
+  },
+  "architectures": [
+    "Qwen2ForCausalLM"
+  ],
+  "max_abs_weight": 0.47617220878601074,
+  "max_row_crest_factor": 1.8583072423934937,
+  "weight_files_checked": 1
+}

@@ -9,6 +9,7 @@ from __future__ import annotations
 import gc
 import json
 import time
+from pathlib import Path
 from typing import Any
 
 import torch
@@ -26,16 +27,32 @@ from sml.envs.scenarios import IncidentScenario
 from sml.envs.tool_env import format_incident_prompt, load_environment
 from sml.surgery.cka import (
     _collect_prompt_deltas,
+    collect_layer_activations,
     compute_blockwise_quantization_drift,
     get_transformer_layers,
     linear_cka,
+)
+from sml.surgery.probes import (
+    REASONING_ANCHOR_PAIRS,
+    REFUSAL_CONTRAST_PAIRS,
+    SLOP_CONTRAST_PAIRS,
+    TOOL_SQL_ANCHOR_PAIRS,
+    encode_contrast_pairs,
 )
 from sml.surgery.quantization import (
     allocate_mixed_precision_bits,
     apply_mixed_precision_quantization,
     prune_transformer_layers,
 )
-from sml.surgery.subspace import apply_subspace_ablation
+from sml.surgery.subspace import (
+    apply_lancet_biprojected_surgery,
+    apply_subspace_ablation,
+    biproject_direction,
+    build_lancet_recipe,
+    compute_layer_scr_profile,
+    compute_probe_spectral_stats,
+    save_lancet_recipe,
+)
 
 _RUBRIC_KEYS = ("g_safety", "g_complete", "g_evidence", "r_correctness", "mean_gated_reward")
 
@@ -697,4 +714,292 @@ def run_llm_surgery_and_pareto_suite(
         "kl_divergences": kl_divergences,
         "rubric_degradation": rubric_degradation,
         "pareto_frontier": pareto_frontier,
+    }
+
+
+def run_llm_h9_biprojected_surgery_benchmark(
+    model_name: str = "Qwen/Qwen2.5-3B-Instruct",
+    device: str = "auto",
+    seed: int = 2026,
+    top_k_layers: int | None = None,
+    scale: float = 1.0,
+    output_dir: Path | str | None = None,
+    model_id: str | None = None,
+) -> dict[str, Any]:
+    """Execute `H9` (Lancet bi-projected surgery) on a real LLM.
+
+    Mirrors `sml.surgery.pareto.run_h9_biprojected_surgery_benchmark` (sml-nano backend):
+    suppress refusal & slop write directions with anchor-bi-projection, row-norm preservation
+    and SCR top-k layer selection, then compare anchor KL collateral against naive surgery.
+    """
+    from transformers import AutoModelForCausalLM, AutoTokenizer
+
+    # Deferred: `sml.surgery.pareto` re-exports this module, so module-scope imports of it
+    # here would be circular.
+    from sml.surgery.pareto import (
+        _biprojected_basis,
+        _compute_probes_sha256,
+        _h9_surgery_metrics,
+        _select_top_scr_layers,
+        _snapshot_write_weights,
+        compute_logit_kl_divergence,
+    )
+
+    torch.manual_seed(seed)
+    resolved_device, dtype = _resolve_llm_device(device)
+
+    tokenizer = AutoTokenizer.from_pretrained(model_name)
+    if tokenizer.pad_token is None:
+        tokenizer.pad_token = tokenizer.eos_token
+    model = AutoModelForCausalLM.from_pretrained(model_name, torch_dtype=dtype)
+    model.to(resolved_device)
+    model.eval()
+
+    layers = get_transformer_layers(model)
+    n_layers = len(layers)
+    if top_k_layers is None:
+        top_k_layers = max(1, n_layers // 2)
+
+    refusal_pos_ids, refusal_neg_ids = encode_contrast_pairs(
+        REFUSAL_CONTRAST_PAIRS, tokenizer=tokenizer
+    )
+    slop_pos_ids, slop_neg_ids = encode_contrast_pairs(SLOP_CONTRAST_PAIRS, tokenizer=tokenizer)
+    anchor_pos_ids, anchor_neg_ids = encode_contrast_pairs(
+        REASONING_ANCHOR_PAIRS, tokenizer=tokenizer
+    )
+    tool_sql_pos_ids, tool_sql_neg_ids = encode_contrast_pairs(
+        TOOL_SQL_ANCHOR_PAIRS, tokenizer=tokenizer
+    )
+    encoded_inputs = [
+        refusal_pos_ids,
+        refusal_neg_ids,
+        slop_pos_ids,
+        slop_neg_ids,
+        anchor_pos_ids,
+        anchor_neg_ids,
+        tool_sql_pos_ids,
+        tool_sql_neg_ids,
+    ]
+    encoded_inputs = [ids.to(resolved_device) for ids in encoded_inputs]
+    (
+        refusal_pos_ids,
+        refusal_neg_ids,
+        slop_pos_ids,
+        slop_neg_ids,
+        anchor_pos_ids,
+        anchor_neg_ids,
+        tool_sql_pos_ids,
+        tool_sql_neg_ids,
+    ) = encoded_inputs
+
+    def _contrastive_directions(
+        pos_ids: torch.Tensor, neg_ids: torch.Tensor
+    ) -> tuple[list[torch.Tensor], list[float]]:
+        """Per-layer unit mean-difference directions plus per-layer probe EVR.
+
+        `collect_layer_activations` returns flattened `(B*T, D)` activations, so the
+        per-example mean over sequence tokens restores `(B, T, D)` first and reduces
+        over `dim=1`, giving `delta_h` of shape `(B, D)` per layer for the spectral
+        probe stats. The returned direction is the unit-normalized mean of `delta_h`.
+        """
+        pos_acts = collect_layer_activations(model, pos_ids)
+        neg_acts = collect_layer_activations(model, neg_ids)
+        batch_size = int(pos_ids.shape[0])
+        seq_len = int(pos_ids.shape[1]) if pos_ids.dim() > 1 else 1
+        directions: list[torch.Tensor] = []
+        evrs: list[float] = []
+        for pos_layer_acts, neg_layer_acts in zip(pos_acts, neg_acts, strict=False):
+            delta_h = pos_layer_acts.float().reshape(batch_size, seq_len, -1).mean(
+                dim=1
+            ) - neg_layer_acts.float().reshape(batch_size, seq_len, -1).mean(dim=1)
+            stats = compute_probe_spectral_stats(delta_h)
+            evrs.append(float(stats["explained_variance_ratio_1"]))
+            diff = delta_h.mean(dim=0)
+            directions.append(diff / (diff.norm(p=2) + 1e-8))
+        return directions, evrs
+
+    r_refusal_dirs, refusal_layer_evrs = _contrastive_directions(refusal_pos_ids, refusal_neg_ids)
+    r_slop_dirs, slop_layer_evrs = _contrastive_directions(slop_pos_ids, slop_neg_ids)
+    a_reasoning_dirs, _ = _contrastive_directions(anchor_pos_ids, anchor_neg_ids)
+    a_tool_sql_dirs, _ = _contrastive_directions(tool_sql_pos_ids, tool_sql_neg_ids)
+    probe_evr_refusal = sum(refusal_layer_evrs) / max(1, len(refusal_layer_evrs))
+    probe_evr_slop = sum(slop_layer_evrs) / max(1, len(slop_layer_evrs))
+
+    # Per-layer contrastive directions, bi-projected to be orthogonal to the 2D
+    # anchor subspace spanned by the reasoning & tool-SQL anchor directions.
+    r_refusal_perp: list[torch.Tensor] = []
+    r_slop_perp: list[torch.Tensor] = []
+    anchor_orthogonality_error = 0.0
+    tool_sql_orthogonality_error = 0.0
+    per_layer_ortho: dict[str, float] = {}
+    per_layer_tool_sql_ortho: dict[str, float] = {}
+    for layer_idx in range(n_layers):
+        a_reasoning = a_reasoning_dirs[layer_idx].to(resolved_device)
+        a_tool_sql = a_tool_sql_dirs[layer_idx].to(resolved_device)
+        anchor_pair = [a_reasoning, a_tool_sql]
+        ref_perp = biproject_direction(r_refusal_dirs[layer_idx].to(resolved_device), anchor_pair)
+        slop_perp = biproject_direction(r_slop_dirs[layer_idx].to(resolved_device), anchor_pair)
+        layer_error = max(
+            float((ref_perp @ a_reasoning).abs().item()),
+            float((slop_perp @ a_reasoning).abs().item()),
+        )
+        layer_tool_sql_error = max(
+            float((ref_perp @ a_tool_sql).abs().item()),
+            float((slop_perp @ a_tool_sql).abs().item()),
+        )
+        per_layer_ortho[str(layer_idx)] = round(layer_error, 8)
+        per_layer_tool_sql_ortho[str(layer_idx)] = round(layer_tool_sql_error, 8)
+        anchor_orthogonality_error = max(anchor_orthogonality_error, layer_error)
+        tool_sql_orthogonality_error = max(tool_sql_orthogonality_error, layer_tool_sql_error)
+        r_refusal_perp.append(ref_perp)
+        r_slop_perp.append(slop_perp)
+
+    # SCR-guided layer selection on the bi-projected targets.
+    target_dirs_per_layer = {
+        idx: [r_refusal_perp[idx], r_slop_perp[idx]] for idx in range(n_layers)
+    }
+    scr_profile = compute_layer_scr_profile(
+        model,
+        target_dirs_per_layer=target_dirs_per_layer,
+        anchor_input_ids=anchor_pos_ids,
+        scale=scale,
+        preserve_row_norm=True,
+    )
+    selected_layers = _select_top_scr_layers(scr_profile, top_k_layers)
+
+    # Soft SCR attenuation: full strength (alpha=1.0) on the max-SCR layer, softer
+    # alphas (>= 0.1) proportional to each layer's SCR on the remaining selections.
+    scr_by_layer = {int(entry["layer_idx"]): float(entry["scr"]) for entry in scr_profile}
+    max_scr = max((scr_by_layer[layer_idx] for layer_idx in selected_layers), default=1.0)
+    layer_alpha_schedule = {
+        int(layer_idx): round(
+            float(min(1.0, max(0.1, scr_by_layer[layer_idx] / max(max_scr, 1e-12)))), 6
+        )
+        for layer_idx in selected_layers
+    }
+
+    basis_per_layer = {
+        idx: _biprojected_basis(r_refusal_perp[idx], r_slop_perp[idx]) for idx in selected_layers
+    }
+    original_weights = _snapshot_write_weights(layers, selected_layers)
+
+    anchors_per_layer = {
+        idx: [
+            a_reasoning_dirs[idx].to(resolved_device),
+            a_tool_sql_dirs[idx].to(resolved_device),
+        ]
+        for idx in range(n_layers)
+    }
+
+    # Serializable Lancet recipe: the shared builder re-derives the bi-projected
+    # targets, SCR selection, soft weights and orthonormal bases for this model.
+    recipe = build_lancet_recipe(
+        model,
+        target_dirs=target_dirs_per_layer,
+        anchor_dirs=anchors_per_layer,
+        anchor_input_ids=anchor_pos_ids,
+        model_id=model_id or model_name,
+        base_model=model_name,
+        top_k_layers=top_k_layers,
+        scale=scale,
+        probes_sha256=_compute_probes_sha256(),
+    )
+
+    # Naive control: every layer, no anchor bi-projection, no row-norm preservation.
+    naive_model = apply_lancet_biprojected_surgery(
+        model,
+        target_dirs=target_dirs_per_layer,
+        anchor_dirs=None,
+        layer_indices=None,
+        scale=scale,
+        preserve_row_norm=False,
+    )
+    # Lancet: anchor-bi-projected targets, SCR top-k layers, norm-preserving projection,
+    # with soft SCR attenuation weights per layer.
+    lancet_model = apply_lancet_biprojected_surgery(
+        model,
+        target_dirs=target_dirs_per_layer,
+        anchor_dirs=anchors_per_layer,
+        layer_indices=selected_layers,
+        scale=scale,
+        preserve_row_norm=True,
+        layer_weights=layer_alpha_schedule,
+    )
+
+    max_row_norm_drift, target_suppression_ratio, unweighted_suppression_ratio = (
+        _h9_surgery_metrics(
+            get_transformer_layers(lancet_model),
+            original_weights,
+            selected_layers,
+            basis_per_layer,
+            layer_weights=layer_alpha_schedule,
+        )
+    )
+    naive_row_norm_drift, naive_suppression_ratio, _ = _h9_surgery_metrics(
+        get_transformer_layers(naive_model), original_weights, selected_layers, basis_per_layer
+    )
+
+    naive_kl_collateral = compute_logit_kl_divergence(model, naive_model, anchor_pos_ids)
+    lancet_kl_collateral = compute_logit_kl_divergence(model, lancet_model, anchor_pos_ids)
+    h9_kl_reduction_ratio = 1.0 - (lancet_kl_collateral / max(1e-8, naive_kl_collateral))
+
+    norm_drift_tol = 2e-3 if dtype in (torch.float16, torch.bfloat16) else 1e-5
+    h9_verified = bool(
+        anchor_orthogonality_error < 1e-6
+        and tool_sql_orthogonality_error < 1e-6
+        and max_row_norm_drift < norm_drift_tol
+        and target_suppression_ratio >= 0.90
+        and h9_kl_reduction_ratio >= 0.35
+    )
+
+    if output_dir is not None:
+        save_lancet_recipe(recipe, output_dir)
+
+    del naive_model, lancet_model
+    gc.collect()
+    if resolved_device == "cuda" and torch.cuda.is_available():
+        torch.cuda.empty_cache()
+    elif resolved_device == "mps" and hasattr(torch, "mps") and hasattr(torch.mps, "empty_cache"):
+        torch.mps.empty_cache()
+
+    return {
+        "h9_verified": h9_verified,
+        "backend": "llm",
+        "model_name": model_name,
+        "probes_sha256": recipe.probes_sha256,
+        "recipe_metadata": {
+            "schema_version": recipe.schema_version,
+            "probes_sha256": recipe.probes_sha256,
+            "selected_layers": recipe.selected_layers,
+            "d_model": recipe.d_model,
+            "num_layers": recipe.num_layers,
+        },
+        "device": resolved_device,
+        "dtype": str(dtype),
+        "n_layers": n_layers,
+        "anchor_orthogonality_error": round(anchor_orthogonality_error, 8),
+        "tool_sql_orthogonality_error": round(tool_sql_orthogonality_error, 8),
+        "probe_evr_refusal": round(probe_evr_refusal, 6),
+        "probe_evr_slop": round(probe_evr_slop, 6),
+        "layer_alpha_schedule": layer_alpha_schedule,
+        "max_row_norm_drift": round(max_row_norm_drift, 8),
+        "target_suppression_ratio": round(target_suppression_ratio, 6),
+        "naive_kl_collateral": round(naive_kl_collateral, 6),
+        "lancet_kl_collateral": round(lancet_kl_collateral, 6),
+        "h9_kl_reduction_ratio": round(h9_kl_reduction_ratio, 4),
+        "selected_layers": selected_layers,
+        "scr_profile": scr_profile,
+        "diagnostics": {
+            "top_k_layers": top_k_layers,
+            "scale": scale,
+            "per_layer_anchor_orthogonality": per_layer_ortho,
+            "per_layer_tool_sql_orthogonality": per_layer_tool_sql_ortho,
+            "per_layer_evr_refusal": {
+                str(i): round(e, 6) for i, e in enumerate(refusal_layer_evrs)
+            },
+            "per_layer_evr_slop": {str(i): round(e, 6) for i, e in enumerate(slop_layer_evrs)},
+            "unweighted_suppression_ratio": round(unweighted_suppression_ratio, 6),
+            "naive_row_norm_drift": round(naive_row_norm_drift, 8),
+            "naive_suppression_ratio": round(naive_suppression_ratio, 6),
+        },
     }

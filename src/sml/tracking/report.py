@@ -8,6 +8,79 @@ from typing import Any
 
 REQUIRED_RUN_FILES = ("run.json", "final_metrics.json", "cost.json", "environment.json")
 
+SURGERY_HYPOTHESES = ("H9", "H10", "H11")
+
+
+def _format_metric(value: Any, fmt: str = ".4f") -> str:
+    """Format a numeric metric for a markdown table cell."""
+    if isinstance(value, bool) or not isinstance(value, (int, float)):
+        return "n/a"
+    return f"{value:{fmt}}"
+
+
+def _format_flag(value: Any) -> str:
+    """Format a boolean verification flag for a markdown table cell."""
+    if value is None:
+        return "n/a"
+    return "✅" if bool(value) else "❌"
+
+
+def _format_readiness_checks(checks: Any) -> str:
+    """Summarise provider readiness checks as passed/total."""
+    if isinstance(checks, dict):
+        values = list(checks.values())
+    elif isinstance(checks, (list, tuple)):
+        values = list(checks)
+    else:
+        return "n/a"
+    passed = sum(1 for value in values if bool(value))
+    return f"{passed}/{len(values)}"
+
+
+def _surgery_section_lines(bundles: list[dict[str, Any]]) -> list[str]:
+    """Build the H9-H11 surgery / GRPO / provider-readiness section, if applicable."""
+    surgery_bundles = [
+        bundle for bundle in bundles if bundle["run"].get("hypothesis_id") in SURGERY_HYPOTHESES
+    ]
+    if not surgery_bundles:
+        return []
+
+    lines = [
+        "## H9–H11 Surgery, GRPO & Provider Readiness",
+        "",
+        "| Run ID | Hyp. | Verified | Provider Ready | Ready Checks | FP8 Retention "
+        "| KL Red. (FP8) | KL Naive (FP8) | KL Lancet (FP8) | Re-leakage (Naive) "
+        "| Re-leakage (Lancet) | Max Crest | Slop & Refusal "
+        "| Gated vs Naive | Post-Surgery | Merged LoRA |",
+        "| :--- | :--- | :--- | :--- | :--- | ---: | ---: | ---: | ---: | ---: | "
+        "---: | ---: | ---: | ---: | ---: | ---: |",
+    ]
+
+    for bundle in surgery_bundles:
+        run = bundle["run"]
+        metrics = bundle["metrics"]
+        hypothesis_id = run["hypothesis_id"]
+        verified = metrics.get(f"{hypothesis_id.lower()}_verified")
+        lines.append(
+            f"| `{run['run_id']}` | `{hypothesis_id}` | {_format_flag(verified)} "
+            f"| {_format_flag(metrics.get('provider_ready'))} "
+            f"| {_format_readiness_checks(metrics.get('readiness_checks'))} "
+            f"| {_format_metric(metrics.get('fp8_retention_ratio'))} "
+            f"| {_format_metric(metrics.get('h11_fp8_kl_reduction_ratio'))} "
+            f"| {_format_metric(metrics.get('kl_naive_fp8'))} "
+            f"| {_format_metric(metrics.get('kl_lancet_fp8'))} "
+            f"| {_format_metric(metrics.get('fp8_subspace_releakage_naive'))} "
+            f"| {_format_metric(metrics.get('fp8_subspace_releakage_lancet'))} "
+            f"| {_format_metric(metrics.get('max_row_crest_factor'))} "
+            f"| {_format_metric(metrics.get('slop_and_refusal_rate'))} "
+            f"| {_format_metric(metrics.get('h10_gated_vs_naive_gain'))} "
+            f"| {_format_metric(metrics.get('h10_post_surgery_gain'))} "
+            f"| {_format_metric(metrics.get('merged_lora_count'), ',d')} |"
+        )
+
+    lines.append("")
+    return lines
+
 
 def load_run_bundle(run_dir: Path) -> dict[str, Any] | None:
     """Load a completed run bundle if all required JSON files exist."""
@@ -130,6 +203,7 @@ def compile_markdown_report(
         )
 
     lines.append("")
+    lines.extend(_surgery_section_lines(bundles))
     lines.append("## Run Conclusions")
     lines.append("")
     for item in bundles:

@@ -1,0 +1,21 @@
+{
+  "schema_version": "1.0",
+  "model_id": "Tenet-3B-Qwen2.5-Unslop-v1",
+  "base_model": "sml-surgery-6l",
+  "extraction_mode": "activation_contrastive",
+  "d_model": 128,
+  "num_layers": 6,
+  "scale": 1.0,
+  "top_k_layers": 3,
+  "selected_layers": [
+    4,
+    5,
+    0
+  ],
+  "layer_weights": {
+    "4": 1.0,
+    "5": 0.771699,
+    "0": 0.723536
+  },
+  "probes_sha256": "a0d17b2a2f741cf6b1372a0b1277d7851809b266d032553fff72ccc9352ed78b"
+}

@@ -1,0 +1,28 @@
+{
+  "run_id": "h11_provider_fp8_readiness",
+  "experiment_id": "h11_provider_fp8_readiness",
+  "hypothesis_id": "H11",
+  "hypothesis": "Lancet bi-projected norm-preserving surgery + gated unslop GRPO produces Tenet checkpoints that survive vLLM server-side FP8 (E4M3) quantization with >= 96% quality retention (fp8_retention_ratio >= 0.96) and >= 25% lower FP8 KL degradation than naive ablation without row-norm preservation (h11_fp8_kl_reduction_ratio >= 0.25), while passing strict OpenRouter provider readiness checks (standard LlamaForCausalLM/Qwen2ForCausalLM/MistralForCausalLM architecture, zero trust_remote_code/auto_map, valid chat_template, no NaN/Inf or unmerged lora_ keys, max_abs_weight < 50.0) and generating HF Hub model cards for the Tenet lineup.",
+  "prediction": "Under FP8 (E4M3) per-channel server quantization, Lancet norm-preserving surgery achieves fp8_retention_ratio >= 0.96 and h11_fp8_kl_reduction_ratio >= 0.25 vs naive ablation, verify_provider_readiness passes all 6 checks on a standard bundle, and model cards are generated for Tenet-3B-Qwen2.5-Unslop-v1, Tenet-8B-Llama3.1-Unslop-v1, and Tenet-12B-Nemo-Unslop-v1.",
+  "acceptance_criterion": "fp8_retention_ratio >= 0.96 AND h11_fp8_kl_reduction_ratio >= 0.25 AND provider_ready == True AND h11_verified == True",
+  "mode": "measured",
+  "status": "completed",
+  "seed": 2026,
+  "model_name": "sml-nano",
+  "total_params": 11536640,
+  "non_embedding_params": 3148032,
+  "dataset_name": "tinystories-smoke",
+  "git_sha": "dfe5d9569adc67d62b9ee37039d03d21f2066b8f",
+  "git_dirty": true,
+  "started_at_utc": "2026-11-17T11:28:12.162034+00:00",
+  "completed_at_utc": "2026-11-17T11:28:12.331421+00:00",
+  "pre_run_estimate": {
+    "planned_tokens": 110592,
+    "flops_per_token": 72365568,
+    "total_flops": 8003052896256,
+    "assumed_mfu": 0.3,
+    "estimated_clean_gpu_hours": 0.0004,
+    "estimated_cost_usd": 0.0
+  },
+  "conclusion": "H11 FP8 provider readiness verification completed: h11_verified=True, fp8_retention_ratio=0.9997, provider_ready=True"
+}

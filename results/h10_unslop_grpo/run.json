@@ -1,0 +1,28 @@
+{
+  "run_id": "h10_unslop_grpo",
+  "experiment_id": "h10_unslop_grpo",
+  "hypothesis_id": "H10",
+  "hypothesis": "Gated \"unslop\" GRPO \u2014 reward shaping with a gated slop-and-refusal penalty \u2014 drives the slop-and-refusal rate to <= 2% while beating naive reward-only GRPO by >= 15% relative gain; composing the GRPO-tuned adapter with H9 Lancet bi-projected surgery yields a further >= 15% gain, and merging the trained adapters preserves logits within 1e-4 of the reference model.",
+  "prediction": "After 27 GRPO steps (group size 6, lr 0.0038) on the nano model, slop_and_refusal_rate <= 0.02, gated reward shaping beats naive GRPO by >= 15% (h10_gated_vs_naive_gain >= 0.15), post-surgery composition adds >= 15% further gain (h10_post_surgery_gain >= 0.15), and merged LoRA logits stay within 1e-4 of the reference (max_abs_logit_diff < 1e-4).",
+  "acceptance_criterion": "slop_and_refusal_rate <= 0.02 AND h10_gated_vs_naive_gain >= 0.15 AND h10_post_surgery_gain >= 0.15 AND max_abs_logit_diff < 1e-4 AND h10_verified == True",
+  "mode": "measured",
+  "status": "completed",
+  "seed": 2026,
+  "model_name": "sml-nano",
+  "total_params": 11536640,
+  "non_embedding_params": 3148032,
+  "dataset_name": "tinystories-smoke",
+  "git_sha": "dfe5d9569adc67d62b9ee37039d03d21f2066b8f",
+  "git_dirty": true,
+  "started_at_utc": "2026-11-17T11:28:10.980452+00:00",
+  "completed_at_utc": "2026-11-17T11:28:11.494308+00:00",
+  "pre_run_estimate": {
+    "planned_tokens": 110592,
+    "flops_per_token": 72365568,
+    "total_flops": 8003052896256,
+    "assumed_mfu": 0.3,
+    "estimated_clean_gpu_hours": 0.0004,
+    "estimated_cost_usd": 0.0
+  },
+  "conclusion": "H10 unslop GRPO verification completed: h10_verified=True, slop_and_refusal_rate=0.0077, gated_vs_naive_gain=0.2173"
+}

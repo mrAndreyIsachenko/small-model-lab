@@ -1,0 +1,28 @@
+{
+  "run_id": "h9_biprojected_surgery",
+  "experiment_id": "h9_biprojected_surgery",
+  "hypothesis_id": "H9",
+  "hypothesis": "Bi-projected rank-1 surgery (\"Lancet\") suppresses targeted refusal & slop write directions while keeping them orthogonal to the reasoning-anchor direction (<1e-6) and preserving row norms (<1e-5 drift), collapsing anchor-behaviour KL collateral by >= 35% versus naive unprojected all-layer surgery.",
+  "prediction": "Lancet bi-projected surgery suppresses >= 90% of target direction activation with anchor_orthogonality_error < 1e-6 and max_row_norm_drift < 1e-5, while naive surgery incurs >= 35% more KL collateral on anchor behaviour (h9_kl_reduction_ratio >= 0.35).",
+  "acceptance_criterion": "anchor_orthogonality_error < 1e-6 AND max_row_norm_drift < 1e-5 AND target_suppression_ratio >= 0.90 AND h9_kl_reduction_ratio >= 0.35 AND h9_verified == True",
+  "mode": "measured",
+  "status": "completed",
+  "seed": 2026,
+  "model_name": "sml-nano",
+  "total_params": 11536640,
+  "non_embedding_params": 3148032,
+  "dataset_name": "tinystories-smoke",
+  "git_sha": "dfe5d9569adc67d62b9ee37039d03d21f2066b8f",
+  "git_dirty": true,
+  "started_at_utc": "2026-11-17T14:36:24.365057+00:00",
+  "completed_at_utc": "2026-11-17T14:36:24.846559+00:00",
+  "pre_run_estimate": {
+    "planned_tokens": 65536,
+    "flops_per_token": 72365568,
+    "total_flops": 4742549864448,
+    "assumed_mfu": 0.3,
+    "estimated_clean_gpu_hours": 0.0002,
+    "estimated_cost_usd": 0.0
+  },
+  "conclusion": "H9 Lancet surgery verification completed: h9_verified=True, kl_reduction=0.6935"
+}

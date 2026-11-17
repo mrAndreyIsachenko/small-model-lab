@@ -55,6 +55,29 @@ from sml.envs.tool_env import (
     run_unsafe_sql_episode as run_unsafe_sql_episode,
 )
 
+# From unslop_rubric module
+from sml.envs.unslop_rubric import (
+    REFUSAL_DISCLAIMERS as REFUSAL_DISCLAIMERS,
+)
+from sml.envs.unslop_rubric import (
+    SLOP_PHRASES as SLOP_PHRASES,
+)
+from sml.envs.unslop_rubric import (
+    TENET_UNSLOP_SCENARIOS as TENET_UNSLOP_SCENARIOS,
+)
+from sml.envs.unslop_rubric import (
+    TenetUnslopRubric as TenetUnslopRubric,
+)
+from sml.envs.unslop_rubric import (
+    UnslopPromptSpec as UnslopPromptSpec,
+)
+from sml.envs.unslop_rubric import (
+    UnslopScoreBreakdown as UnslopScoreBreakdown,
+)
+from sml.envs.unslop_rubric import (
+    score_unslop_response as score_unslop_response,
+)
+
 # Define __all__ to make these available when importing with *
 __all__ = [
     "IncidentScenario",
@@ -73,4 +96,11 @@ __all__ = [
     "load_environment",
     "extract_sql_ast_features",
     "validate_readonly_sql",
+    "SLOP_PHRASES",
+    "REFUSAL_DISCLAIMERS",
+    "UnslopPromptSpec",
+    "UnslopScoreBreakdown",
+    "TENET_UNSLOP_SCENARIOS",
+    "TenetUnslopRubric",
+    "score_unslop_response",
 ]
