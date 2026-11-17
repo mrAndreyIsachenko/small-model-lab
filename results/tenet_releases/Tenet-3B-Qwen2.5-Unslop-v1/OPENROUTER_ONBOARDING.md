@@ -1,15 +1,15 @@
-# OpenRouter Onboarding — small-model-lab/Tenet-3B-Qwen2.5-Unslop-v1
+# OpenRouter Onboarding — mr-andrey-isachenko/Tenet-3B-Qwen2.5-Unslop-v1
 
 ## Repository
 
-- **HF repo id:** `small-model-lab/Tenet-3B-Qwen2.5-Unslop-v1`
+- **HF repo id:** `mr-andrey-isachenko/Tenet-3B-Qwen2.5-Unslop-v1`
 - **Base model:** `Qwen/Qwen2.5-3B-Instruct`
 - **Target providers:** Featherless, Chutes, Novita, DeepInfra
 
 ## vLLM launch command
 
 ```bash
-vllm serve --model small-model-lab/Tenet-3B-Qwen2.5-Unslop-v1 --quantization fp8 --dtype bfloat16 --enable-auto-tool-choice
+vllm serve --model mr-andrey-isachenko/Tenet-3B-Qwen2.5-Unslop-v1 --quantization fp8 --dtype bfloat16 --enable-auto-tool-choice
 ```
 
 Settings: `quantization=fp8`, `dtype=bfloat16`, `trust_remote_code=False`, `enable-auto-tool-choice=True`.

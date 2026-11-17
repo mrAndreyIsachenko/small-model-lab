@@ -1,15 +1,15 @@
-# OpenRouter Onboarding — tenet-lab/Tenet-12B-Nemo-Unslop-v1
+# OpenRouter Onboarding — mr-andrey-isachenko/Tenet-12B-Nemo-Unslop-v1
 
 ## Repository
 
-- **HF repo id:** `tenet-lab/Tenet-12B-Nemo-Unslop-v1`
+- **HF repo id:** `mr-andrey-isachenko/Tenet-12B-Nemo-Unslop-v1`
 - **Base model:** `mistralai/Mistral-Nemo-Instruct-2407`
 - **Target providers:** Featherless, Chutes, Novita, DeepInfra
 
 ## vLLM launch command
 
 ```bash
-vllm serve --model tenet-lab/Tenet-12B-Nemo-Unslop-v1 --quantization fp8 --dtype bfloat16 --enable-auto-tool-choice
+vllm serve --model mr-andrey-isachenko/Tenet-12B-Nemo-Unslop-v1 --quantization fp8 --dtype bfloat16 --enable-auto-tool-choice
 ```
 
 Settings: `quantization=fp8`, `dtype=bfloat16`, `trust_remote_code=False`, `enable-auto-tool-choice=True`.

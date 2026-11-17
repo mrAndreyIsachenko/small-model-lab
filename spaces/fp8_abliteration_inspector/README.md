@@ -1,73 +1,29 @@
 ---
-title: FP8 Abliteration Inspector
+title: FP8 & Abliteration Brain-Damage Inspector
 emoji: 🔬
 colorFrom: indigo
 colorTo: red
-sdk: gradio
-sdk_version: "4.44.1"
-app_file: app.py
-pinned: false
-license: mit
+sdk: static
+pinned: true
+license: apache-2.0
+short_description: Audit abliterated & Tenet LLMs for FP8 re-leakage & crest
 ---
 
-# 🔬 FP8 Abliteration Inspector
+# 🔬 FP8 & Abliteration Brain-Damage Inspector
 
-A self-contained Hugging Face Space that audits **abliterated checkpoints** and
-**Lancet recipe bundles** for **FP8 quantization safety** — without ever loading
-a whole model into RAM.
+Interactive Hugging Face Space & CLI toolkit by **Small Model Lab** that audits **abliterated checkpoints**, **LoRA merges**, and **Lancet recipe bundles** (`ADR-005` / `ADR-006` / `ADR-007`) for **vLLM / OpenRouter FP8 (E4M3) deployment survival** — without loading multi-GB checkpoints into server RAM.
 
-## Why
+## Features
 
-Naive abliteration writes rows that collapse onto the injected *refusal
-direction*. Under FP8 (per-tensor scales) those outlier rows clip the direction
-back in: the model **re-leaks refusals**. The detector is the **row crest
-factor** of each 2D weight tensor:
+1. **Live Tenet v1 Benchmark Explorer (`3B` / `8B` / `12B`):** Compare measured **Naive Abliteration** vs **Tenet Lancet** (`H9` Bi-Projected Surgery, `H10` Subspace-Safe Unslop GRPO, `H11` FP8 E4M3 Survival, `H12` Cross-Domain Subspace-Safe Merge) across:
+   - `Tenet-3B-Qwen2.5-Unslop-v1` (`Qwen/Qwen2.5-3B-Instruct`, Apple M4 Pro MPS)
+   - `Tenet-8B-Llama3.1-Unslop-v1` (`meta-llama/Llama-3.1-8B-Instruct`, NVIDIA H100)
+   - `Tenet-12B-Nemo-Unslop-v1` (`mistralai/Mistral-Nemo-Instruct-2407`, NVIDIA H100)
+2. **Zero-Upload Browser & Hub Inspector:** Inspect any Hugging Face repository ID (`org/model`) via live Hub API or drop local `config.json`, `tokenizer_config.json`, `provider_readiness.json`, `lancet_recipe.json`, and `.safetensors` files directly in your browser (7/7 provider readiness gates + `Row Crest-Factor < 25.0` audit).
+3. **CKA-Guided & Lancet-Safe Quantization Generator:** Generate `llama-quantize --tensor-type` flags (protecting high-SCR surgical layers in `Q8_0`/`Q6_K`), `vllm serve --quantization fp8`, and `mlx_lm` commands.
 
-```
-row_rms   = sqrt(mean(w², dim=1) + 1e-8)
-row_crest = max(abs(w).amax(dim=1) / row_rms)   # per tensor
-```
-
-- `max_row_crest_factor < 25.0` → **FP8 PASS**
-- `max_abs_weight < 50.0` → weight-outlier gate
-
-## Tabs
-
-1. **Live Demo Comparison** — real Qwen2.5-3B measurements: *Naive Abliteration*
-   (H9 KL 2.6353, H11 FP8 KL 0.0975, FP8 re-leakage 0.5003, crest ≥ 25.0 → FAIL)
-   vs *Tenet-3B-Qwen2.5-Unslop-v1* (H9 KL 0.0244, H11 FP8 KL 0.0469, re-leakage
-   0.0270, FP8 retention 0.9541, crest 17.27 → PASS; top-3 SCR layers 21/15/19).
-2. **Inspect Local Checkpoint / Recipe Bundle** — streams `*.safetensors`
-   tensor-by-tensor (`safetensors.safe_open`), enforces the ADR-003 `< 15 GB`
-   bundle limit, runs the 7 `verify_provider_readiness` checks
-   (`standard_architecture`, `no_trust_remote_code`, `valid_chat_template`,
-   `no_nan_inf`, `no_unmerged_lora`, `weight_outliers_ok`,
-   `acceptable_row_crest_factor`) plus **recipe provenance** when
-   `lancet_recipe.json` exists, and falls back to metadata JSONs
-   (`provider_readiness.json`, `final_metrics.json`, `release_manifest.json`,
-   `openrouter_onboarding.json`) when no weight files are present. Renders the
-   crest-factor distribution + per-layer SCR profile as inline SVG.
-3. **CKA / Lancet-Safe GGUF Command Generator** — emits a ready-to-paste bash
-   pipeline (recipe application → FP8 crest gate → llama.cpp GGUF → quantize →
-   optional `vllm serve --quantization fp8` / HF upload).
-
-## Recipe provenance
-
-`lancet_recipe.json` (schema `1.0`) + `lancet_basis.safetensors` are verified:
-basis tensors must be finite with **unit-norm rows** (tolerance `1e-4`), and
-`config.json` `hidden_size` / `num_hidden_layers` must agree with the recipe and
-the basis shapes.
-
-## Usage
+## Local CLI Usage
 
 ```bash
-pip install -r requirements.txt
-python app.py                          # UI on :7860
-python app.py --inspect /path/to/ckpt  # CLI: pure functions, no gradio needed
+python app.py --inspect path/to/checkpoint_or_bundle
 ```
-
-`app.py` imports cleanly without gradio/torch/safetensors — the pure functions
-(`inspect_directory_or_bundle`, `verify_recipe_provenance`,
-`generate_gguf_commands`, `render_demo_svg`) stay usable in CI. Torch is
-optional (numpy fallback), `src.sml` is **not** imported; constants mirror
-`src/sml/hub/validator.py`.

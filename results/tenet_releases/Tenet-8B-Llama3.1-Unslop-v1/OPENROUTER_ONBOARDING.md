@@ -1,15 +1,15 @@
-# OpenRouter Onboarding — tenet-lab/Tenet-8B-Llama3.1-Unslop-v1
+# OpenRouter Onboarding — mr-andrey-isachenko/Tenet-8B-Llama3.1-Unslop-v1
 
 ## Repository
 
-- **HF repo id:** `tenet-lab/Tenet-8B-Llama3.1-Unslop-v1`
+- **HF repo id:** `mr-andrey-isachenko/Tenet-8B-Llama3.1-Unslop-v1`
 - **Base model:** `meta-llama/Llama-3.1-8B-Instruct`
 - **Target providers:** Featherless, Chutes, Novita, DeepInfra
 
 ## vLLM launch command
 
 ```bash
-vllm serve --model tenet-lab/Tenet-8B-Llama3.1-Unslop-v1 --quantization fp8 --dtype bfloat16 --enable-auto-tool-choice
+vllm serve --model mr-andrey-isachenko/Tenet-8B-Llama3.1-Unslop-v1 --quantization fp8 --dtype bfloat16 --enable-auto-tool-choice
 ```
 
 Settings: `quantization=fp8`, `dtype=bfloat16`, `trust_remote_code=False`, `enable-auto-tool-choice=True`.

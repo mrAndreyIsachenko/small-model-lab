@@ -37,7 +37,7 @@
       31
     ]
   },
-  "hf_repo_id": "tenet-lab/Tenet-8B-Llama3.1-Unslop-v1",
+  "hf_repo_id": "mr-andrey-isachenko/Tenet-8B-Llama3.1-Unslop-v1",
   "metrics_sources": {
     "h10": "results/h10_llama8b_h100/final_metrics.json",
     "h11": "results/h11_llama8b_h100/final_metrics.json",
