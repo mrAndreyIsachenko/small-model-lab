@@ -1,0 +1,71 @@
+experiment_id: h10_unslop_grpo
+hypothesis_id: H10
+hypothesis: "Gated \"unslop\" GRPO \u2014 reward shaping with a gated slop-and-refusal\
+  \ penalty \u2014 drives the slop-and-refusal rate to <= 2% while beating naive reward-only\
+  \ GRPO by >= 15% relative gain; composing the GRPO-tuned adapter with H9 Lancet\
+  \ bi-projected surgery yields a further >= 15% gain, and merging the trained adapters\
+  \ preserves logits within 1e-4 of the reference model."
+prediction: After 27 GRPO steps (group size 6, lr 0.0038) on the nano model, slop_and_refusal_rate
+  <= 0.02, gated reward shaping beats naive GRPO by >= 15% (h10_gated_vs_naive_gain
+  >= 0.15), post-surgery composition adds >= 15% further gain (h10_post_surgery_gain
+  >= 0.15), and merged LoRA logits stay within 1e-4 of the reference (max_abs_logit_diff
+  < 1e-4).
+acceptance_criterion: slop_and_refusal_rate <= 0.02 AND h10_gated_vs_naive_gain >=
+  0.15 AND h10_post_surgery_gain >= 0.15 AND max_abs_logit_diff < 1e-4 AND h10_verified
+  == True
+seed: 2026
+model:
+  name: Llama-3.1-8B-Instruct
+  vocab_size: 128256
+  d_model: 4096
+  n_layers: 32
+  n_heads: 32
+  n_kv_heads: 8
+  d_ff: 14336
+  max_seq_len: 131072
+  norm_type: rmsnorm
+  pos_encoding: rope
+  mlp_type: swiglu
+  bias: false
+  tie_embeddings: false
+  rope_theta: 500000.0
+  norm_eps: 1.0e-05
+data:
+  name: tinystories-smoke
+  hf_dataset: roneneldan/TinyStories
+  hf_subset: default
+  vocab_size: 32768
+  train_tokens: 20000000
+  val_tokens: 1000000
+  test_tokens: 1000000
+  shard_size_tokens: 10000000
+  hf_repo_id: mrAndreyIsachenko/sml-tinystories-shards
+  license: CDLA-Sharing-1.0
+hardware:
+  name: apple-m4-pro-48gb
+  accelerator: mps
+  vram_gb: 48.0
+  peak_bf16_tflops: 18.0
+  hourly_rate_usd: 0.0
+  price_as_of: '2026-10-31'
+  provider_notes: Local MacBook Pro 16-inch (Apple M4 Pro, 48 GB Unified Memory)
+train:
+  batch_size_tokens: 4096
+  micro_batch_size: 2
+  seq_len: 512
+  max_steps: 27
+  lr: 0.0005
+  min_lr_ratio: 0.1
+  weight_decay: 0.05
+  beta1: 0.9
+  beta2: 0.95
+  grad_clip: 1.0
+  schedule: wsd
+  warmup_steps: 2
+  decay_fraction: 0.2
+  branch_cooldown_tokens: null
+  precision: bf16
+  compile: false
+model_config_path: configs/model/sml_nano.yaml
+data_config_path: configs/data/tinystories.yaml
+hardware_config_path: configs/hardware/m4_pro_mps.yaml

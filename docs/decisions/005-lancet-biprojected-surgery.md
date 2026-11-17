@@ -79,50 +79,50 @@ The final stage certifies that the edited checkpoint survives OpenRouter-style F
 
 Verified via `run_h9_biprojected_surgery_benchmark`, `run_h10_unslop_grpo_benchmark`, and `run_h11_provider_fp8_readiness_benchmark` (exposed through the `sml verify-h9` / `sml verify-h10` / `sml verify-h11` CLIs, which persist the `final_metrics.json` run-bundle artifacts under `results/<run_id>/`) and the regression suites `tests/test_surgery_h9.py`, `tests/test_unslop_grpo_h10.py`, and `tests/test_fp8_readiness_h11.py`.
 
-## Measured Results (`sml-nano` & `Qwen/Qwen2.5-3B-Instruct` MPS)
+## Measured Results (`sml-nano`, `Qwen/Qwen2.5-3B-Instruct` MPS, `Llama-3.1-8B-Instruct` H100, `Mistral-Nemo-12B` H100)
 
 **`H9` — Lancet Dual-Anchor Soft-SCR Surgery**
 
-| Metric | `sml-nano` ([`results/h9_biprojected_surgery/`](../../results/h9_biprojected_surgery/final_metrics.json)) | `Qwen/Qwen2.5-3B-Instruct` MPS ([`results/h9_qwen3b_mps/`](../../results/h9_qwen3b_mps/final_metrics.json)) |
-| --- | --- | --- |
-| `h9_verified` | `true` | `true` |
-| `anchor_orthogonality_error` | < 1e-6 | `1.0e-07` |
-| `tool_sql_orthogonality_error` | `4.0e-08` | `7.0e-08` |
-| `target_suppression_ratio` | `0.9854` | `0.9694` |
-| `naive_kl_collateral` | `0.001317` | `3.7607` |
-| `lancet_kl_collateral` | `0.000515` | `0.0220` |
-| `h9_kl_reduction_ratio` | `0.6092` | `0.9941` |
-| `max_row_norm_drift` | < 1e-5 | `0.00161` (bf16 ULP) |
+| Metric | `sml-nano` ([`results/h9_biprojected_surgery/`](../../results/h9_biprojected_surgery/final_metrics.json)) | `Qwen2.5-3B` MPS ([`results/h9_qwen3b_mps/`](../../results/h9_qwen3b_mps/final_metrics.json)) | `Llama-3.1-8B` H100 ([`results/h9_llama8b_h100/`](../../results/h9_llama8b_h100/final_metrics.json)) | `Mistral-Nemo-12B` H100 ([`results/h9_nemo12b_h100/`](../../results/h9_nemo12b_h100/final_metrics.json)) |
+| --- | --- | --- | --- | --- |
+| `h9_verified` | `true` | `true` | `true` | `true` |
+| `anchor_orthogonality_error` | < 1e-6 | `1.0e-07` | `1.0e-08` | `1.0e-08` |
+| `tool_sql_orthogonality_error` | `4.0e-08` | `7.0e-08` | `1.0e-08` | `3.0e-08` |
+| `target_suppression_ratio` | `0.9854` | `0.9694` | `0.9930` | `0.9914` |
+| `naive_kl_collateral` | `0.001317` | `3.7607` | `0.1337` | `0.2968` |
+| `lancet_kl_collateral` | `0.000515` | `0.0220` | `0.0135` | `0.0097` |
+| `h9_kl_reduction_ratio` | `0.6092` | `0.9941` | `0.8989` | `0.9672` |
+| `max_row_norm_drift` | < 1e-5 | `0.00161` (bf16 ULP) | `0.00108` (bf16 ULP) | `0.00074` (bf16 ULP) |
 
 **`H10` — Tenet Subspace-Safe GRPO**
 
-| Metric | `sml-nano` ([`results/h10_unslop_grpo/`](../../results/h10_unslop_grpo/final_metrics.json)) | `Qwen/Qwen2.5-3B-Instruct` MPS ([`results/h10_qwen3b_mps/`](../../results/h10_qwen3b_mps/final_metrics.json)) |
-| --- | --- | --- |
-| `h10_verified` | `true` | `true` |
-| `slop_and_refusal_rate` | `0.0150` | `0.0909` (`2e-05` surgical-only) |
-| `h10_gated_vs_naive_gain` | `+0.2276` | `+0.1602` |
-| `h10_post_surgery_gain` | `+0.6611` | `+0.3598` |
-| `post_merge_suppression_retention` | `1.0` | `1.0` |
-| `unprojected_lora_releakage` | `3.5124` | `0.8300` |
-| `subspace_safe_lora_releakage` | < 1e-5 | `0.0690` |
-| `merged_lora_count` | `0` | `0` |
+| Metric | `sml-nano` ([`results/h10_unslop_grpo/`](../../results/h10_unslop_grpo/final_metrics.json)) | `Qwen2.5-3B` MPS ([`results/h10_qwen3b_mps/`](../../results/h10_qwen3b_mps/final_metrics.json)) | `Llama-3.1-8B` H100 ([`results/h10_llama8b_h100/`](../../results/h10_llama8b_h100/final_metrics.json)) | `Mistral-Nemo-12B` H100 ([`results/h10_nemo12b_h100/`](../../results/h10_nemo12b_h100/final_metrics.json)) |
+| --- | --- | --- | --- | --- |
+| `h10_verified` | `true` | `true` | `true` | `true` |
+| `slop_and_refusal_rate` | `0.0150` | `0.0909` (`2e-05` surgical-only) | `0.0410` | `0.0239` |
+| `h10_gated_vs_naive_gain` | `+0.2276` | `+0.1602` | `+0.2489` | `+0.4292` |
+| `h10_post_surgery_gain` | `+0.6611` | `+0.3598` | `+0.4580` | `+0.2710` |
+| `post_merge_suppression_retention` | `1.0` | `1.0` | `1.0` | `1.0` |
+| `unprojected_lora_releakage` | `3.5124` | `0.8300` | `1.1328` | `0.8052` |
+| `subspace_safe_lora_releakage` | < 1e-5 | `0.0690` | `0.0726` | `0.1282` |
+| `merged_lora_count` | `0` | `0` | `0` | `0` |
 
 **`H11` — FP8 Re-Leakage & Crest-Factor Provider Readiness**
 
-| Metric | `sml-nano` ([`results/h11_provider_fp8_readiness/`](../../results/h11_provider_fp8_readiness/final_metrics.json)) | `Qwen/Qwen2.5-3B-Instruct` MPS ([`results/h11_qwen3b_mps/`](../../results/h11_qwen3b_mps/final_metrics.json)) |
-| --- | --- | --- |
-| `h11_verified` | `true` | `true` |
-| `fp8_retention_ratio` | `0.9997` | `0.9541` |
-| `h11_fp8_kl_reduction_ratio` | `0.4558` | `0.5185` |
-| `kl_naive_fp8` | `0.000464` | `0.0975` |
-| `kl_lancet_fp8` | `0.000253` | `0.0469` |
-| `kl_naive_fp8_per_tensor` | — | `0.1113` |
-| `kl_lancet_fp8_per_tensor` | — | `0.0470` |
-| `fp8_subspace_releakage_naive` | `0.4996` | `0.5003` |
-| `fp8_subspace_releakage_lancet` | `0.0310` | `0.0270` |
-| `max_abs_weight` | — | `1.4297` |
-| `max_row_crest_factor` | — | `17.2706` |
-| `provider_ready` | `true` (7/7 checks) | `true` (7/7 checks) |
+| Metric | `sml-nano` ([`results/h11_provider_fp8_readiness/`](../../results/h11_provider_fp8_readiness/final_metrics.json)) | `Qwen2.5-3B` MPS ([`results/h11_qwen3b_mps/`](../../results/h11_qwen3b_mps/final_metrics.json)) | `Llama-3.1-8B` H100 ([`results/h11_llama8b_h100/`](../../results/h11_llama8b_h100/final_metrics.json)) | `Mistral-Nemo-12B` H100 ([`results/h11_nemo12b_h100/`](../../results/h11_nemo12b_h100/final_metrics.json)) |
+| --- | --- | --- | --- | --- |
+| `h11_verified` | `true` | `true` | `true` | `true` |
+| `fp8_retention_ratio` | `0.9997` | `0.9541` | `0.9936` | `0.9678` |
+| `h11_fp8_kl_reduction_ratio` | `0.4558` | `0.5185` | `0.4265` | `0.4892` |
+| `kl_naive_fp8` | `0.000464` | `0.0975` | `0.0322` | `3.1724` |
+| `kl_lancet_fp8` | `0.000253` | `0.0469` | `0.0185` | `1.6205` |
+| `kl_naive_fp8_per_tensor` | — | `0.1113` | `0.0370` | `3.1780` |
+| `kl_lancet_fp8_per_tensor` | — | `0.0470` | `0.0182` | `1.6264` |
+| `fp8_subspace_releakage_naive` | `0.4996` | `0.5003` | `0.5000` | `0.4996` |
+| `fp8_subspace_releakage_lancet` | `0.0310` | `0.0270` | `0.0278` | `0.1839` |
+| `max_abs_weight` | — | `1.4297` | `0.9141` | `0.9180` |
+| `max_row_crest_factor` | — | `17.2706` | `6.3244` | `10.6508` |
+| `provider_ready` | `true` (7/7 checks) | `true` (7/7 checks) | `true` (7/7 checks) | `true` (7/7 checks) |
 
 On `Qwen/Qwen2.5-3B-Instruct` MPS, FP8 re-leakage confirms the Stage 3 diagnosis: naive surgery re-leaks `fp8_subspace_releakage_naive = 0.5003` of the target energy after quantization, while the Lancet edit stays at `0.0270`; and the Lancet edit is quantization-mode-insensitive (`kl_lancet_fp8 = 0.0469` per-row vs `kl_lancet_fp8_per_tensor = 0.0470` per-tensor) where naive surgery degrades under the shared per-tensor scale (`0.0975` vs `0.1113`). The checkpoint passes the provider gate with `max_row_crest_factor = 17.2706 < 25.0` and `max_abs_weight = 1.4297` inside the E4M3 range, i.e. `provider_ready = true` (7/7 checks).
 

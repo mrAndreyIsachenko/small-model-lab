@@ -1,0 +1,146 @@
+{
+  "h10_verified": true,
+  "slop_and_refusal_rate": 0.041013,
+  "h10_gated_vs_naive_gain": 0.248877,
+  "h10_post_surgery_gain": 0.458022,
+  "max_abs_logit_diff": 0.15342712,
+  "merged_lora_count": 0,
+  "unprojected_lora_releakage": 1.13275129,
+  "subspace_safe_lora_releakage": 0.072612744,
+  "post_merge_suppression_retention": 1.0,
+  "mean_response_words": 31.5,
+  "length_collapse_rate": 0.08333333333333333,
+  "arms": {
+    "1_lancet_surgical_only": {
+      "gated_ifeval_score": 0.35334,
+      "mean_total_reward": 0.353941,
+      "slop_and_refusal_rate": 0.000185,
+      "g_compliance": 1.0,
+      "g_antislop": 0.367904,
+      "r_ifeval": 0.775417,
+      "r_coherence": 0.798248,
+      "archetype_probs": [
+        0.323854,
+        0.000185,
+        0.0,
+        0.0,
+        0.675784,
+        0.000177
+      ]
+    },
+    "2_tenet_grpo_additive": {
+      "gated_ifeval_score": 0.562485,
+      "mean_total_reward": 0.720279,
+      "slop_and_refusal_rate": 0.0,
+      "g_compliance": 1.0,
+      "g_antislop": 1.0,
+      "r_ifeval": 0.562485,
+      "r_coherence": 0.956971,
+      "archetype_probs": [
+        0.04162,
+        0.0,
+        0.0,
+        0.0,
+        0.0,
+        0.95838
+      ],
+      "history": [
+        {
+          "step": 0,
+          "loss": 0.024835,
+          "policy_obj": -0.024835,
+          "kl_div": 0.0
+        },
+        {
+          "step": 1,
+          "loss": 0.024839,
+          "policy_obj": -0.024835,
+          "kl_div": 0.000368
+        },
+        {
+          "step": 2,
+          "loss": 0.26199,
+          "policy_obj": -0.036011,
+          "kl_div": 22.597839
+        },
+        {
+          "step": 3,
+          "loss": 0.142226,
+          "policy_obj": -0.014901,
+          "kl_div": 12.732481
+        },
+        {
+          "step": 4,
+          "loss": 0.097242,
+          "policy_obj": -0.002484,
+          "kl_div": 9.475843
+        },
+        {
+          "step": 5,
+          "loss": 0.054844,
+          "policy_obj": -0.029802,
+          "kl_div": 2.504175
+        }
+      ]
+    },
+    "3_tenet_grpo_gated": {
+      "gated_ifeval_score": 0.811362,
+      "mean_total_reward": 0.811586,
+      "slop_and_refusal_rate": 0.041013,
+      "g_compliance": 1.0,
+      "g_antislop": 0.815447,
+      "r_ifeval": 0.941803,
+      "r_coherence": 0.945703,
+      "archetype_probs": [
+        0.791667,
+        0.041013,
+        0.0,
+        0.0,
+        0.166667,
+        0.000654
+      ],
+      "history": [
+        {
+          "step": 0,
+          "loss": 0.000698,
+          "policy_obj": -0.000698,
+          "kl_div": 0.0
+        },
+        {
+          "step": 1,
+          "loss": 0.000702,
+          "policy_obj": -0.000698,
+          "kl_div": 0.00037
+        },
+        {
+          "step": 2,
+          "loss": 0.108345,
+          "policy_obj": -0.001397,
+          "kl_div": 10.694768
+        },
+        {
+          "step": 3,
+          "loss": 0.089104,
+          "policy_obj": -0.000155,
+          "kl_div": 8.89491
+        },
+        {
+          "step": 4,
+          "loss": 0.077207,
+          "policy_obj": -0.000155,
+          "kl_div": 7.705131
+        },
+        {
+          "step": 5,
+          "loss": 0.072834,
+          "policy_obj": -0.00031,
+          "kl_div": 7.252364
+        }
+      ],
+      "merged_lora_count": 0,
+      "max_abs_logit_diff": 0.15342712
+    }
+  },
+  "backend": "llm",
+  "model_name": "meta-llama/Llama-3.1-8B-Instruct"
+}

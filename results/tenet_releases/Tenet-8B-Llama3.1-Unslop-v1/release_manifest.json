@@ -13,22 +13,36 @@
       0,
       31
     ],
-    "estimated_avg_bpw": 4.961,
+    "estimated_avg_bpw": 5.289,
     "q6_k_layers": [
-      5
+      19,
+      20,
+      24,
+      25,
+      26,
+      27,
+      28,
+      29
     ],
     "q8_0_layers": [
       0,
+      3,
       4,
+      9,
+      10,
+      11,
+      14,
+      15,
+      18,
       31
     ]
   },
   "hf_repo_id": "tenet-lab/Tenet-8B-Llama3.1-Unslop-v1",
   "metrics_sources": {
-    "h10": "results/h10_qwen3b_mps/final_metrics.json",
-    "h11": "results/h11_qwen3b_mps/final_metrics.json",
-    "h12": "results/h12_qwen3b_mps/final_metrics.json",
-    "h9": "results/h9_qwen3b_mps/final_metrics.json"
+    "h10": "results/h10_llama8b_h100/final_metrics.json",
+    "h11": "results/h11_llama8b_h100/final_metrics.json",
+    "h12": "results/h12_llama8b_h100/final_metrics.json",
+    "h9": "results/h9_llama8b_h100/final_metrics.json"
   },
   "provider_readiness": {
     "architectures": [

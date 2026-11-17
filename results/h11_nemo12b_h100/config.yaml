@@ -1,0 +1,73 @@
+experiment_id: h11_provider_fp8_readiness
+hypothesis_id: H11
+hypothesis: Lancet bi-projected norm-preserving surgery + gated unslop GRPO produces
+  Tenet checkpoints that survive vLLM server-side FP8 (E4M3) quantization with >=
+  96% quality retention (fp8_retention_ratio >= 0.96) and >= 25% lower FP8 KL degradation
+  than naive ablation without row-norm preservation (h11_fp8_kl_reduction_ratio >=
+  0.25), while passing strict OpenRouter provider readiness checks (standard LlamaForCausalLM/Qwen2ForCausalLM/MistralForCausalLM
+  architecture, zero trust_remote_code/auto_map, valid chat_template, no NaN/Inf or
+  unmerged lora_ keys, max_abs_weight < 50.0) and generating HF Hub model cards for
+  the Tenet lineup.
+prediction: Under FP8 (E4M3) per-channel server quantization, Lancet norm-preserving
+  surgery achieves fp8_retention_ratio >= 0.96 and h11_fp8_kl_reduction_ratio >= 0.25
+  vs naive ablation, verify_provider_readiness passes all 6 checks on a standard bundle,
+  and model cards are generated for Tenet-3B-Qwen2.5-Unslop-v1, Tenet-8B-Llama3.1-Unslop-v1,
+  and Tenet-12B-Nemo-Unslop-v1.
+acceptance_criterion: fp8_retention_ratio >= 0.96 AND h11_fp8_kl_reduction_ratio >=
+  0.25 AND provider_ready == True AND h11_verified == True
+seed: 2026
+model:
+  name: Mistral-Nemo-Instruct-2407
+  vocab_size: 131072
+  d_model: 5120
+  n_layers: 40
+  n_heads: 32
+  n_kv_heads: 8
+  d_ff: 14336
+  max_seq_len: 131072
+  norm_type: rmsnorm
+  pos_encoding: rope
+  mlp_type: swiglu
+  bias: false
+  tie_embeddings: false
+  rope_theta: 1000000.0
+  norm_eps: 1.0e-05
+data:
+  name: tinystories-smoke
+  hf_dataset: roneneldan/TinyStories
+  hf_subset: default
+  vocab_size: 32768
+  train_tokens: 20000000
+  val_tokens: 1000000
+  test_tokens: 1000000
+  shard_size_tokens: 10000000
+  hf_repo_id: mrAndreyIsachenko/sml-tinystories-shards
+  license: CDLA-Sharing-1.0
+hardware:
+  name: apple-m4-pro-48gb
+  accelerator: mps
+  vram_gb: 48.0
+  peak_bf16_tflops: 18.0
+  hourly_rate_usd: 0.0
+  price_as_of: '2026-10-31'
+  provider_notes: Local MacBook Pro 16-inch (Apple M4 Pro, 48 GB Unified Memory)
+train:
+  batch_size_tokens: 4096
+  micro_batch_size: 2
+  seq_len: 512
+  max_steps: 27
+  lr: 0.0005
+  min_lr_ratio: 0.1
+  weight_decay: 0.05
+  beta1: 0.9
+  beta2: 0.95
+  grad_clip: 1.0
+  schedule: wsd
+  warmup_steps: 2
+  decay_fraction: 0.2
+  branch_cooldown_tokens: null
+  precision: bf16
+  compile: false
+model_config_path: configs/model/sml_nano.yaml
+data_config_path: configs/data/tinystories.yaml
+hardware_config_path: configs/hardware/m4_pro_mps.yaml

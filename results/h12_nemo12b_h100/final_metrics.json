@@ -1,0 +1,12 @@
+{
+  "h12_verified": true,
+  "sql_incident_retention_ratio": 1.0,
+  "unslop_retention_ratio": 1.0,
+  "slop_and_refusal_rate": 1.1496781165953264e-07,
+  "subspace_safe_merge_releakage": 6.630873272683857e-08,
+  "ties_biprojected_vs_naive_merge_gain": 0.7805732948796269,
+  "provider_ready": true,
+  "max_row_crest_factor": 10.650956388733396,
+  "backend": "llm",
+  "model_name": "mistralai/Mistral-Nemo-Instruct-2407"
+}

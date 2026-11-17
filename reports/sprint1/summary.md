@@ -6,10 +6,16 @@
 
 | Run ID | Hyp. | Mode | Model | Non-Emb Params | Tokens | Val bpb | Tok/s | MFU | Hardware | Billed Cost ($) | Git SHA |
 | :--- | :--- | :--- | :--- | ---: | ---: | ---: | ---: | ---: | :--- | ---: | :--- |
+| `h10_llama8b_h100` | `H10` | `measured` | `Llama-3.1-8B-Instruct` | `6,979,588,096` | `0` | `n/a` | `n/a` | `n/a` | `apple-m4-pro-48gb` | `$0.0000` | `uncommit` |
+| `h10_nemo12b_h100` | `H10` | `measured` | `Mistral-Nemo-Instruct-2407` | `11,429,893,120` | `0` | `n/a` | `n/a` | `n/a` | `apple-m4-pro-48gb` | `$0.0000` | `uncommit` |
 | `h10_qwen3b_mps` | `H10` | `measured` | `Qwen2.5-3B-Instruct` | `2,774,681,600` | `0` | `n/a` | `n/a` | `n/a` | `apple-m4-pro-48gb` | `$0.0000` | `eab01f01` |
 | `h10_unslop_grpo` | `H10` | `measured` | `sml-nano` | `3,148,032` | `0` | `n/a` | `n/a` | `n/a` | `apple-m4-pro-48gb` | `$0.0000` | `eab01f01` |
+| `h11_llama8b_h100` | `H11` | `measured` | `Llama-3.1-8B-Instruct` | `6,979,588,096` | `0` | `n/a` | `n/a` | `n/a` | `apple-m4-pro-48gb` | `$0.0000` | `uncommit` |
+| `h11_nemo12b_h100` | `H11` | `measured` | `Mistral-Nemo-Instruct-2407` | `11,429,893,120` | `0` | `n/a` | `n/a` | `n/a` | `apple-m4-pro-48gb` | `$0.0000` | `uncommit` |
 | `h11_provider_fp8_readiness` | `H11` | `measured` | `sml-nano` | `3,148,032` | `0` | `n/a` | `n/a` | `n/a` | `apple-m4-pro-48gb` | `$0.0000` | `eab01f01` |
 | `h11_qwen3b_mps` | `H11` | `measured` | `Qwen2.5-3B-Instruct` | `2,774,681,600` | `0` | `n/a` | `n/a` | `n/a` | `apple-m4-pro-48gb` | `$0.0000` | `eab01f01` |
+| `h12_llama8b_h100` | `H12` | `measured` | `sml-nano` | `3,148,032` | `0` | `n/a` | `n/a` | `n/a` | `apple-m4-pro-48gb` | `$0.0000` | `uncommit` |
+| `h12_nemo12b_h100` | `H12` | `measured` | `sml-nano` | `3,148,032` | `0` | `n/a` | `n/a` | `n/a` | `apple-m4-pro-48gb` | `$0.0000` | `uncommit` |
 | `h12_qwen3b_mps` | `H12` | `measured` | `sml-nano` | `3,148,032` | `0` | `n/a` | `n/a` | `n/a` | `apple-m4-pro-48gb` | `$0.0000` | `eab01f01` |
 | `h12_subspace_safe_merge` | `H12` | `measured` | `sml-nano` | `3,148,032` | `0` | `n/a` | `n/a` | `n/a` | `apple-m4-pro-48gb` | `$0.0000` | `eab01f01` |
 | `h1_gpt2_parity` | `H1` | `measured` | `gpt2-124m` | `85,842,432` | `128` | `n/a` | `17` | `n/a` | `apple-m4-pro-48gb` | `$0.0000` | `uncommit` |
@@ -22,20 +28,36 @@
 | `h7_h8_qwen3b_pareto` | `H7` | `measured` | `Qwen2.5-3B-Instruct` | `2,774,681,600` | `51,989` | `n/a` | `25` | `n/a` | `apple-m4-pro-48gb` | `$0.0000` | `04adb51f` |
 | `h7_h8_surgery_pareto` | `H7` | `measured` | `sml-nano` | `3,148,032` | `0` | `n/a` | `0` | `n/a` | `apple-m4-pro-48gb` | `$0.0000` | `05414f1c` |
 | `h9_biprojected_surgery` | `H9` | `measured` | `sml-nano` | `3,148,032` | `0` | `n/a` | `n/a` | `n/a` | `apple-m4-pro-48gb` | `$0.0000` | `eab01f01` |
+| `h9_llama8b_h100` | `H9` | `measured` | `Llama-3.1-8B-Instruct` | `6,979,588,096` | `0` | `n/a` | `n/a` | `n/a` | `apple-m4-pro-48gb` | `$0.0000` | `uncommit` |
+| `h9_nemo12b_h100` | `H9` | `measured` | `Mistral-Nemo-Instruct-2407` | `11,429,893,120` | `0` | `n/a` | `n/a` | `n/a` | `apple-m4-pro-48gb` | `$0.0000` | `uncommit` |
 | `h9_qwen3b_mps` | `H9` | `measured` | `Qwen2.5-3B-Instruct` | `2,774,681,600` | `0` | `n/a` | `n/a` | `n/a` | `apple-m4-pro-48gb` | `$0.0000` | `eab01f01` |
 
 ## H9–H11 Surgery, GRPO & Provider Readiness
 
 | Run ID | Hyp. | Verified | Target Supp. | KL Red. (H9) | Anchor Ortho | Tool Ortho | Row Drift | Provider Ready | Ready Checks | FP8 Retention | KL Red. (FP8) | KL Naive (FP8) | KL Lancet (FP8) | Re-leakage (Naive) | Re-leakage (Lancet) | Max Crest | Slop & Refusal | Gated vs Naive | Post-Surgery | Merged LoRA |
 | :--- | :--- | :--- | ---: | ---: | ---: | ---: | ---: | :--- | :--- | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: |
+| `h10_llama8b_h100` | `H10` | ✅ | n/a | n/a | n/a | n/a | n/a | n/a | n/a | n/a | n/a | n/a | n/a | n/a | n/a | n/a | 0.0410 | 0.2489 | 0.4580 | 0 |
+| `h10_nemo12b_h100` | `H10` | ✅ | n/a | n/a | n/a | n/a | n/a | n/a | n/a | n/a | n/a | n/a | n/a | n/a | n/a | n/a | 0.0239 | 0.4292 | 0.2710 | 0 |
 | `h10_qwen3b_mps` | `H10` | ✅ | n/a | n/a | n/a | n/a | n/a | n/a | n/a | n/a | n/a | n/a | n/a | n/a | n/a | n/a | 0.0909 | 0.1602 | 0.3598 | 0 |
 | `h10_unslop_grpo` | `H10` | ✅ | n/a | n/a | n/a | n/a | n/a | n/a | n/a | n/a | n/a | n/a | n/a | n/a | n/a | n/a | 0.0150 | 0.2276 | 0.6611 | 0 |
+| `h11_llama8b_h100` | `H11` | ✅ | n/a | n/a | n/a | n/a | n/a | ✅ | 7/7 | 0.9936 | 0.4265 | 0.0322 | 0.0185 | 0.5000 | 0.0278 | 6.3244 | n/a | n/a | n/a | n/a |
+| `h11_nemo12b_h100` | `H11` | ✅ | n/a | n/a | n/a | n/a | n/a | ✅ | 7/7 | 0.9678 | 0.4892 | 3.1724 | 1.6205 | 0.4996 | 0.1839 | 10.6508 | n/a | n/a | n/a | n/a |
 | `h11_provider_fp8_readiness` | `H11` | ✅ | n/a | n/a | n/a | n/a | n/a | ✅ | 7/7 | 0.9997 | 0.4558 | 0.0005 | 0.0003 | 0.4996 | 0.0310 | 1.8583 | n/a | n/a | n/a | n/a |
 | `h11_qwen3b_mps` | `H11` | ✅ | n/a | n/a | n/a | n/a | n/a | ✅ | 7/7 | 0.9541 | 0.5185 | 0.0975 | 0.0469 | 0.5003 | 0.0270 | 17.2706 | n/a | n/a | n/a | n/a |
 | `h9_biprojected_surgery` | `H9` | ✅ | 0.9854 | 0.6092 | 6.00e-08 | 4.00e-08 | 2.00e-08 | n/a | n/a | n/a | n/a | n/a | n/a | n/a | n/a | n/a | n/a | n/a | n/a | n/a |
+| `h9_llama8b_h100` | `H9` | ✅ | 0.9930 | 0.8989 | 1.00e-08 | 1.00e-08 | 1.08e-03 | n/a | n/a | n/a | n/a | n/a | n/a | n/a | n/a | n/a | n/a | n/a | n/a | n/a |
+| `h9_nemo12b_h100` | `H9` | ✅ | 0.9914 | 0.9672 | 1.00e-08 | 3.00e-08 | 7.37e-04 | n/a | n/a | n/a | n/a | n/a | n/a | n/a | n/a | n/a | n/a | n/a | n/a | n/a |
 | `h9_qwen3b_mps` | `H9` | ✅ | 0.9694 | 0.9941 | 1.00e-07 | 7.00e-08 | 1.61e-03 | n/a | n/a | n/a | n/a | n/a | n/a | n/a | n/a | n/a | n/a | n/a | n/a | n/a |
 
 ## Run Conclusions
+
+### `h10_llama8b_h100` (`H10` — `measured`)
+- **Prediction:** After 27 GRPO steps (group size 6, lr 0.0038) on the nano model, slop_and_refusal_rate <= 0.02, gated reward shaping beats naive GRPO by >= 15% (h10_gated_vs_naive_gain >= 0.15), post-surgery composition adds >= 15% further gain (h10_post_surgery_gain >= 0.15), and merged LoRA logits stay within 1e-4 of the reference (max_abs_logit_diff < 1e-4).
+- **Conclusion:** H10 unslop GRPO verification completed: h10_verified=True, slop_and_refusal_rate=0.0410, gated_vs_naive_gain=0.2489
+
+### `h10_nemo12b_h100` (`H10` — `measured`)
+- **Prediction:** After 27 GRPO steps (group size 6, lr 0.0038) on the nano model, slop_and_refusal_rate <= 0.02, gated reward shaping beats naive GRPO by >= 15% (h10_gated_vs_naive_gain >= 0.15), post-surgery composition adds >= 15% further gain (h10_post_surgery_gain >= 0.15), and merged LoRA logits stay within 1e-4 of the reference (max_abs_logit_diff < 1e-4).
+- **Conclusion:** H10 unslop GRPO verification completed: h10_verified=True, slop_and_refusal_rate=0.0239, gated_vs_naive_gain=0.4292
 
 ### `h10_qwen3b_mps` (`H10` — `measured`)
 - **Prediction:** After 27 GRPO steps (group size 6, lr 0.0038) on the nano model, slop_and_refusal_rate <= 0.02, gated reward shaping beats naive GRPO by >= 15% (h10_gated_vs_naive_gain >= 0.15), post-surgery composition adds >= 15% further gain (h10_post_surgery_gain >= 0.15), and merged LoRA logits stay within 1e-4 of the reference (max_abs_logit_diff < 1e-4).
@@ -45,6 +67,14 @@
 - **Prediction:** After 27 GRPO steps (group size 6, lr 0.0038) on the nano model, slop_and_refusal_rate <= 0.02, gated reward shaping beats naive GRPO by >= 15% (h10_gated_vs_naive_gain >= 0.15), post-surgery composition adds >= 15% further gain (h10_post_surgery_gain >= 0.15), and merged LoRA logits stay within 1e-4 of the reference (max_abs_logit_diff < 1e-4).
 - **Conclusion:** H10 unslop GRPO verification completed: h10_verified=True, slop_and_refusal_rate=0.0150, gated_vs_naive_gain=0.2276
 
+### `h11_llama8b_h100` (`H11` — `measured`)
+- **Prediction:** Under FP8 (E4M3) per-channel server quantization, Lancet norm-preserving surgery achieves fp8_retention_ratio >= 0.96 and h11_fp8_kl_reduction_ratio >= 0.25 vs naive ablation, verify_provider_readiness passes all 6 checks on a standard bundle, and model cards are generated for Tenet-3B-Qwen2.5-Unslop-v1, Tenet-8B-Llama3.1-Unslop-v1, and Tenet-12B-Nemo-Unslop-v1.
+- **Conclusion:** H11 FP8 provider readiness verification completed: h11_verified=True, fp8_retention_ratio=0.9936, provider_ready=True
+
+### `h11_nemo12b_h100` (`H11` — `measured`)
+- **Prediction:** Under FP8 (E4M3) per-channel server quantization, Lancet norm-preserving surgery achieves fp8_retention_ratio >= 0.96 and h11_fp8_kl_reduction_ratio >= 0.25 vs naive ablation, verify_provider_readiness passes all 6 checks on a standard bundle, and model cards are generated for Tenet-3B-Qwen2.5-Unslop-v1, Tenet-8B-Llama3.1-Unslop-v1, and Tenet-12B-Nemo-Unslop-v1.
+- **Conclusion:** H11 FP8 provider readiness verification completed: h11_verified=True, fp8_retention_ratio=0.9678, provider_ready=True
+
 ### `h11_provider_fp8_readiness` (`H11` — `measured`)
 - **Prediction:** Under FP8 (E4M3) per-channel server quantization, Lancet norm-preserving surgery achieves fp8_retention_ratio >= 0.96 and h11_fp8_kl_reduction_ratio >= 0.25 vs naive ablation, verify_provider_readiness passes all 6 checks on a standard bundle, and model cards are generated for Tenet-3B-Qwen2.5-Unslop-v1, Tenet-8B-Llama3.1-Unslop-v1, and Tenet-12B-Nemo-Unslop-v1.
 - **Conclusion:** H11 FP8 provider readiness verification completed: h11_verified=True, fp8_retention_ratio=0.9997, provider_ready=True
@@ -52,6 +82,14 @@
 ### `h11_qwen3b_mps` (`H11` — `measured`)
 - **Prediction:** Under FP8 (E4M3) per-channel server quantization, Lancet norm-preserving surgery achieves fp8_retention_ratio >= 0.96 and h11_fp8_kl_reduction_ratio >= 0.25 vs naive ablation, verify_provider_readiness passes all 6 checks on a standard bundle, and model cards are generated for Tenet-3B-Qwen2.5-Unslop-v1, Tenet-8B-Llama3.1-Unslop-v1, and Tenet-12B-Nemo-Unslop-v1.
 - **Conclusion:** H11 FP8 provider readiness verification completed: h11_verified=True, fp8_retention_ratio=0.9541, provider_ready=True
+
+### `h12_llama8b_h100` (`H12` — `measured`)
+- **Prediction:** TIES biprojected subspace-safe merge retains sql_incident_retention_ratio >= 0.95 and unslop_retention_ratio >= 0.95, keeps slop_and_refusal_rate <= 0.02 (nano) / <= 0.10 (3B), subspace_safe_merge_releakage < 1e-5 (nano), achieves ties_biprojected_vs_naive_merge_gain >= 0.15 on the joint benchmark (StatefulToolEnv + TenetUnslopRubric), and passes provider_ready == True (Row Crest-Factor < 25.0).
+- **Conclusion:** H12 subspace-safe merge verification completed: h12_verified=True, sql_incident_retention_ratio=0.9799, unslop_retention_ratio=1.0000, ties_biprojected_vs_naive_merge_gain=0.7965
+
+### `h12_nemo12b_h100` (`H12` — `measured`)
+- **Prediction:** TIES biprojected subspace-safe merge retains sql_incident_retention_ratio >= 0.95 and unslop_retention_ratio >= 0.95, keeps slop_and_refusal_rate <= 0.02 (nano) / <= 0.10 (3B), subspace_safe_merge_releakage < 1e-5 (nano), achieves ties_biprojected_vs_naive_merge_gain >= 0.15 on the joint benchmark (StatefulToolEnv + TenetUnslopRubric), and passes provider_ready == True (Row Crest-Factor < 25.0).
+- **Conclusion:** H12 subspace-safe merge verification completed: h12_verified=True, sql_incident_retention_ratio=1.0000, unslop_retention_ratio=1.0000, ties_biprojected_vs_naive_merge_gain=0.7806
 
 ### `h12_qwen3b_mps` (`H12` — `measured`)
 - **Prediction:** TIES biprojected subspace-safe merge retains sql_incident_retention_ratio >= 0.95 and unslop_retention_ratio >= 0.95, keeps slop_and_refusal_rate <= 0.02 (nano) / <= 0.10 (3B), subspace_safe_merge_releakage < 1e-5 (nano), achieves ties_biprojected_vs_naive_merge_gain >= 0.15 on the joint benchmark (StatefulToolEnv + TenetUnslopRubric), and passes provider_ready == True (Row Crest-Factor < 25.0).
@@ -100,6 +138,14 @@
 ### `h9_biprojected_surgery` (`H9` — `measured`)
 - **Prediction:** Lancet bi-projected surgery suppresses >= 90% of target direction activation with anchor_orthogonality_error < 1e-6 and max_row_norm_drift < 1e-5, while naive surgery incurs >= 35% more KL collateral on anchor behaviour (h9_kl_reduction_ratio >= 0.35).
 - **Conclusion:** H9 Lancet surgery verification completed: h9_verified=True, kl_reduction=0.6092
+
+### `h9_llama8b_h100` (`H9` — `measured`)
+- **Prediction:** Lancet bi-projected surgery suppresses >= 90% of target direction activation with anchor_orthogonality_error < 1e-6 and max_row_norm_drift < 1e-5, while naive surgery incurs >= 35% more KL collateral on anchor behaviour (h9_kl_reduction_ratio >= 0.35).
+- **Conclusion:** H9 Lancet surgery verification completed: h9_verified=True, kl_reduction=0.8989
+
+### `h9_nemo12b_h100` (`H9` — `measured`)
+- **Prediction:** Lancet bi-projected surgery suppresses >= 90% of target direction activation with anchor_orthogonality_error < 1e-6 and max_row_norm_drift < 1e-5, while naive surgery incurs >= 35% more KL collateral on anchor behaviour (h9_kl_reduction_ratio >= 0.35).
+- **Conclusion:** H9 Lancet surgery verification completed: h9_verified=True, kl_reduction=0.9672
 
 ### `h9_qwen3b_mps` (`H9` — `measured`)
 - **Prediction:** Lancet bi-projected surgery suppresses >= 90% of target direction activation with anchor_orthogonality_error < 1e-6 and max_row_norm_drift < 1e-5, while naive surgery incurs >= 35% more KL collateral on anchor behaviour (h9_kl_reduction_ratio >= 0.35).

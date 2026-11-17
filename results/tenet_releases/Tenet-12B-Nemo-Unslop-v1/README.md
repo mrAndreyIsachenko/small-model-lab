@@ -68,9 +68,9 @@ after surgery.
 
 | Variant | H9 |
 | --- | --- |
-| BF16 | 0.02 |
-| FP8 (E4M3) | 0.09 |
-| Naive Abliteration | 3.76 |
+| BF16 | 9.75e-03 |
+| FP8 (E4M3) | 0.02 |
+| Naive Abliteration | 0.30 |
 
 ### H10 - downstream capability retention
 
@@ -79,9 +79,9 @@ accuracy relative to the untouched base model.
 
 | Variant | H10 |
 | --- | --- |
-| BF16 | 0.36 |
+| BF16 | 0.27 |
 | FP8 (E4M3) | 1.00 |
-| Naive Abliteration | 0.16 |
+| Naive Abliteration | 0.43 |
 
 ### H11 - FP8 quantization robustness
 
@@ -91,13 +91,13 @@ precision.
 
 | Variant | H11 |
 | --- | --- |
-| BF16 | 0.95 |
-| FP8 (E4M3) | 0.52 |
+| BF16 | 0.97 |
+| FP8 (E4M3) | 0.49 |
 | Naive Abliteration | 0.50 |
 
-Max row crest-factor: 17.27
+Max row crest-factor: 10.65
 
-Max absolute weight: 1.43
+Max absolute weight: 0.92
 
 ![Lancet vs Naive Pareto](assets/lancet_vs_naive_pareto.svg)
 
@@ -105,12 +105,12 @@ Max absolute weight: 1.43
 
 | Metric | Base | Naive Abliteration | Tenet (BF16) | Tenet (FP8 E4M3) |
 | --- | --- | --- | --- | --- |
-| KL Collateral Drift | — | 3.76 | 0.02 | 0.03 |
-| Refusal Suppression | — | — | 0.97 | 1.00 |
-| Tool/SQL Anchor Orthogonality | — | 0.83 | 7.00e-08 | 0.07 |
-| LoRA Re-Leakage | — | 0.83 | 0.07 | 0.03 |
-| FP8 Subspace Re-Leakage | — | 0.50 | — | 0.03 |
-| Max Row Crest-Factor (< 25.0) | — | — | 17.27 | 17.27 |
+| KL Collateral Drift | — | 0.30 | 9.75e-03 | 0.18 |
+| Refusal Suppression | — | — | 0.99 | 1.00 |
+| Tool/SQL Anchor Orthogonality | — | 0.81 | 3.00e-08 | 0.13 |
+| LoRA Re-Leakage | — | 0.81 | 0.13 | 0.18 |
+| FP8 Subspace Re-Leakage | — | 0.50 | — | 0.18 |
+| Max Row Crest-Factor (< 25.0) | — | — | 10.65 | 10.65 |
 
 ## Side-by-Side: Naive Abliteration vs Tenet (Engineering & SQL Tool-Call)
 

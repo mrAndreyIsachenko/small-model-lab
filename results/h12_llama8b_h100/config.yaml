@@ -1,0 +1,72 @@
+experiment_id: h12_subspace_safe_merge
+hypothesis_id: H12
+hypothesis: "Naive linear merge (Delta W_SQL + Delta W_unslop) of two specialized\
+  \ GRPO adapters causes destructive gradient interference \u2014 degrading G_evidence\
+  \ * R_correctness on SQL incidents or re-leaking slop/refusals. Orthogonalized TIES\
+  \ / Gram-Schmidt Subspace-Safe Merge (Delta W_unslop^perp projected orthogonally\
+  \ to both U_{refusal/slop} and top singular directions of Delta W_SQL with row-norm\
+  \ preservation) retains >= 95% of both skills and passes the H11 FP8 E4M3 gate."
+prediction: TIES biprojected subspace-safe merge retains sql_incident_retention_ratio
+  >= 0.95 and unslop_retention_ratio >= 0.95, keeps slop_and_refusal_rate <= 0.02
+  (nano) / <= 0.10 (3B), subspace_safe_merge_releakage < 1e-5 (nano), achieves ties_biprojected_vs_naive_merge_gain
+  >= 0.15 on the joint benchmark (StatefulToolEnv + TenetUnslopRubric), and passes
+  provider_ready == True (Row Crest-Factor < 25.0).
+acceptance_criterion: sql_incident_retention_ratio >= 0.95 and slop_and_refusal_rate
+  <= 0.02 and subspace_safe_merge_releakage < 1e-5 and ties_biprojected_vs_naive_merge_gain
+  >= 0.15 and provider_ready == True
+seed: 2026
+model:
+  name: sml-nano
+  vocab_size: 32768
+  d_model: 256
+  n_layers: 4
+  n_heads: 4
+  n_kv_heads: 2
+  d_ff: 768
+  max_seq_len: 1024
+  norm_type: rmsnorm
+  pos_encoding: rope
+  mlp_type: swiglu
+  bias: false
+  tie_embeddings: true
+  rope_theta: 10000.0
+  norm_eps: 1.0e-05
+data:
+  name: tinystories-smoke
+  hf_dataset: roneneldan/TinyStories
+  hf_subset: default
+  vocab_size: 32768
+  train_tokens: 20000000
+  val_tokens: 1000000
+  test_tokens: 1000000
+  shard_size_tokens: 10000000
+  hf_repo_id: mrAndreyIsachenko/sml-tinystories-shards
+  license: CDLA-Sharing-1.0
+hardware:
+  name: apple-m4-pro-48gb
+  accelerator: mps
+  vram_gb: 48.0
+  peak_bf16_tflops: 18.0
+  hourly_rate_usd: 0.0
+  price_as_of: '2026-10-31'
+  provider_notes: Local MacBook Pro 16-inch (Apple M4 Pro, 48 GB Unified Memory)
+train:
+  batch_size_tokens: 4096
+  micro_batch_size: 2
+  seq_len: 512
+  max_steps: 27
+  lr: 0.0005
+  min_lr_ratio: 0.1
+  weight_decay: 0.05
+  beta1: 0.9
+  beta2: 0.95
+  grad_clip: 1.0
+  schedule: wsd
+  warmup_steps: 2
+  decay_fraction: 0.2
+  branch_cooldown_tokens: null
+  precision: bf16
+  compile: false
+model_config_path: configs/model/sml_nano.yaml
+data_config_path: configs/data/tinystories.yaml
+hardware_config_path: configs/hardware/m4_pro_mps.yaml

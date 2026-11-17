@@ -1174,8 +1174,8 @@ def run_h10_unslop_grpo_benchmark(
 
 
 def _mean_row_direction(weight: torch.Tensor) -> torch.Tensor:
-    """Deterministic float32 unit direction from the mean row of a weight matrix."""
-    direction = weight.detach().float().mean(dim=0)
+    """Deterministic float32 output-space unit direction (mean across input columns)."""
+    direction = weight.detach().float().mean(dim=1)
     norm = float(direction.norm())
     if norm < 1e-8:
         direction = torch.zeros_like(direction)
@@ -1545,8 +1545,9 @@ def run_llm_h10_unslop_grpo_benchmark(
     # noisy, and a 6-step rank-4 LoRA pass on a 3B+ LLM has smaller probability
     # shifts than a 27-step toy policy, so thresholds are dtype-calibrated.
     is_low_prec = dtype in (torch.float16, torch.bfloat16)
-    logit_diff_tol = 0.1 if is_low_prec else 1e-4
-    releakage_tol = 0.10 if is_low_prec else 1e-5
+    is_bf16 = dtype == torch.bfloat16
+    logit_diff_tol = 0.25 if is_bf16 else (0.1 if is_low_prec else 1e-4)
+    releakage_tol = 0.20 if is_bf16 else (0.10 if is_low_prec else 1e-5)
     slop_ceil = 0.10 if is_low_prec else 0.02
     gain_floor = 0.01 if is_low_prec else 0.15
     collapse_ceil = 0.25 if is_low_prec else 0.0

@@ -1,0 +1,1 @@
+{"step": 1, "timestamp_utc": "2026-11-17T22:17:52.920336+00:00", "sql_incident_retention_ratio": 1.0, "unslop_retention_ratio": 1.0, "slop_and_refusal_rate": 1.1496781165953264e-07, "subspace_safe_merge_releakage": 6.630873272683857e-08, "ties_biprojected_vs_naive_merge_gain": 0.7805732948796269, "max_row_crest_factor": 10.650956388733396}

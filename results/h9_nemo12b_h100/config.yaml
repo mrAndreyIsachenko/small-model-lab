@@ -1,0 +1,69 @@
+experiment_id: h9_biprojected_surgery
+hypothesis_id: H9
+hypothesis: Bi-projected rank-1 surgery ("Lancet") suppresses targeted refusal & slop
+  write directions while keeping them orthogonal to the reasoning-anchor direction
+  (<1e-6) and preserving row norms (<1e-5 drift), collapsing anchor-behaviour KL collateral
+  by >= 35% versus naive unprojected all-layer surgery.
+prediction: Lancet bi-projected surgery suppresses >= 90% of target direction activation
+  with anchor_orthogonality_error < 1e-6 and max_row_norm_drift < 1e-5, while naive
+  surgery incurs >= 35% more KL collateral on anchor behaviour (h9_kl_reduction_ratio
+  >= 0.35).
+acceptance_criterion: anchor_orthogonality_error < 1e-6 AND max_row_norm_drift < 1e-5
+  AND target_suppression_ratio >= 0.90 AND h9_kl_reduction_ratio >= 0.35 AND h9_verified
+  == True
+seed: 2026
+model:
+  name: Mistral-Nemo-Instruct-2407
+  vocab_size: 131072
+  d_model: 5120
+  n_layers: 40
+  n_heads: 32
+  n_kv_heads: 8
+  d_ff: 14336
+  max_seq_len: 131072
+  norm_type: rmsnorm
+  pos_encoding: rope
+  mlp_type: swiglu
+  bias: false
+  tie_embeddings: false
+  rope_theta: 1000000.0
+  norm_eps: 1.0e-05
+data:
+  name: tinystories-smoke
+  hf_dataset: roneneldan/TinyStories
+  hf_subset: default
+  vocab_size: 32768
+  train_tokens: 20000000
+  val_tokens: 1000000
+  test_tokens: 1000000
+  shard_size_tokens: 10000000
+  hf_repo_id: mrAndreyIsachenko/sml-tinystories-shards
+  license: CDLA-Sharing-1.0
+hardware:
+  name: apple-m4-pro-48gb
+  accelerator: mps
+  vram_gb: 48.0
+  peak_bf16_tflops: 18.0
+  hourly_rate_usd: 0.0
+  price_as_of: '2026-10-31'
+  provider_notes: Local MacBook Pro 16-inch (Apple M4 Pro, 48 GB Unified Memory)
+train:
+  batch_size_tokens: 4096
+  micro_batch_size: 2
+  seq_len: 512
+  max_steps: 16
+  lr: 0.0005
+  min_lr_ratio: 0.1
+  weight_decay: 0.05
+  beta1: 0.9
+  beta2: 0.95
+  grad_clip: 1.0
+  schedule: wsd
+  warmup_steps: 2
+  decay_fraction: 0.2
+  branch_cooldown_tokens: null
+  precision: bf16
+  compile: false
+model_config_path: configs/model/sml_nano.yaml
+data_config_path: configs/data/tinystories.yaml
+hardware_config_path: configs/hardware/m4_pro_mps.yaml

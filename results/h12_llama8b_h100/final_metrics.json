@@ -1,0 +1,12 @@
+{
+  "h12_verified": true,
+  "sql_incident_retention_ratio": 0.9798646849634814,
+  "unslop_retention_ratio": 1.0,
+  "slop_and_refusal_rate": 2.7469081515237585e-07,
+  "subspace_safe_merge_releakage": 2.1614648915146972e-07,
+  "ties_biprojected_vs_naive_merge_gain": 0.7964753491688548,
+  "provider_ready": true,
+  "max_row_crest_factor": 6.324390635157204,
+  "backend": "llm",
+  "model_name": "meta-llama/Llama-3.1-8B-Instruct"
+}

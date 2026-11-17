@@ -1,21 +1,47 @@
 {
-  "base_model": "sml-surgery-6l",
-  "d_model": 4096,
-  "extraction_mode": "activation_contrastive",
-  "layer_weights": {
-    "0": 0.829195,
-    "4": 0.979317,
-    "5": 1.0
-  },
-  "model_id": "Tenet-8B-Llama3.1-Unslop-v1",
-  "num_layers": 32,
-  "probes_sha256": "2a95d50c1dd69cd9c0d3250e3d4752142711cd7ac92f2e7e3847801590004c00",
-  "scale": 1.0,
   "schema_version": "1.0",
+  "model_id": "Tenet-8B-Llama3.1-Unslop-v1",
+  "base_model": "meta-llama/Llama-3.1-8B-Instruct",
+  "extraction_mode": "activation_contrastive",
+  "d_model": 4096,
+  "num_layers": 32,
+  "scale": 1.0,
+  "top_k_layers": 16,
   "selected_layers": [
-    5,
-    4,
-    0
+    24,
+    28,
+    20,
+    14,
+    18,
+    11,
+    9,
+    10,
+    15,
+    25,
+    3,
+    29,
+    26,
+    27,
+    19,
+    4
   ],
-  "top_k_layers": 3
+  "layer_weights": {
+    "24": 1.0,
+    "28": 0.979073,
+    "20": 0.939033,
+    "14": 0.908226,
+    "18": 0.906306,
+    "11": 0.878011,
+    "9": 0.873305,
+    "10": 0.8314,
+    "15": 0.789365,
+    "25": 0.771251,
+    "3": 0.753139,
+    "29": 0.751782,
+    "26": 0.7483,
+    "27": 0.747559,
+    "19": 0.745135,
+    "4": 0.736681
+  },
+  "probes_sha256": "2a95d50c1dd69cd9c0d3250e3d4752142711cd7ac92f2e7e3847801590004c00"
 }

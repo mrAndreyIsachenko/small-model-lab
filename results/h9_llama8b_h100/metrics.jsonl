@@ -1,0 +1,1 @@
+{"step": 1, "timestamp_utc": "2026-11-17T22:23:05.715547+00:00", "anchor_orthogonality_error": 1e-08, "max_row_norm_drift": 0.00107741, "target_suppression_ratio": 0.992983, "naive_kl_collateral": 0.13372, "lancet_kl_collateral": 0.013525, "h9_kl_reduction_ratio": 0.8989}
