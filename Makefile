@@ -1,4 +1,4 @@
-.PHONY: help sync test lint format verify-h1 verify-env compare-adaptation run-surgery verify-h9 verify-h10 verify-h11 build-tenet train-smoke profile-h2-local gpu-smoke smoke report clean
+.PHONY: help sync test lint format verify-h1 verify-env compare-adaptation run-surgery verify-h9 verify-h10 verify-h11 verify-h12 build-tenet train-smoke profile-h2-local gpu-smoke smoke report clean
 
 help:
 	@echo "Small Model Lab — Available Commands:"
@@ -13,6 +13,7 @@ help:
 	@echo "  make verify-h9          Run H9 Lancet bi-projected surgery verification (nano/LLM)"
 	@echo "  make verify-h10         Run H10 unslop GRPO verification (gated reward shaping)"
 	@echo "  make verify-h11         Run H11 OpenRouter FP8 provider readiness & HF Hub verification"
+	@echo "  make verify-h12         Run H12 Gram-Schmidt subspace-safe merge (TIES biprojected) verification"
 	@echo "  make build-tenet        Build Tenet release bundle (GRPO-tuned weights + readiness report)"
 	@echo "  make train-smoke        Run end-to-end M2+M3 local pretraining smoke test (MPS/CUDA/CPU)"
 	@echo "  make profile-h2-local   Run 5-stage MFU throughput waterfall locally (MPS/CPU)"
@@ -53,6 +54,9 @@ verify-h10:
 
 verify-h11:
 	uv run sml verify-h11 --experiment experiments/h11_provider_fp8_readiness.yaml --output-dir results --run-id h11_provider_fp8_readiness
+
+verify-h12:
+	uv run sml verify-h12 --experiment experiments/h12_subspace_safe_merge.yaml --output-dir results --run-id h12_subspace_safe_merge
 
 build-tenet:
 	uv run sml build-tenet --output-dir results/tenet_releases --release-id Tenet-3B-Qwen2.5-Unslop-v1

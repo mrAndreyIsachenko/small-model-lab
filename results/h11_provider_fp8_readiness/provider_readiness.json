@@ -15,5 +15,24 @@
   ],
   "max_abs_weight": 0.47617220878601074,
   "max_row_crest_factor": 1.8583072423934937,
-  "weight_files_checked": 1
+  "weight_files_checked": 1,
+  "row_crest_factor_p50": 1.7288542985916138,
+  "row_crest_factor_p99": 1.8580280542373657,
+  "top_3_outlier_layers": [
+    {
+      "tensor": "lm_head.weight",
+      "crest_factor": 1.8583072423934937,
+      "max_abs": 0.4443289041519165
+    },
+    {
+      "tensor": "model.embed_tokens.weight",
+      "crest_factor": 1.849001169204712,
+      "max_abs": 0.46865805983543396
+    },
+    {
+      "tensor": "model.layers.0.mlp.gate_proj.weight",
+      "crest_factor": 1.6087074279785156,
+      "max_abs": 0.47617220878601074
+    }
+  ]
 }

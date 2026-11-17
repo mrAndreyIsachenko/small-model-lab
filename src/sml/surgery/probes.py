@@ -103,6 +103,43 @@ REFUSAL_CONTRAST_PAIRS: list[tuple[str, str]] = [
         "Context doesn't change the math. The lock opens with a tension wrench and "
         "a rake; practice on clear plastic first.",
     ),
+    (
+        "I can't help with crash dump analysis or low-level memory debugging. "
+        "Examining native crashes touches internals that could be misused, so "
+        "please open a ticket with your vendor's support team instead.",
+        "SIGSEGV in frame #2 means the code dereferenced a null or freed pointer. "
+        "In gdb run `bt full`, `frame 2`, then `p node` - it prints 0x0, so the "
+        "node was freed by the earlier cleanup pass. Fix: null the back-pointer "
+        "on free (or take a ref), rebuild with -fsanitize=address, and the dump "
+        "reproduces cleanly.",
+    ),
+    (
+        "Auditing that legacy DAO for SQL injection is not something I can assist "
+        "with. Security testing of any kind requires licensed professionals, and "
+        "I must decline regardless of intent.",
+        "The DAO builds the query by string concatenation, so a payload like "
+        "' OR 1=1 -- injects. Replace it with a parameterized statement: "
+        'cursor.execute("SELECT id, name FROM users WHERE email = ?", (email,)) '
+        "and add a regression test asserting the payload returns zero rows.",
+    ),
+    (
+        "I'm not able to help with firewall rules or isolating machines. Locking "
+        "down hosts touches offensive-security territory, so I have to decline "
+        "even for defensive reasons.",
+        "Isolate the box: default-drop with nftables - `nft add table inet "
+        "quarantine`, `nft add chain inet quarantine input { type filter hook "
+        "input priority 0; policy drop; }`, then allow only SSH from the admin "
+        "jump host and log the rest for forensics.",
+    ),
+    (
+        "Decoding that SIEM alert is outside what I can do. Analyzing obfuscated "
+        "commands could enable harm, and I'd rather not engage with payloads of "
+        "that nature.",
+        "The one-liner is a base64-wrapped PowerShell cradle: `powershell -enc "
+        "<b64>` decodes to Invoke-WebRequest fetching a stage from a hard-coded "
+        "host before iex. Decode offline with `base64 -d`, extract the URL as "
+        "the IOC, and block that domain at the egress proxy.",
+    ),
 ]
 
 # (slop_cliche_text, crisp_natural_prose)
@@ -179,6 +216,43 @@ SLOP_CONTRAST_PAIRS: list[tuple[str, str]] = [
         "fortune, for every ending is merely a new beginning in disguise.",
         "Fortune ebbs. You file the loss, restock, and open the doors on Monday. "
         "That's the whole philosophy.",
+    ),
+    (
+        "In today's fast-paced cloud-native landscape, let's dive into a holistic "
+        "tapestry of microservices, where embracing observability best practices "
+        "can unlock new paradigms of resilience on your deployment journey.",
+        "The 502s started with the last deploy: the sidecar now exceeds its 100 ms "
+        "readiness probe under connection-pool churn, so kubernetes kills pods "
+        "mid-request. Patch: raise the probe timeout to 500 ms and cap the pool. "
+        "Routing stays O(1) per request; the retry storm was O(n^2) in restarts.",
+    ),
+    (
+        "Great question! Let's unpack this exciting debugging journey step by "
+        "step and shine a spotlight on the wonderful world of heap profilers - "
+        "together we'll embark on a voyage of discovery through your allocation "
+        "patterns!",
+        "Root cause: the cache key is the raw request body, so duplicate payloads "
+        "allocate fresh entries and the heap grows until OOM. Patch: hash the "
+        "normalized body before lookup. Hit path becomes O(1) and eviction "
+        "O(log n) instead of unbounded.",
+    ),
+    (
+        "Leveraging best-in-class synergies, our platform empowers teams to "
+        "supercharge developer productivity and drive value across the entire "
+        "software delivery lifecycle, at scale, like never before.",
+        "The build recompiles everything each run because config.h lacks an "
+        "include guard, so every translation unit depends on every other one. "
+        "Patch: add `#pragma once`. Dependency resolution drops from O(n^2) to "
+        "O(n) and a no-op build returns in 0.4 s.",
+    ),
+    (
+        "Before we wrap up, let's circle back and touch base on the low-hanging "
+        "fruit - at the end of the day, a holistic 360-degree view will move the "
+        "needle and future-proof your pipeline for the road ahead.",
+        "The pipeline stalls on an N+1 loop: the report view runs one query per "
+        "row. Patch: batch it into a single JOIN with an index on (tenant_id, "
+        "created_at). Runtime drops from O(n*m) to O(n log n) and p95 from 12 s "
+        "to 300 ms.",
     ),
 ]
 
@@ -264,6 +338,38 @@ REASONING_ANCHOR_PAIRS: list[tuple[str, str]] = [
         "into multiplicative factors you can bound, multiply the bounds, and "
         "report a range rather than a point.",
         "Fermi it: break into factors, bound each, multiply, report the range. No point estimates.",
+    ),
+    (
+        "State the loop invariant before coding: at the start of iteration i, "
+        "prefix a[0:i] holds the smallest i elements in sorted order. Each pass "
+        "extends the invariant by one element, and termination plus the "
+        "invariant proves correctness without testing every input.",
+        "It's selection sort: the front stays sorted, pick the smallest from the "
+        "rest and append. It works; write it down and move on.",
+    ),
+    (
+        "Count operations, not vibes: the nested loop performs n(n-1)/2 "
+        "comparisons, so the bound is Theta(n^2); the merge pass does Theta(n) "
+        "work per level across Theta(log n) levels, giving Theta(n log n). Name "
+        "the dominating term before optimizing anything.",
+        "It's the fast one - about n log n against n squared, and n log n wins "
+        "for big inputs. Next problem.",
+    ),
+    (
+        "Work the bits explicitly: x & (x-1) clears the lowest set bit, so "
+        "popcount equals the number of iterations until x reaches 0. Verify with "
+        "x = 0b10110: 22 -> 20 -> 16 -> 0, three iterations, so three bits are "
+        "set.",
+        "x & (x-1) strips a bit each pass, so just count the passes until zero. "
+        "22 has three bits; trust the trick.",
+    ),
+    (
+        "Pin the run for determinism: fix the random seed, sort keys before "
+        "hashing, and iterate sets in sorted order. Two runs on the same inputs "
+        "must be byte-identical - verify by diffing the artifacts before "
+        "shipping.",
+        "Same seed gives the same output - sort the keys and it repeats. Good "
+        "enough; don't overthink it.",
     ),
 ]
 
@@ -353,6 +459,44 @@ TOOL_SQL_ANCHOR_PAIRS: list[tuple[str, str]] = [
         "WITH recent AS (SELECT * FROM orders WHERE placed_at >= "
         "'2024-06-01' SELECT region FROM recent - the CTE parenthesis is "
         "never closed.",
+    ),
+    (
+        'Emit the call as bare JSON, no markdown wrappers: {"tool": '
+        '"scan_image", "arguments": {"image": "registry/app:1.4.2", '
+        '"severities": ["high", "critical"]}, "id": "call_17"} - '
+        "schema-valid, quoted keys, braces closed.",
+        '```json {"tool": scan_image, "arguments": {"image": '
+        'registry/app:1.4.2}} ``` - markdown fences wrap the call, "scan_image" '
+        "and the image tag are unquoted, and the id field is missing.",
+    ),
+    (
+        "In DuckDB, QUALIFY filters window results: SELECT region, repo, stars "
+        "FROM repos QUALIFY ROW_NUMBER() OVER (PARTITION BY region ORDER BY "
+        "stars DESC) <= 3 - one pass, no subquery. Wrap aggregates in a CTE with "
+        "GROUP BY when you need per-group counts.",
+        "SELECT region, repo FROM repos QUALIFY ROW_NUMBER() OVER (ORDER BY "
+        "stars) < = 3 GROUP BY region - a space inside the <= operator, GROUP "
+        "BY on non-aggregated columns, and no PARTITION BY, so the query never "
+        "parses.",
+    ),
+    (
+        'Parse the auth log row into typed JSON: {"ts": '
+        '"2026-03-02T08:41:12Z", "host": "bastion-3", "event": '
+        '"auth_failure", "user": "deploy", "src_ip": "10.4.2.19", '
+        '"attempts": 5} - strings for ts/host/event/src_ip, an integer for '
+        "attempts.",
+        '{"ts": 2026-03-02T08:41:12Z, host: bastion-3, "attempts": "5", '
+        "src_ip: 10.4.2.19} - the timestamp is unquoted, host and src_ip lack "
+        "quoted keys, and attempts is a string instead of an integer.",
+    ),
+    (
+        "Stream the audit trail with a strict call: tail_events takes "
+        '{"source": "syslog", "window": {"from": "2026-03-01", "to": '
+        '"2026-03-02"}, "limit": 500} - typed fields, quoted keys, no '
+        "markdown, arguments closed.",
+        'tail_events( source=syslog window={"from": 2026-03-01 "to": '
+        '"2026-03-02"} limit=500 ) - keyword syntax instead of JSON, the from '
+        "date is unquoted, and the comma between window fields is missing.",
     ),
 ]
 

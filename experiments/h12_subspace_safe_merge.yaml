@@ -1,0 +1,40 @@
+experiment_id: h12_subspace_safe_merge
+hypothesis_id: H12
+hypothesis: >
+  Naive linear merge (Delta W_SQL + Delta W_unslop) of two specialized GRPO adapters
+  causes destructive gradient interference — degrading G_evidence * R_correctness on
+  SQL incidents or re-leaking slop/refusals. Orthogonalized TIES / Gram-Schmidt
+  Subspace-Safe Merge (Delta W_unslop^perp projected orthogonally to both
+  U_{refusal/slop} and top singular directions of Delta W_SQL with row-norm
+  preservation) retains >= 95% of both skills and passes the H11 FP8 E4M3 gate.
+prediction: >
+  TIES biprojected subspace-safe merge retains sql_incident_retention_ratio >= 0.95
+  and unslop_retention_ratio >= 0.95, keeps slop_and_refusal_rate <= 0.02 (nano) /
+  <= 0.10 (3B), subspace_safe_merge_releakage < 1e-5 (nano), achieves
+  ties_biprojected_vs_naive_merge_gain >= 0.15 on the joint benchmark
+  (StatefulToolEnv + TenetUnslopRubric), and passes provider_ready == True
+  (Row Crest-Factor < 25.0).
+acceptance_criterion: >
+  sql_incident_retention_ratio >= 0.95 and slop_and_refusal_rate <= 0.02 and
+  subspace_safe_merge_releakage < 1e-5 and ties_biprojected_vs_naive_merge_gain >= 0.15
+  and provider_ready == True
+seed: 2026
+model_config_path: configs/model/sml_nano.yaml
+data_config_path: configs/data/tinystories.yaml
+hardware_config_path: configs/hardware/m4_pro_mps.yaml
+train:
+  batch_size_tokens: 4096
+  micro_batch_size: 2
+  seq_len: 512
+  max_steps: 27
+  lr: 0.0005
+  min_lr_ratio: 0.1
+  weight_decay: 0.05
+  beta1: 0.9
+  beta2: 0.95
+  grad_clip: 1.0
+  schedule: wsd
+  warmup_steps: 2
+  decay_fraction: 0.2
+  precision: bf16
+  compile: false

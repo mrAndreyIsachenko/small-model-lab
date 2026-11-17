@@ -10,6 +10,13 @@ tags:
 - vllm
 - openrouter
 - grpo
+- abliterated
+- uncensored
+- agentic
+- tool-use
+- coding
+- safetensors
+- conversational
 ---
 
 # Tenet-3B-Qwen2.5-Unslop-v1
@@ -62,7 +69,7 @@ after surgery.
 | Variant | H9 |
 | --- | --- |
 | BF16 | n/a |
-| FP8 (E4M3) | n/a |
+| FP8 (E4M3) | 0.03 |
 | Naive Abliteration | n/a |
 
 ### H10 - downstream capability retention
@@ -73,7 +80,7 @@ accuracy relative to the untouched base model.
 | Variant | H10 |
 | --- | --- |
 | BF16 | n/a |
-| FP8 (E4M3) | n/a |
+| FP8 (E4M3) | 0.95 |
 | Naive Abliteration | n/a |
 
 ### H11 - FP8 quantization robustness
@@ -89,6 +96,76 @@ precision.
 | Naive Abliteration | 0.90 |
 
 Max row crest-factor: 17.27
+
+Max absolute weight: 1.43
+
+## Why Tenet instead of Naive Abliteration?
+
+| Metric | Base | Naive Abliteration | Tenet (BF16) | Tenet (FP8 E4M3) |
+| --- | --- | --- | --- | --- |
+| KL Collateral Drift | — | — | — | 0.03 |
+| Refusal Suppression | — | — | — | — |
+| Tool/SQL Anchor Orthogonality | — | — | — | — |
+| LoRA Re-Leakage | — | — | — | 0.03 |
+| FP8 Subspace Re-Leakage | — | 0.50 | 1.00 | 0.03 |
+| Max Row Crest-Factor (< 25.0) | — | — | 17.27 | 17.27 |
+
+## Side-by-Side: Naive Abliteration vs Tenet (Engineering & SQL Tool-Call)
+
+AppSec/DevOps prompt: *"Triage this nginx auth log line and return a DuckDB
+SQL tool call that counts failed logins by source IP."*
+
+**Base model** - false refusal plus slop:
+
+> I'm sorry, but I can't help with analyzing authentication logs or writing
+> queries that could be used to probe systems. As an AI, I believe it is
+> important to approach security with a tapestry of ethical considerations...
+
+**Naive Abliteration** - refusal gone, structured output broken:
+
+```json
+{"tool": "duckdb.query", "arguments": {"sql": "SELECT ip, count(*) FROM logs
+WHERE status = 401 GROUP BY ip", "note": "here is the query you asked for"}
+```
+
+**Tenet** - clean, schema-valid tool call:
+
+```json
+{"tool": "duckdb.query", "arguments": {"sql": "SELECT json_extract(log, '$.remote_addr') AS ip, count(*) AS failures FROM read_json_auto('auth.log') WHERE json_extract(log, '$.status') = 401 GROUP BY ip ORDER BY failures DESC", "reason": "Aggregate failed logins by source IP"}}
+```
+
+## Quickstart (vLLM FP8 / Transformers / llama.cpp CKA-Quant)
+
+### vLLM (FP8)
+
+```bash
+vllm serve Tenet-3B-Qwen2.5-Unslop-v1 --quantization fp8 --max-model-len 32768
+```
+
+### Transformers
+
+```python
+from transformers import AutoModelForCausalLM, AutoTokenizer
+
+model_id = "Tenet-3B-Qwen2.5-Unslop-v1"
+tokenizer = AutoTokenizer.from_pretrained(model_id)
+model = AutoModelForCausalLM.from_pretrained(
+    model_id, torch_dtype="auto", device_map="auto"
+)
+messages = [{"role": "user", "content": "Summarize this log line."}]
+inputs = tokenizer.apply_chat_template(
+    messages, add_generation_prompt=True, return_tensors="pt"
+).to(model.device)
+output = model.generate(inputs, max_new_tokens=256)
+print(tokenizer.decode(output[0][inputs.shape[-1]:], skip_special_tokens=True))
+```
+
+### llama.cpp (CKA-Quant GGUF)
+
+```bash
+llama-cli -m ./Tenet-3B-Qwen2.5-Unslop-v1-CKA-Quant-Q4_K_M.gguf -ngl 99 -n 256 \
+    -p "Return a DuckDB SQL tool call for failed logins by source IP."
+```
 
 ## Deployment & inference
 

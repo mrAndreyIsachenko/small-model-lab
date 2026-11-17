@@ -1,18 +1,35 @@
 {
   "artifacts": {
-    "config": "results/tenet_releases/Tenet-3B-Qwen2.5-Unslop-v1/config.json",
-    "lancet_basis": "results/tenet_releases/Tenet-3B-Qwen2.5-Unslop-v1/lancet_basis.safetensors",
-    "lancet_recipe": "results/tenet_releases/Tenet-3B-Qwen2.5-Unslop-v1/lancet_recipe.json",
+    "cka_quant_recipe": "results/tenet_releases/Tenet-3B-Qwen2.5-Unslop-v1/cka_quant_recipe.json",
     "openrouter_onboarding_json": "results/tenet_releases/Tenet-3B-Qwen2.5-Unslop-v1/openrouter_onboarding.json",
     "openrouter_onboarding_md": "results/tenet_releases/Tenet-3B-Qwen2.5-Unslop-v1/OPENROUTER_ONBOARDING.md",
-    "readme": "results/tenet_releases/Tenet-3B-Qwen2.5-Unslop-v1/README.md",
-    "release_manifest": "results/tenet_releases/Tenet-3B-Qwen2.5-Unslop-v1/release_manifest.json",
-    "tokenizer_config": "results/tenet_releases/Tenet-3B-Qwen2.5-Unslop-v1/tokenizer_config.json",
-    "weights": "results/tenet_releases/Tenet-3B-Qwen2.5-Unslop-v1/model.safetensors"
+    "pareto_svg": "results/tenet_releases/Tenet-3B-Qwen2.5-Unslop-v1/assets/lancet_vs_naive_pareto.svg",
+    "provider_readiness_json": "results/tenet_releases/Tenet-3B-Qwen2.5-Unslop-v1/provider_readiness.json",
+    "readme": "results/tenet_releases/Tenet-3B-Qwen2.5-Unslop-v1/README.md"
   },
-  "backend": "nano",
-  "hf_repo_id": "tenet-lab/Tenet-3B-Qwen2.5-Unslop-v1",
-  "model_name": "Qwen/Qwen2.5-3B-Instruct",
+  "base_model": "Qwen/Qwen2.5-3B-Instruct",
+  "cka_quant_recipe": {
+    "boundary_layers": [
+      0,
+      35
+    ],
+    "estimated_avg_bpw": 4.948,
+    "q6_k_layers": [
+      5
+    ],
+    "q8_0_layers": [
+      0,
+      4,
+      35
+    ]
+  },
+  "hf_repo_id": "small-model-lab/Tenet-3B-Qwen2.5-Unslop-v1",
+  "metrics_sources": {
+    "h10": "results/h10_qwen3b_mps/final_metrics.json",
+    "h11": "results/h11_qwen3b_mps/final_metrics.json",
+    "h12": "results/h12_qwen3b_mps/final_metrics.json",
+    "h9": "results/h9_qwen3b_mps/final_metrics.json"
+  },
   "provider_readiness": {
     "architectures": [
       "Qwen2ForCausalLM"
@@ -31,6 +48,25 @@
     "max_abs_weight": 0.0848047137260437,
     "max_row_crest_factor": 3.6828184127807617,
     "ready": true,
+    "row_crest_factor_p50": 3.4506185054779053,
+    "row_crest_factor_p99": 3.6745986938476562,
+    "top_3_outlier_layers": [
+      {
+        "crest_factor": 3.6828184127807617,
+        "max_abs": 0.0776083841919899,
+        "tensor": "model.embed_tokens.weight"
+      },
+      {
+        "crest_factor": 3.565394163131714,
+        "max_abs": 0.08322040736675262,
+        "tensor": "model.layers.0.mlp.gate_proj.weight"
+      },
+      {
+        "crest_factor": 3.480825424194336,
+        "max_abs": 0.06623952090740204,
+        "tensor": "model.layers.0.mlp.down_proj.weight"
+      }
+    ],
     "weight_files_checked": 1
   },
   "ready": true,

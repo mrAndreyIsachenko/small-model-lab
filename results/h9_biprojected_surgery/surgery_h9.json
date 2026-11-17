@@ -2,112 +2,112 @@
   "h9_verified": true,
   "backend": "nano",
   "model_name": "sml-surgery-6l",
-  "probes_sha256": "a0d17b2a2f741cf6b1372a0b1277d7851809b266d032553fff72ccc9352ed78b",
+  "probes_sha256": "2a95d50c1dd69cd9c0d3250e3d4752142711cd7ac92f2e7e3847801590004c00",
   "recipe_metadata": {
     "schema_version": "1.0",
-    "probes_sha256": "a0d17b2a2f741cf6b1372a0b1277d7851809b266d032553fff72ccc9352ed78b",
+    "probes_sha256": "2a95d50c1dd69cd9c0d3250e3d4752142711cd7ac92f2e7e3847801590004c00",
     "selected_layers": [
-      4,
       5,
+      4,
       0
     ],
     "d_model": 128,
     "num_layers": 6
   },
-  "anchor_orthogonality_error": 4e-08,
+  "anchor_orthogonality_error": 6e-08,
   "tool_sql_orthogonality_error": 4e-08,
-  "probe_evr_refusal": 0.22267,
-  "probe_evr_slop": 0.224789,
+  "probe_evr_refusal": 0.215511,
+  "probe_evr_slop": 0.279798,
   "layer_alpha_schedule": {
-    "4": 1.0,
-    "5": 0.77175,
-    "0": 0.723654
+    "5": 1.0,
+    "4": 0.979185,
+    "0": 0.829126
   },
   "max_row_norm_drift": 2e-08,
-  "target_suppression_ratio": 0.981041,
-  "naive_kl_collateral": 0.001112,
-  "lancet_kl_collateral": 0.000341,
-  "h9_kl_reduction_ratio": 0.6935,
+  "target_suppression_ratio": 0.98542,
+  "naive_kl_collateral": 0.001317,
+  "lancet_kl_collateral": 0.000515,
+  "h9_kl_reduction_ratio": 0.6092,
   "selected_layers": [
-    4,
     5,
+    4,
     0
   ],
   "scr_profile": [
     {
-      "layer_idx": 4,
-      "signal": 0.02590465033426881,
-      "kl_collateral": 0.00010049346747109666,
-      "scr": 255.23465676887966
+      "layer_idx": 5,
+      "signal": 0.028804602101445198,
+      "kl_collateral": 0.000148504797834903,
+      "scr": 192.66674059018428
     },
     {
-      "layer_idx": 5,
-      "signal": 0.02770298905670643,
-      "kl_collateral": 0.00013964051322545856,
-      "scr": 196.97730349075312
+      "layer_idx": 4,
+      "signal": 0.02657842170447111,
+      "kl_collateral": 0.00013988274440634996,
+      "scr": 188.65633130918164
     },
     {
       "layer_idx": 0,
-      "signal": 0.02956975856795907,
-      "kl_collateral": 0.00015909473586361855,
-      "scr": 184.7016293724295
-    },
-    {
-      "layer_idx": 1,
-      "signal": 0.031925634015351534,
-      "kl_collateral": 0.00017293757991865277,
-      "scr": 183.54650001616977
+      "signal": 0.02963958028703928,
+      "kl_collateral": 0.0001845431252149865,
+      "scr": 159.744966312798
     },
     {
       "layer_idx": 3,
-      "signal": 0.02721118601039052,
-      "kl_collateral": 0.00017676792049314827,
-      "scr": 153.0714086934449
+      "signal": 0.02752820122987032,
+      "kl_collateral": 0.00020685952040366828,
+      "scr": 132.43656666006868
     },
     {
       "layer_idx": 2,
-      "signal": 0.029812163673341274,
-      "kl_collateral": 0.00021279622160363942,
-      "scr": 139.44195762547463
+      "signal": 0.03045705985277891,
+      "kl_collateral": 0.00024032843066379428,
+      "scr": 126.20585054568245
+    },
+    {
+      "layer_idx": 1,
+      "signal": 0.03255721600726247,
+      "kl_collateral": 0.00027315234183333814,
+      "scr": 118.75592887349673
     }
   ],
   "diagnostics": {
     "top_k_layers": 3,
     "scale": 1.0,
     "per_layer_anchor_orthogonality": {
-      "0": 2e-08,
+      "0": 3e-08,
       "1": 4e-08,
-      "2": 1e-08,
-      "3": 0.0,
-      "4": 3e-08,
+      "2": 4e-08,
+      "3": 6e-08,
+      "4": 1e-08,
       "5": 2e-08
     },
     "per_layer_tool_sql_orthogonality": {
-      "0": 3e-08,
-      "1": 2e-08,
+      "0": 2e-08,
+      "1": 3e-08,
       "2": 1e-08,
-      "3": 2e-08,
-      "4": 4e-08,
-      "5": 2e-08
+      "3": 4e-08,
+      "4": 2e-08,
+      "5": 1e-08
     },
     "per_layer_evr_refusal": {
-      "0": 0.184798,
-      "1": 0.204129,
-      "2": 0.215482,
-      "3": 0.237843,
-      "4": 0.232632,
-      "5": 0.261136
+      "0": 0.149441,
+      "1": 0.171282,
+      "2": 0.21071,
+      "3": 0.210916,
+      "4": 0.262258,
+      "5": 0.288456
     },
     "per_layer_evr_slop": {
-      "0": 0.170269,
-      "1": 0.18365,
-      "2": 0.205463,
-      "3": 0.270311,
-      "4": 0.255235,
-      "5": 0.263807
+      "0": 0.165499,
+      "1": 0.214511,
+      "2": 0.248306,
+      "3": 0.348535,
+      "4": 0.342235,
+      "5": 0.359701
     },
-    "unweighted_suppression_ratio": 0.782118,
-    "naive_row_norm_drift": 0.00632194,
+    "unweighted_suppression_ratio": 0.891836,
+    "naive_row_norm_drift": 0.00782376,
     "naive_suppression_ratio": 1.0
   }
 }

@@ -6,7 +6,7 @@
 - **Model:** `Qwen2.5-3B-Instruct` (`3,085,846,528` total / `2,774,681,600` non-emb)
 - **Dataset:** `tinystories-smoke`
 - **Hardware:** `apple-m4-pro-48gb` (`$0.00/hr`)
-- **Git SHA:** `dfe5d9569adc67d62b9ee37039d03d21f2066b8f` (dirty: `True`)
+- **Git SHA:** `eab01f01b3dcdcccce05d31156c37c1ce3bd7000` (dirty: `True`)
 
 ## Hypothesis & Prediction
 - **Hypothesis:** Lancet bi-projected norm-preserving surgery + gated unslop GRPO produces Tenet checkpoints that survive vLLM server-side FP8 (E4M3) quantization with >= 96% quality retention (fp8_retention_ratio >= 0.96) and >= 25% lower FP8 KL degradation than naive ablation without row-norm preservation (h11_fp8_kl_reduction_ratio >= 0.25), while passing strict OpenRouter provider readiness checks (standard LlamaForCausalLM/Qwen2ForCausalLM/MistralForCausalLM architecture, zero trust_remote_code/auto_map, valid chat_template, no NaN/Inf or unmerged lora_ keys, max_abs_weight < 50.0) and generating HF Hub model cards for the Tenet lineup.
@@ -34,8 +34,8 @@
 - **`model_cards`:** `['Tenet-3B-Qwen2.5-Unslop-v1', 'Tenet-8B-Llama3.1-Unslop-v1', 'Tenet-12B-Nemo-Unslop-v1']`
 
 ## Compute & Cost
-- **Active GPU-Hours:** `0.005926`
-- **Billed GPU-Hours:** `0.005926`
+- **Active GPU-Hours:** `0.006901`
+- **Billed GPU-Hours:** `0.006901`
 - **Billed Cost (USD):** `$0.0000` (pre-run estimate: `$0.0000`)
 
 ## Conclusion

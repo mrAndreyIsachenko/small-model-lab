@@ -31,6 +31,13 @@ STANDARD_ARCHITECTURES = {
     "LlamaForCausalLM",
     "Qwen2ForCausalLM",
     "MistralForCausalLM",
+    "Qwen3ForCausalLM",
+    "Qwen2MoeForCausalLM",
+    "Qwen3MoeForCausalLM",
+    "Gemma2ForCausalLM",
+    "Gemma3ForCausalLM",
+    "Phi3ForCausalLM",
+    "MixtralForCausalLM",
 }
 
 MAX_ABS_WEIGHT_THRESHOLD = 50.0
@@ -58,7 +65,9 @@ def verify_provider_readiness(checkpoint_dir: Path | str) -> dict[str, Any]:
     """Validate that ``checkpoint_dir`` is ready for provider deployment.
 
     Returns a dict with ``ready``, ``errors``, ``checks``, ``architectures``,
-    ``max_abs_weight`` and ``weight_files_checked`` keys.
+    ``max_abs_weight``, ``max_row_crest_factor``, ``weight_files_checked``,
+    ``row_crest_factor_p50``, ``row_crest_factor_p99`` and
+    ``top_3_outlier_layers`` keys.
     """
     checkpoint = Path(checkpoint_dir)
     checks: dict[str, bool] = {name: True for name in CHECK_NAMES}
@@ -93,7 +102,9 @@ def verify_provider_readiness(checkpoint_dir: Path | str) -> dict[str, Any]:
         for path in checkpoint.glob(pattern)
         if path.is_file() and path.name != RECIPE_BASIS_FILENAME
     )
-    max_abs_weight, max_row_crest_factor = _inspect_weights(weight_files, checks, errors)
+    weight_stats = _inspect_weights(weight_files, checks, errors)
+    max_abs_weight = weight_stats["max_abs_weight"]
+    max_row_crest_factor = weight_stats["max_row_crest_factor"]
     checks["weight_outliers_ok"] = max_abs_weight < MAX_ABS_WEIGHT_THRESHOLD
     checks["acceptable_row_crest_factor"] = max_row_crest_factor < MAX_ROW_CREST_FACTOR_THRESHOLD
 
@@ -105,6 +116,9 @@ def verify_provider_readiness(checkpoint_dir: Path | str) -> dict[str, Any]:
         "max_abs_weight": max_abs_weight,
         "max_row_crest_factor": max_row_crest_factor,
         "weight_files_checked": len(weight_files),
+        "row_crest_factor_p50": weight_stats["row_crest_factor_p50"],
+        "row_crest_factor_p99": weight_stats["row_crest_factor_p99"],
+        "top_3_outlier_layers": weight_stats["top_3_outlier_layers"],
     }
 
 
@@ -430,10 +444,19 @@ def _inspect_weights(
     weight_files: list[Path],
     checks: dict[str, bool],
     errors: list[str],
-) -> tuple[float, float]:
-    """Scan weight tensors and return the largest absolute weight and row crest-factor."""
+) -> dict[str, Any]:
+    """Scan weight tensors and summarize weight magnitudes and row crest factors.
+
+    Returns a dict with ``max_abs_weight``, ``max_row_crest_factor``,
+    ``row_crest_factor_p50``, ``row_crest_factor_p99`` and
+    ``top_3_outlier_layers`` keys. The percentile diagnostics fall back to
+    ``0.0`` (and the outlier list to empty) when there are no 2D
+    floating-point weight tensors.
+    """
     max_abs_weight = 0.0
     max_row_crest_factor = 0.0
+    crest_factors: list[float] = []
+    outlier_layers: list[dict[str, Any]] = []
     for path in weight_files:
         if path.name == RECIPE_BASIS_FILENAME:
             continue  # Lancet recipe basis artifact, not model weights
@@ -452,10 +475,35 @@ def _inspect_weights(
                 max_abs_weight = max(max_abs_weight, magnitude)
             if tensor.ndim == 2 and tensor.numel() > 0 and tensor.is_floating_point():
                 w = tensor.detach().to(dtype=torch.float32)
+                row_abs_max = w.abs().amax(dim=1)
                 row_rms = torch.sqrt((w * w).mean(dim=1) + 1e-8)
-                row_crest = (w.abs().amax(dim=1) / row_rms).max().item()
-                max_row_crest_factor = max(max_row_crest_factor, float(row_crest))
-    return max_abs_weight, max_row_crest_factor
+                row_crest = float((row_abs_max / row_rms).max().item())
+                max_row_crest_factor = max(max_row_crest_factor, row_crest)
+                crest_factors.append(row_crest)
+                outlier_layers.append(
+                    {
+                        "tensor": key,
+                        "crest_factor": row_crest,
+                        "max_abs": float(row_abs_max.max().item()),
+                    }
+                )
+    if crest_factors:
+        distribution = torch.tensor(crest_factors, dtype=torch.float32)
+        row_crest_p50 = float(torch.quantile(distribution, 0.5).item())
+        row_crest_p99 = float(torch.quantile(distribution, 0.99).item())
+    else:
+        row_crest_p50 = 0.0
+        row_crest_p99 = 0.0
+    top_3_outlier_layers = sorted(
+        outlier_layers, key=lambda entry: entry["crest_factor"], reverse=True
+    )[:3]
+    return {
+        "max_abs_weight": max_abs_weight,
+        "max_row_crest_factor": max_row_crest_factor,
+        "row_crest_factor_p50": row_crest_p50,
+        "row_crest_factor_p99": row_crest_p99,
+        "top_3_outlier_layers": top_3_outlier_layers,
+    }
 
 
 def _load_weights(path: Path, errors: list[str]) -> Any:
