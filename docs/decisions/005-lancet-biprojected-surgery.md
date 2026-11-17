@@ -85,33 +85,33 @@ Verified via `run_h9_biprojected_surgery_benchmark`, `run_h10_unslop_grpo_benchm
 
 | Metric | `sml-nano` ([`results/h9_biprojected_surgery/`](../../results/h9_biprojected_surgery/final_metrics.json)) | `Qwen/Qwen2.5-3B-Instruct` MPS ([`results/h9_qwen3b_mps/`](../../results/h9_qwen3b_mps/final_metrics.json)) |
 | --- | --- | --- |
-| `h9_verified` | `true` | — |
-| `anchor_orthogonality_error` | < 1e-6 | `1.8e-07` |
-| `tool_sql_orthogonality_error` | — | `1.4e-07` |
-| `target_suppression_ratio` | — | `0.9704` |
-| `naive_kl_collateral` | — | `2.6353` |
-| `lancet_kl_collateral` | — | `0.0244` |
-| `h9_kl_reduction_ratio` | `0.6934` | `0.9907` |
-| `max_row_norm_drift` | < 1e-5 | `0.00134` (bf16 ULP) |
+| `h9_verified` | `true` | `true` |
+| `anchor_orthogonality_error` | < 1e-6 | `1.0e-07` |
+| `tool_sql_orthogonality_error` | `4.0e-08` | `7.0e-08` |
+| `target_suppression_ratio` | `0.9854` | `0.9694` |
+| `naive_kl_collateral` | `0.001317` | `3.7607` |
+| `lancet_kl_collateral` | `0.000515` | `0.0220` |
+| `h9_kl_reduction_ratio` | `0.6092` | `0.9941` |
+| `max_row_norm_drift` | < 1e-5 | `0.00161` (bf16 ULP) |
 
 **`H10` — Tenet Subspace-Safe GRPO**
 
 | Metric | `sml-nano` ([`results/h10_unslop_grpo/`](../../results/h10_unslop_grpo/final_metrics.json)) | `Qwen/Qwen2.5-3B-Instruct` MPS ([`results/h10_qwen3b_mps/`](../../results/h10_qwen3b_mps/final_metrics.json)) |
 | --- | --- | --- |
-| `h10_verified` | `true` | — |
-| `slop_and_refusal_rate` | `0.0077` | `2e-05` |
-| `h10_gated_vs_naive_gain` | `+0.2173` | — |
-| `h10_post_surgery_gain` | `+0.6698` | — |
-| `post_merge_suppression_retention` | — | `0.999958` |
-| `unprojected_lora_releakage` | — | `0.012533` |
-| `subspace_safe_lora_releakage` | < 1e-5 | `0.006358` |
+| `h10_verified` | `true` | `true` |
+| `slop_and_refusal_rate` | `0.0150` | `0.0909` (`2e-05` surgical-only) |
+| `h10_gated_vs_naive_gain` | `+0.2276` | `+0.1602` |
+| `h10_post_surgery_gain` | `+0.6611` | `+0.3598` |
+| `post_merge_suppression_retention` | `1.0` | `1.0` |
+| `unprojected_lora_releakage` | `3.5124` | `0.8300` |
+| `subspace_safe_lora_releakage` | < 1e-5 | `0.0690` |
 | `merged_lora_count` | `0` | `0` |
 
 **`H11` — FP8 Re-Leakage & Crest-Factor Provider Readiness**
 
 | Metric | `sml-nano` ([`results/h11_provider_fp8_readiness/`](../../results/h11_provider_fp8_readiness/final_metrics.json)) | `Qwen/Qwen2.5-3B-Instruct` MPS ([`results/h11_qwen3b_mps/`](../../results/h11_qwen3b_mps/final_metrics.json)) |
 | --- | --- | --- |
-| `h11_verified` | `true` | — |
+| `h11_verified` | `true` | `true` |
 | `fp8_retention_ratio` | `0.9997` | `0.9541` |
 | `h11_fp8_kl_reduction_ratio` | `0.4558` | `0.5185` |
 | `kl_naive_fp8` | `0.000464` | `0.0975` |
@@ -132,5 +132,5 @@ On `Qwen/Qwen2.5-3B-Instruct` MPS, FP8 re-leakage confirms the Stage 3 diagnosis
 * Row L2 norms are preserved to < 1e-5, so residual-stream activation variance — and therefore FP8 quantization fidelity of edited checkpoints on OpenRouter — remains stable without recalibration.
 * SCR ranking concentrates edits in a few auditable layers (`selected_layers` is recorded in the run bundle), reducing the edit surface exposed to collateral regressions.
 * Target directions must be re-extracted per model and per layer; the hashed probe encoding keeps extraction deterministic and tokenizer-free, so surgery is reproducible from a seed alone.
-* (`H10`) RL fine-tuning after surgery is safe by construction: the `I - U U^{\top}` merge keeps GRPO updates orthogonal to the ablated span (`subspace_safe_lora_releakage < 1e-5` on `sml-nano`, `0.006358` vs `0.012533` unprojected on `Qwen2.5-3B-Instruct`), and target suppression survives the merge (`post_merge_suppression_retention = 0.999958`).
+* (`H10`) RL fine-tuning after surgery is safe by construction: the `I - U U^{\top}` merge keeps GRPO updates orthogonal to the ablated span (`subspace_safe_lora_releakage < 1e-5` on `sml-nano`, `0.0690` vs `0.8300` unprojected on `Qwen2.5-3B-Instruct`), and target suppression survives the merge (`post_merge_suppression_retention = 1.0`).
 * (`H11`) Edited checkpoints are certified against provider quantization before release, not after: FP8 re-leakage (`0.0310` Lancet vs `0.4996` naive on `sml-nano`; `0.0270` vs `0.5003` on `Qwen2.5-3B-Instruct`) and the `max_row_crest_factor < 25.0` gate (`17.2706` on `Qwen2.5-3B-Instruct`) make FP8 provider readiness a measured, reproducible property of the artifact, recorded in every `Tenet` model card.

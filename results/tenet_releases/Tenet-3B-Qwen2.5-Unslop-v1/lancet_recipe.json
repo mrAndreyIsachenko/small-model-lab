@@ -8,14 +8,14 @@
   "scale": 1.0,
   "top_k_layers": 3,
   "selected_layers": [
-    4,
     5,
+    4,
     0
   ],
   "layer_weights": {
-    "4": 1.0,
-    "5": 0.771699,
-    "0": 0.723536
+    "5": 1.0,
+    "4": 0.979317,
+    "0": 0.829195
   },
-  "probes_sha256": "a0d17b2a2f741cf6b1372a0b1277d7851809b266d032553fff72ccc9352ed78b"
+  "probes_sha256": "2a95d50c1dd69cd9c0d3250e3d4752142711cd7ac92f2e7e3847801590004c00"
 }

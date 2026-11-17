@@ -10,7 +10,7 @@ import time
 from pathlib import Path
 
 from sml.config import ModelConfig, load_experiment_spec, load_model_config
-from sml.hub.release import build_tenet_release_bundle
+from sml.hub.release import build_tenet_release_bundle, export_hub_bundle_from_results
 from sml.model import (
     KVCache,
     Transformer,
@@ -1051,6 +1051,119 @@ def _cmd_verify_h10(args: argparse.Namespace) -> int:
     return 0 if res["h10_verified"] else 1
 
 
+def _cmd_verify_h12(args: argparse.Namespace) -> int:
+    import json
+    import time
+
+    from sml.adaptation.merge import (
+        run_h12_subspace_safe_merge_benchmark,
+        run_llm_h12_subspace_safe_merge_benchmark,
+    )
+    from sml.config import load_experiment_spec
+    from sml.tracking.manifest import RunRecorder
+
+    spec = load_experiment_spec(args.experiment)
+    output_dir = Path(args.output_dir)
+    run_id = args.run_id or ("h12_qwen3b_mps" if args.backend == "llm" else spec.experiment_id)
+
+    t0 = time.perf_counter()
+    recorder = RunRecorder(
+        run_id=run_id,
+        spec=spec,
+        output_root=output_dir,
+        mode="measured",
+    )
+
+    if args.backend == "llm":
+        res = run_llm_h12_subspace_safe_merge_benchmark(
+            model_name=args.model_name,
+            device=args.device,
+            seed=spec.seed,
+            sql_svd_rank=args.sql_svd_rank,
+            ties_density=args.ties_density,
+        )
+    else:
+        res = run_h12_subspace_safe_merge_benchmark(
+            seed=spec.seed,
+            sql_steps=args.sql_steps,
+            unslop_steps=args.unslop_steps,
+            group_size=args.group_size,
+            sql_svd_rank=args.sql_svd_rank,
+            ties_density=args.ties_density,
+        )
+
+    recorder.log_step(
+        step=1,
+        metrics={
+            "sql_incident_retention_ratio": float(res["sql_incident_retention_ratio"]),
+            "unslop_retention_ratio": float(res["unslop_retention_ratio"]),
+            "slop_and_refusal_rate": float(res["slop_and_refusal_rate"]),
+            "subspace_safe_merge_releakage": float(res["subspace_safe_merge_releakage"]),
+            "ties_biprojected_vs_naive_merge_gain": float(
+                res["ties_biprojected_vs_naive_merge_gain"]
+            ),
+            "max_row_crest_factor": float(res["max_row_crest_factor"]),
+        },
+    )
+
+    # Write subspace_safe_merge.json
+    subspace_safe_merge_path = recorder.run_dir / "subspace_safe_merge.json"
+    subspace_safe_merge_path.write_text(
+        json.dumps(res, indent=2),
+        encoding="utf-8",
+    )
+
+    elapsed = time.perf_counter() - t0
+
+    # Final metrics
+    final_metrics = {
+        "h12_verified": res["h12_verified"],
+        "sql_incident_retention_ratio": res["sql_incident_retention_ratio"],
+        "unslop_retention_ratio": res["unslop_retention_ratio"],
+        "slop_and_refusal_rate": res["slop_and_refusal_rate"],
+        "subspace_safe_merge_releakage": res["subspace_safe_merge_releakage"],
+        "ties_biprojected_vs_naive_merge_gain": res["ties_biprojected_vs_naive_merge_gain"],
+        "provider_ready": res["provider_ready"],
+        "max_row_crest_factor": res["max_row_crest_factor"],
+        "backend": args.backend,
+        "model_name": res.get("model_name", "sml-tenet-rehab"),
+    }
+
+    run_path = recorder.finalize(
+        final_metrics=final_metrics,
+        active_seconds=elapsed,
+        billed_seconds=elapsed,
+        status="completed" if res["h12_verified"] else "failed",
+        conclusion=(
+            "H12 subspace-safe merge verification completed: "
+            f"h12_verified={res['h12_verified']}, "
+            f"sql_incident_retention_ratio={res['sql_incident_retention_ratio']:.4f}, "
+            f"unslop_retention_ratio={res['unslop_retention_ratio']:.4f}, "
+            f"ties_biprojected_vs_naive_merge_gain={res['ties_biprojected_vs_naive_merge_gain']:.4f}"
+        ),
+    )
+
+    # Print JSON summary
+    summary = {
+        "experiment_id": spec.experiment_id,
+        "hypothesis_id": spec.hypothesis_id,
+        "backend": args.backend,
+        "model_name": args.model_name,
+        "h12_verified": res["h12_verified"],
+        "sql_incident_retention_ratio": res["sql_incident_retention_ratio"],
+        "unslop_retention_ratio": res["unslop_retention_ratio"],
+        "slop_and_refusal_rate": res["slop_and_refusal_rate"],
+        "subspace_safe_merge_releakage": res["subspace_safe_merge_releakage"],
+        "ties_biprojected_vs_naive_merge_gain": res["ties_biprojected_vs_naive_merge_gain"],
+        "provider_ready": res["provider_ready"],
+        "max_row_crest_factor": res["max_row_crest_factor"],
+        "run_path": str(run_path),
+    }
+    print(json.dumps(summary, indent=2))
+
+    return 0 if res["h12_verified"] else 1
+
+
 def _cmd_verify_h11(args: argparse.Namespace) -> int:
     import json
     import time
@@ -1796,6 +1909,70 @@ def build_parser() -> argparse.ArgumentParser:
     )
     verify_h11_p.set_defaults(func=_cmd_verify_h11)
 
+    # Verify H12 subcommand
+    verify_h12_p = sub.add_parser(
+        "verify-h12",
+        help="Execute H12 subspace-safe merge (TIES biprojected) verification benchmark.",
+    )
+    verify_h12_p.add_argument(
+        "--experiment",
+        default="experiments/h12_subspace_safe_merge.yaml",
+        help="Path to H12 experiment YAML.",
+    )
+    verify_h12_p.add_argument(
+        "--output-dir",
+        default="results",
+        help="Directory for run output bundle.",
+    )
+    verify_h12_p.add_argument("--run-id", default=None, help="Optional explicit run_id override.")
+    verify_h12_p.add_argument(
+        "--sql-steps",
+        type=int,
+        default=18,
+        help="Number of SQL GRPO steps for the specialized adapter.",
+    )
+    verify_h12_p.add_argument(
+        "--unslop-steps",
+        type=int,
+        default=18,
+        help="Number of unslop GRPO steps for the specialized adapter.",
+    )
+    verify_h12_p.add_argument(
+        "--group-size",
+        type=int,
+        default=6,
+        help="GRPO group size.",
+    )
+    verify_h12_p.add_argument(
+        "--sql-svd-rank",
+        type=int,
+        default=2,
+        help="Number of top singular directions of Delta W_SQL to project against.",
+    )
+    verify_h12_p.add_argument(
+        "--ties-density",
+        type=float,
+        default=0.85,
+        help="TIES density parameter.",
+    )
+    verify_h12_p.add_argument(
+        "--backend",
+        choices=["nano", "llm"],
+        default="nano",
+        help="Benchmark backend: 'nano' (built-in tiny model) or 'llm' (HF checkpoint).",
+    )
+    verify_h12_p.add_argument(
+        "--model-name",
+        default="Qwen/Qwen2.5-3B-Instruct",
+        help="HF model checkpoint used when --backend llm.",
+    )
+    verify_h12_p.add_argument(
+        "--device",
+        default="auto",
+        help="Torch device used when --backend llm.",
+    )
+    verify_h12_p.set_defaults(func=_cmd_verify_h12)
+
     # Build Tenet release subcommand
     build_tenet_p = sub.add_parser(
         "build-tenet",
@@ -1877,6 +2054,41 @@ def build_parser() -> argparse.ArgumentParser:
     )
     build_tenet_p.set_defaults(func=_cmd_build_tenet)
 
+    # Export hub release subcommand
+    export_hub_p = sub.add_parser(
+        "export-hub",
+        help=(
+            "Export a hub release bundle (Pareto SVG, CKA quant recipe, readiness) "
+            "from existing H9/H10/H11 results."
+        ),
+    )
+    export_hub_p.add_argument(
+        "--release-dir",
+        required=True,
+        help="Existing or target release directory.",
+    )
+    export_hub_p.add_argument(
+        "--release-id",
+        default=None,
+        help="Release identifier (defaults to release_dir name).",
+    )
+    export_hub_p.add_argument(
+        "--base-model",
+        default="Qwen/Qwen2.5-3B-Instruct",
+        help="Base HF model name.",
+    )
+    export_hub_p.add_argument(
+        "--results-root",
+        default="results",
+        help="Root directory containing h9_*/h10_*/h11_* final_metrics.json.",
+    )
+    export_hub_p.add_argument(
+        "--hf-namespace",
+        default="small-model-lab",
+        help="HF Hub namespace for the release repo id.",
+    )
+    export_hub_p.set_defaults(func=_cmd_export_hub)
+
     return parser
 
 
@@ -1902,6 +2114,26 @@ def _cmd_build_tenet(args: argparse.Namespace) -> int:
         "release_dir": bundle["release_dir"],
         "hf_repo_id": bundle["hf_repo_id"],
         "backend": bundle["backend"],
+        "ready": bundle["ready"],
+        "artifacts": bundle["artifacts"],
+    }
+    print(json.dumps(summary, indent=2))
+    return 0 if bundle["ready"] else 1
+
+
+def _cmd_export_hub(args: argparse.Namespace) -> int:
+    release_id = args.release_id or Path(args.release_dir).name
+    bundle = export_hub_bundle_from_results(
+        release_dir=args.release_dir,
+        release_id=release_id,
+        base_model=args.base_model,
+        results_root=args.results_root,
+        hf_namespace=args.hf_namespace,
+    )
+    summary = {
+        "release_id": bundle["release_id"],
+        "release_dir": bundle["release_dir"],
+        "hf_repo_id": bundle["hf_repo_id"],
         "ready": bundle["ready"],
         "artifacts": bundle["artifacts"],
     }

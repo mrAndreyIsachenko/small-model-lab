@@ -12,10 +12,10 @@
   "total_params": 11536640,
   "non_embedding_params": 3148032,
   "dataset_name": "tinystories-smoke",
-  "git_sha": "dfe5d9569adc67d62b9ee37039d03d21f2066b8f",
+  "git_sha": "eab01f01b3dcdcccce05d31156c37c1ce3bd7000",
   "git_dirty": true,
-  "started_at_utc": "2026-11-17T11:28:10.980452+00:00",
-  "completed_at_utc": "2026-11-17T11:28:11.494308+00:00",
+  "started_at_utc": "2026-11-17T17:44:52.415957+00:00",
+  "completed_at_utc": "2026-11-17T17:44:53.009313+00:00",
   "pre_run_estimate": {
     "planned_tokens": 110592,
     "flops_per_token": 72365568,
@@ -24,5 +24,5 @@
     "estimated_clean_gpu_hours": 0.0004,
     "estimated_cost_usd": 0.0
   },
-  "conclusion": "H10 unslop GRPO verification completed: h10_verified=True, slop_and_refusal_rate=0.0077, gated_vs_naive_gain=0.2173"
+  "conclusion": "H10 unslop GRPO verification completed: h10_verified=True, slop_and_refusal_rate=0.0150, gated_vs_naive_gain=0.2276"
 }

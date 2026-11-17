@@ -12,10 +12,10 @@
   "total_params": 3085846528,
   "non_embedding_params": 2774681600,
   "dataset_name": "tinystories-smoke",
-  "git_sha": "dfe5d9569adc67d62b9ee37039d03d21f2066b8f",
+  "git_sha": "eab01f01b3dcdcccce05d31156c37c1ce3bd7000",
   "git_dirty": true,
-  "started_at_utc": "2026-11-17T13:45:44.819815+00:00",
-  "completed_at_utc": "2026-11-17T13:46:31.700295+00:00",
+  "started_at_utc": "2026-11-17T17:45:06.286278+00:00",
+  "completed_at_utc": "2026-11-17T17:46:03.356970+00:00",
   "pre_run_estimate": {
     "planned_tokens": 65536,
     "flops_per_token": 18741571584,
@@ -24,5 +24,5 @@
     "estimated_clean_gpu_hours": 0.0632,
     "estimated_cost_usd": 0.0
   },
-  "conclusion": "H9 Lancet surgery verification completed: h9_verified=True, kl_reduction=0.9907"
+  "conclusion": "H9 Lancet surgery verification completed: h9_verified=True, kl_reduction=0.9941"
 }

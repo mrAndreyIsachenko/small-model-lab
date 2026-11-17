@@ -6,7 +6,7 @@
 - **Model:** `Qwen2.5-3B-Instruct` (`3,085,846,528` total / `2,774,681,600` non-emb)
 - **Dataset:** `tinystories-smoke`
 - **Hardware:** `apple-m4-pro-48gb` (`$0.00/hr`)
-- **Git SHA:** `dfe5d9569adc67d62b9ee37039d03d21f2066b8f` (dirty: `True`)
+- **Git SHA:** `eab01f01b3dcdcccce05d31156c37c1ce3bd7000` (dirty: `True`)
 
 ## Hypothesis & Prediction
 - **Hypothesis:** Gated "unslop" GRPO — reward shaping with a gated slop-and-refusal penalty — drives the slop-and-refusal rate to <= 2% while beating naive reward-only GRPO by >= 15% relative gain; composing the GRPO-tuned adapter with H9 Lancet bi-projected surgery yields a further >= 15% gain, and merging the trained adapters preserves logits within 1e-4 of the reference model.
@@ -30,8 +30,8 @@
 - **`model_name`:** `Qwen/Qwen2.5-3B-Instruct`
 
 ## Compute & Cost
-- **Active GPU-Hours:** `0.172424`
-- **Billed GPU-Hours:** `0.172424`
+- **Active GPU-Hours:** `0.173918`
+- **Billed GPU-Hours:** `0.173918`
 - **Billed Cost (USD):** `$0.0000` (pre-run estimate: `$0.0000`)
 
 ## Conclusion

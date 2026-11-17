@@ -83,9 +83,9 @@ class _MockTokenizer:
 
 
 def test_probe_families_have_twelve_pairs() -> None:
-    """Each probe family is a fixed set of 12 non-trivial (positive, negative) pairs."""
+    """Each probe family is a fixed set of 16 non-trivial (positive, negative) pairs."""
     for pairs in (REFUSAL_CONTRAST_PAIRS, SLOP_CONTRAST_PAIRS, REASONING_ANCHOR_PAIRS):
-        assert len(pairs) == 12
+        assert len(pairs) == 16
         for positive, negative in pairs:
             assert isinstance(positive, str) and positive
             assert isinstance(negative, str) and negative
@@ -93,9 +93,9 @@ def test_probe_families_have_twelve_pairs() -> None:
 
 
 def test_encode_contrast_pairs_deterministic_and_tokenizer_compatible() -> None:
-    """Hash-encoded probes are deterministic (12, 32) long tensors; a mock tokenizer works."""
+    """Hash-encoded probes are deterministic (16, 32) long tensors; a mock tokenizer works."""
     pos_ids, neg_ids = encode_contrast_pairs(REFUSAL_CONTRAST_PAIRS, vocab_size=256, seq_len=32)
-    assert pos_ids.shape == neg_ids.shape == (12, 32)
+    assert pos_ids.shape == neg_ids.shape == (16, 32)
     assert pos_ids.dtype == torch.long
     assert neg_ids.dtype == torch.long
     assert int(pos_ids.max()) < 256
@@ -107,15 +107,15 @@ def test_encode_contrast_pairs_deterministic_and_tokenizer_compatible() -> None:
 
     tokenizer = _MockTokenizer()
     tok_pos, tok_neg = encode_contrast_pairs(SLOP_CONTRAST_PAIRS, tokenizer=tokenizer)
-    assert tok_pos.shape == tok_neg.shape == (12, 32)
+    assert tok_pos.shape == tok_neg.shape == (16, 32)
     assert tok_pos.dtype == torch.long
     assert tok_neg.dtype == torch.long
     assert tokenizer.pad_token == tokenizer.eos_token  # pad-token fallback applied
 
 
 def test_tool_sql_anchor_pairs_and_encoding() -> None:
-    """The tool/SQL anchor family has 12 pairs covering the four tools and SQL."""
-    assert len(TOOL_SQL_ANCHOR_PAIRS) == 12
+    """The tool/SQL anchor family has 16 pairs covering tools, SQL, logs, and strict calls."""
+    assert len(TOOL_SQL_ANCHOR_PAIRS) == 16
     joined = "\n".join(text for pair in TOOL_SQL_ANCHOR_PAIRS for text in pair)
     for needle in (
         "query_warehouse",
@@ -125,11 +125,12 @@ def test_tool_sql_anchor_pairs_and_encoding() -> None:
         "SELECT",
         "GROUP BY",
         "JOIN",
+        "QUALIFY",
     ):
         assert needle in joined
 
     pos_ids, neg_ids = encode_contrast_pairs(TOOL_SQL_ANCHOR_PAIRS, vocab_size=256, seq_len=32)
-    assert pos_ids.shape == neg_ids.shape == (12, 32)
+    assert pos_ids.shape == neg_ids.shape == (16, 32)
     assert pos_ids.dtype == torch.long
     assert neg_ids.dtype == torch.long
 

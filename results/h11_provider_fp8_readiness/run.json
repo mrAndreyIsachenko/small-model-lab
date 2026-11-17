@@ -12,10 +12,10 @@
   "total_params": 11536640,
   "non_embedding_params": 3148032,
   "dataset_name": "tinystories-smoke",
-  "git_sha": "dfe5d9569adc67d62b9ee37039d03d21f2066b8f",
+  "git_sha": "eab01f01b3dcdcccce05d31156c37c1ce3bd7000",
   "git_dirty": true,
-  "started_at_utc": "2026-11-17T11:28:12.162034+00:00",
-  "completed_at_utc": "2026-11-17T11:28:12.331421+00:00",
+  "started_at_utc": "2026-11-17T17:44:53.747493+00:00",
+  "completed_at_utc": "2026-11-17T17:44:53.936758+00:00",
   "pre_run_estimate": {
     "planned_tokens": 110592,
     "flops_per_token": 72365568,
