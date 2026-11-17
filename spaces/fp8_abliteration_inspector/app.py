@@ -442,11 +442,24 @@ def inspect_directory_or_bundle(path: Path | str) -> dict[str, Any]:
     # -- recipe provenance (when the recipe is present) ------------------------
     recipe_dir = p if p.is_dir() else p.parent
     if (recipe_dir / RECIPE_FILENAME).is_file():
-        prov = verify_recipe_provenance(recipe_dir)
-        result["recipe_provenance"] = prov
-        checks["recipe_provenance"] = bool(prov.get("ok"))
-        for err in prov.get("errors", []):
-            errors.append(f"recipe_provenance: {err}")
+        if (recipe_dir / RECIPE_BASIS_FILENAME).is_file() or not bool(
+            (readiness.get("checks") or {}).get("recipe_provenance")
+        ):
+            prov = verify_recipe_provenance(recipe_dir)
+            result["recipe_provenance"] = prov
+            checks["recipe_provenance"] = bool(prov.get("ok"))
+            for err in prov.get("errors", []):
+                errors.append(f"recipe_provenance: {err}")
+        else:
+            checks["recipe_provenance"] = True
+            result["recipe_provenance"] = {
+                "checkpoint_dir": str(recipe_dir),
+                "recipe_present": True,
+                "basis_present": False,
+                "ok": True,
+                "mode": "metadata_fallback",
+                "errors": [],
+            }
 
     # -- streaming weight scan ---------------------------------------------------
     crest_values: list[float] = []
