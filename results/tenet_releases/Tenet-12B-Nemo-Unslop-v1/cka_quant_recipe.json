@@ -1,0 +1,331 @@
+{
+  "boundary_layers": [
+    0,
+    39
+  ],
+  "bpw_model": {
+    "Q4_K_M": 4.85,
+    "Q6_K": 6.56,
+    "Q8_0": 8.5,
+    "q6_k_protected_layer": 5.3288,
+    "q8_0_protected_layer": 5.872
+  },
+  "default_bpw": 4.85,
+  "default_quant": "Q4_K_M",
+  "estimated_avg_bpw": 4.939,
+  "layer_assignments": [
+    {
+      "layer": 0,
+      "quant": "Q8_0",
+      "role": "boundary+surgical-top",
+      "tensors": [
+        "attn_output",
+        "ffn_down"
+      ]
+    },
+    {
+      "layer": 1,
+      "quant": "Q4_K_M",
+      "role": "default",
+      "tensors": []
+    },
+    {
+      "layer": 2,
+      "quant": "Q4_K_M",
+      "role": "default",
+      "tensors": []
+    },
+    {
+      "layer": 3,
+      "quant": "Q4_K_M",
+      "role": "default",
+      "tensors": []
+    },
+    {
+      "layer": 4,
+      "quant": "Q8_0",
+      "role": "surgical-top",
+      "tensors": [
+        "attn_output",
+        "ffn_down"
+      ]
+    },
+    {
+      "layer": 5,
+      "quant": "Q6_K",
+      "role": "surgical",
+      "tensors": [
+        "attn_output",
+        "ffn_down"
+      ]
+    },
+    {
+      "layer": 6,
+      "quant": "Q4_K_M",
+      "role": "default",
+      "tensors": []
+    },
+    {
+      "layer": 7,
+      "quant": "Q4_K_M",
+      "role": "default",
+      "tensors": []
+    },
+    {
+      "layer": 8,
+      "quant": "Q4_K_M",
+      "role": "default",
+      "tensors": []
+    },
+    {
+      "layer": 9,
+      "quant": "Q4_K_M",
+      "role": "default",
+      "tensors": []
+    },
+    {
+      "layer": 10,
+      "quant": "Q4_K_M",
+      "role": "default",
+      "tensors": []
+    },
+    {
+      "layer": 11,
+      "quant": "Q4_K_M",
+      "role": "default",
+      "tensors": []
+    },
+    {
+      "layer": 12,
+      "quant": "Q4_K_M",
+      "role": "default",
+      "tensors": []
+    },
+    {
+      "layer": 13,
+      "quant": "Q4_K_M",
+      "role": "default",
+      "tensors": []
+    },
+    {
+      "layer": 14,
+      "quant": "Q4_K_M",
+      "role": "default",
+      "tensors": []
+    },
+    {
+      "layer": 15,
+      "quant": "Q4_K_M",
+      "role": "default",
+      "tensors": []
+    },
+    {
+      "layer": 16,
+      "quant": "Q4_K_M",
+      "role": "default",
+      "tensors": []
+    },
+    {
+      "layer": 17,
+      "quant": "Q4_K_M",
+      "role": "default",
+      "tensors": []
+    },
+    {
+      "layer": 18,
+      "quant": "Q4_K_M",
+      "role": "default",
+      "tensors": []
+    },
+    {
+      "layer": 19,
+      "quant": "Q4_K_M",
+      "role": "default",
+      "tensors": []
+    },
+    {
+      "layer": 20,
+      "quant": "Q4_K_M",
+      "role": "default",
+      "tensors": []
+    },
+    {
+      "layer": 21,
+      "quant": "Q4_K_M",
+      "role": "default",
+      "tensors": []
+    },
+    {
+      "layer": 22,
+      "quant": "Q4_K_M",
+      "role": "default",
+      "tensors": []
+    },
+    {
+      "layer": 23,
+      "quant": "Q4_K_M",
+      "role": "default",
+      "tensors": []
+    },
+    {
+      "layer": 24,
+      "quant": "Q4_K_M",
+      "role": "default",
+      "tensors": []
+    },
+    {
+      "layer": 25,
+      "quant": "Q4_K_M",
+      "role": "default",
+      "tensors": []
+    },
+    {
+      "layer": 26,
+      "quant": "Q4_K_M",
+      "role": "default",
+      "tensors": []
+    },
+    {
+      "layer": 27,
+      "quant": "Q4_K_M",
+      "role": "default",
+      "tensors": []
+    },
+    {
+      "layer": 28,
+      "quant": "Q4_K_M",
+      "role": "default",
+      "tensors": []
+    },
+    {
+      "layer": 29,
+      "quant": "Q4_K_M",
+      "role": "default",
+      "tensors": []
+    },
+    {
+      "layer": 30,
+      "quant": "Q4_K_M",
+      "role": "default",
+      "tensors": []
+    },
+    {
+      "layer": 31,
+      "quant": "Q4_K_M",
+      "role": "default",
+      "tensors": []
+    },
+    {
+      "layer": 32,
+      "quant": "Q4_K_M",
+      "role": "default",
+      "tensors": []
+    },
+    {
+      "layer": 33,
+      "quant": "Q4_K_M",
+      "role": "default",
+      "tensors": []
+    },
+    {
+      "layer": 34,
+      "quant": "Q4_K_M",
+      "role": "default",
+      "tensors": []
+    },
+    {
+      "layer": 35,
+      "quant": "Q4_K_M",
+      "role": "default",
+      "tensors": []
+    },
+    {
+      "layer": 36,
+      "quant": "Q4_K_M",
+      "role": "default",
+      "tensors": []
+    },
+    {
+      "layer": 37,
+      "quant": "Q4_K_M",
+      "role": "default",
+      "tensors": []
+    },
+    {
+      "layer": 38,
+      "quant": "Q4_K_M",
+      "role": "default",
+      "tensors": []
+    },
+    {
+      "layer": 39,
+      "quant": "Q8_0",
+      "role": "boundary",
+      "tensors": [
+        "attn_output",
+        "ffn_down"
+      ]
+    }
+  ],
+  "llama_cpp_tensor_type_args": [
+    "--tensor-type",
+    "blk.0.attn_output.weight=q8_0",
+    "--tensor-type",
+    "blk.0.ffn_down.weight=q8_0",
+    "--tensor-type",
+    "blk.4.attn_output.weight=q8_0",
+    "--tensor-type",
+    "blk.4.ffn_down.weight=q8_0",
+    "--tensor-type",
+    "blk.5.attn_output.weight=q6_k",
+    "--tensor-type",
+    "blk.5.ffn_down.weight=q6_k",
+    "--tensor-type",
+    "blk.39.attn_output.weight=q8_0",
+    "--tensor-type",
+    "blk.39.ffn_down.weight=q8_0"
+  ],
+  "mlx_lm_convert": {
+    "default_bits": 4,
+    "protected_bits": 8,
+    "protected_layers": [
+      0,
+      4,
+      39
+    ],
+    "q6_bits": 6,
+    "q6_layers": [
+      5
+    ]
+  },
+  "num_hidden_layers": 40,
+  "protected_tensors": {
+    "hf": [
+      "self_attn.o_proj.weight",
+      "mlp.down_proj.weight"
+    ],
+    "llama_cpp": [
+      "attn_output",
+      "ffn_down"
+    ],
+    "param_fraction": 0.28
+  },
+  "q6_k_layers": [
+    5
+  ],
+  "q8_0_layers": [
+    0,
+    4,
+    39
+  ],
+  "scr_ranking_used": false,
+  "selected_layers": [
+    0,
+    4,
+    5
+  ],
+  "surgical_top_layers": [
+    0,
+    4
+  ]
+}

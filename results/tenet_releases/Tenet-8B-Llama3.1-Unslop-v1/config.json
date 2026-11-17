@@ -1,0 +1,9 @@
+{
+  "architectures": [
+    "LlamaForCausalLM"
+  ],
+  "hidden_size": 4096,
+  "model_type": "llama",
+  "num_hidden_layers": 32,
+  "torch_dtype": "bfloat16"
+}
