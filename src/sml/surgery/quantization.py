@@ -363,8 +363,8 @@ def _next_token_kl(
 
 
 def _normalized_mean_direction(weight: torch.Tensor) -> torch.Tensor:
-    """Deterministic unit direction from the mean row of a weight matrix."""
-    direction = weight.detach().float().mean(dim=0)
+    """Deterministic output-space unit direction (mean across input columns)."""
+    direction = weight.detach().float().mean(dim=1)
     norm = direction.norm()
     if float(norm) < 1e-8:
         direction = torch.zeros_like(direction)
@@ -495,7 +495,9 @@ def evaluate_h11_fp8_provider_survival(
         base_model, lancet_fp8_per_tensor, lancet_direction
     )
 
-    fp8_retention_ratio = float(torch.exp(torch.tensor(-kl_lancet_fp8)).item())
+    # FP8 quantization survival: KL between the surgured Lancet model and its
+    # own FP8-quantized copy (isolating quantization drift from surgery drift).
+    fp8_retention_ratio = float(torch.exp(torch.tensor(-kl_lancet_own_fp8)).item())
     h11_fp8_kl_reduction_ratio = float((kl_naive_fp8 - kl_lancet_fp8) / max(kl_naive_fp8, 1e-12))
     h11_verified = bool(fp8_retention_ratio >= 0.96 and h11_fp8_kl_reduction_ratio >= 0.25)
 
@@ -615,41 +617,69 @@ def evaluate_llm_h11_fp8_provider_survival(
     base_denom_naive = _base_denom(base_model, target_direction)
     base_denom_lancet = _base_denom(base_model, lancet_direction)
 
+    # Offload base_model to CPU so peak GPU VRAM holds at most two model copies
+    # (one surgured arm + one FP8-quantized copy) instead of four.
+    base_model.to("cpu")
+    if resolved_device == "cuda" and torch.cuda.is_available():
+        torch.cuda.empty_cache()
+
+    def _empty_device_cache() -> None:
+        if resolved_device == "cuda" and torch.cuda.is_available():
+            torch.cuda.empty_cache()
+        elif (
+            resolved_device == "mps" and hasattr(torch, "mps") and hasattr(torch.mps, "empty_cache")
+        ):
+            torch.mps.empty_cache()
+
     # a) Naive: rank-1 ablation without biprojection or norm preservation.
-    naive_model = apply_subspace_ablation(base_model, target_direction, scale=1.5)
+    naive_model = apply_subspace_ablation(base_model, target_direction.cpu(), scale=1.5).to(
+        resolved_device
+    )
     naive_fp8_per_channel = apply_fp8_server_quantization(naive_model, per_channel=True)
-    naive_fp8_per_tensor = apply_fp8_server_quantization(naive_model, per_channel=False)
     kl_naive_fp8 = _kl_vs_ref(naive_fp8_per_channel)
-    kl_naive_fp8_per_tensor = _kl_vs_ref(naive_fp8_per_tensor)
     kl_naive_own_fp8 = _next_token_kl(naive_model, naive_fp8_per_channel, prompt_ids)
     fp8_subspace_releakage_naive = _releakage(
         naive_fp8_per_channel, target_direction, base_denom_naive
     )
+    del naive_fp8_per_channel
+    gc.collect()
+    _empty_device_cache()
+
+    naive_fp8_per_tensor = apply_fp8_server_quantization(naive_model, per_channel=False)
+    kl_naive_fp8_per_tensor = _kl_vs_ref(naive_fp8_per_tensor)
     fp8_subspace_releakage_naive_per_tensor = _releakage(
         naive_fp8_per_tensor, target_direction, base_denom_naive
     )
-    del naive_fp8_per_channel, naive_fp8_per_tensor, naive_model
+    del naive_fp8_per_tensor, naive_model
     gc.collect()
+    _empty_device_cache()
 
     # b) Lancet: biprojected, norm-preserving surgery.
     lancet_model = apply_lancet_biprojected_surgery(
         base_model,
-        target_direction,
-        anchor_direction,
+        target_direction.cpu(),
+        anchor_direction.cpu(),
         scale=1.0,
         preserve_row_norm=True,
-    )
+    ).to(resolved_device)
     lancet_fp8_per_channel = apply_fp8_server_quantization(lancet_model, per_channel=True)
-    lancet_fp8_per_tensor = apply_fp8_server_quantization(lancet_model, per_channel=False)
     kl_lancet_fp8 = _kl_vs_ref(lancet_fp8_per_channel)
-    kl_lancet_fp8_per_tensor = _kl_vs_ref(lancet_fp8_per_tensor)
     kl_lancet_own_fp8 = _next_token_kl(lancet_model, lancet_fp8_per_channel, prompt_ids)
     fp8_subspace_releakage_lancet = _releakage(
         lancet_fp8_per_channel, lancet_direction, base_denom_lancet
     )
+    del lancet_fp8_per_channel
+    gc.collect()
+    _empty_device_cache()
+
+    lancet_fp8_per_tensor = apply_fp8_server_quantization(lancet_model, per_channel=False)
+    kl_lancet_fp8_per_tensor = _kl_vs_ref(lancet_fp8_per_tensor)
     fp8_subspace_releakage_lancet_per_tensor = _releakage(
         lancet_fp8_per_tensor, lancet_direction, base_denom_lancet
     )
+    del lancet_fp8_per_tensor
+    gc.collect()
+    _empty_device_cache()
 
     # Row-norm health of the surgured Lancet weights: crest factor (max/mean
     # row norm) and the largest weight magnitude across all 2D weights.
@@ -666,15 +696,15 @@ def evaluate_llm_h11_fp8_provider_survival(
                     max_row_crest_factor = max(max_row_crest_factor, crest)
 
     del (
-        lancet_fp8_per_channel,
-        lancet_fp8_per_tensor,
         lancet_model,
         base_model,
         layers,
     )
     gc.collect()
 
-    fp8_retention_ratio = float(torch.exp(torch.tensor(-kl_lancet_fp8)).item())
+    # FP8 quantization survival: KL between the surgured Lancet model and its
+    # own FP8-quantized copy (isolating quantization drift from surgery drift).
+    fp8_retention_ratio = float(torch.exp(torch.tensor(-kl_lancet_own_fp8)).item())
     h11_fp8_kl_reduction_ratio = float((kl_naive_fp8 - kl_lancet_fp8) / max(kl_naive_fp8, 1e-12))
     # 16-bit LLM weights quantize with slightly higher KL, so the retention
     # floor is dtype-aware: 0.95 for fp16/bf16, 0.96 otherwise.

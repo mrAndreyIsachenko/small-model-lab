@@ -13,39 +13,39 @@
   "base_model": "meta-llama/Llama-3.1-8B-Instruct",
   "fp8_and_crest_proof": {
     "h10_subspace_safe_grpo": {
-      "h10_gated_vs_naive_gain": 0.160164,
-      "h10_post_surgery_gain": 0.359802,
+      "h10_gated_vs_naive_gain": 0.248877,
+      "h10_post_surgery_gain": 0.458022,
       "h10_verified": true,
-      "length_collapse_rate": 0.041666666666666664,
+      "length_collapse_rate": 0.08333333333333333,
       "merged_lora_count": 0,
       "post_merge_suppression_retention": 1.0,
-      "subspace_safe_lora_releakage": 0.069000869,
-      "unprojected_lora_releakage": 0.83001828
+      "subspace_safe_lora_releakage": 0.072612744,
+      "unprojected_lora_releakage": 1.13275129
     },
     "h11_fp8_provider_audit": {
-      "fp8_retention_ratio": 0.9541449546813965,
-      "fp8_subspace_releakage_lancet": 0.027005735006194635,
-      "fp8_subspace_releakage_lancet_per_tensor": 0.02703204800644877,
-      "fp8_subspace_releakage_naive": 0.5002509978921169,
-      "fp8_subspace_releakage_naive_per_tensor": 0.5001845181117502,
-      "h11_fp8_kl_reduction_ratio": 0.5184877587336594,
-      "kl_lancet_fp8": 0.0469396747648716,
-      "kl_naive_fp8": 0.09748386591672897,
-      "max_abs_weight": 1.4296875,
-      "max_row_crest_factor": 17.270610809326172
+      "fp8_retention_ratio": 0.9935780763626099,
+      "fp8_subspace_releakage_lancet": 0.02778303384129374,
+      "fp8_subspace_releakage_lancet_per_tensor": 0.027781071648231535,
+      "fp8_subspace_releakage_naive": 0.5000227482473887,
+      "fp8_subspace_releakage_naive_per_tensor": 0.5000298591859549,
+      "h11_fp8_kl_reduction_ratio": 0.4265360257965603,
+      "kl_lancet_fp8": 0.01849338971078396,
+      "kl_naive_fp8": 0.032248564064502716,
+      "max_abs_weight": 0.9140625,
+      "max_row_crest_factor": 6.324390411376953
     },
     "h9_lancet_surgery": {
-      "anchor_orthogonality_error": 1e-07,
-      "h9_kl_reduction_ratio": 0.9941,
+      "anchor_orthogonality_error": 1e-08,
+      "h9_kl_reduction_ratio": 0.8989,
       "h9_verified": true,
-      "lancet_kl_collateral": 0.022046,
-      "max_row_norm_drift": 0.00160885,
-      "naive_kl_collateral": 3.760749,
-      "target_suppression_ratio": 0.969389
+      "lancet_kl_collateral": 0.013525,
+      "max_row_norm_drift": 0.00107741,
+      "naive_kl_collateral": 0.13372,
+      "target_suppression_ratio": 0.992983
     }
   },
   "hf_repo_id": "tenet-lab/Tenet-8B-Llama3.1-Unslop-v1",
-  "markdown_summary": "# OpenRouter Onboarding \u2014 tenet-lab/Tenet-8B-Llama3.1-Unslop-v1\n\n## Repository\n\n- **HF repo id:** `tenet-lab/Tenet-8B-Llama3.1-Unslop-v1`\n- **Base model:** `meta-llama/Llama-3.1-8B-Instruct`\n- **Target providers:** Featherless, Chutes, Novita, DeepInfra\n\n## vLLM launch command\n\n```bash\nvllm serve --model tenet-lab/Tenet-8B-Llama3.1-Unslop-v1 --quantization fp8 --dtype bfloat16 --enable-auto-tool-choice\n```\n\nSettings: `quantization=fp8`, `dtype=bfloat16`, `trust_remote_code=False`, `enable-auto-tool-choice=True`.\n\n## FP8 Re-Leakage & Row Crest-Factor proof\n\n| Proof | Value |\n| --- | --- |\n| H11 FP8 retention ratio | 0.954145 |\n| H11 FP8 KL reduction ratio | 0.518488 |\n| H11 FP8 subspace Re-Leakage (Lancet) | 0.0270057 |\n| H11 FP8 subspace Re-Leakage (naive) | 0.500251 |\n| H9 Lancet KL reduction ratio | 0.9941 |\n| H10 subspace-safe LoRA Re-Leakage | 0.0690009 |\n| Max row crest factor | 17.2706 |\n| Max abs weight | 1.42969 |\n\n## Architectural compatibility checklist\n\n- [x] Standard, first-party architecture (no custom `auto_map`)\n- [x] No `trust_remote_code` escape hatches\n- [x] Chat template ready\n- Supported architectures: LlamaForCausalLM, Qwen2ForCausalLM, MistralForCausalLM\n",
+  "markdown_summary": "# OpenRouter Onboarding \u2014 tenet-lab/Tenet-8B-Llama3.1-Unslop-v1\n\n## Repository\n\n- **HF repo id:** `tenet-lab/Tenet-8B-Llama3.1-Unslop-v1`\n- **Base model:** `meta-llama/Llama-3.1-8B-Instruct`\n- **Target providers:** Featherless, Chutes, Novita, DeepInfra\n\n## vLLM launch command\n\n```bash\nvllm serve --model tenet-lab/Tenet-8B-Llama3.1-Unslop-v1 --quantization fp8 --dtype bfloat16 --enable-auto-tool-choice\n```\n\nSettings: `quantization=fp8`, `dtype=bfloat16`, `trust_remote_code=False`, `enable-auto-tool-choice=True`.\n\n## FP8 Re-Leakage & Row Crest-Factor proof\n\n| Proof | Value |\n| --- | --- |\n| H11 FP8 retention ratio | 0.993578 |\n| H11 FP8 KL reduction ratio | 0.426536 |\n| H11 FP8 subspace Re-Leakage (Lancet) | 0.027783 |\n| H11 FP8 subspace Re-Leakage (naive) | 0.500023 |\n| H9 Lancet KL reduction ratio | 0.8989 |\n| H10 subspace-safe LoRA Re-Leakage | 0.0726127 |\n| Max row crest factor | 6.32439 |\n| Max abs weight | 0.914062 |\n\n## Architectural compatibility checklist\n\n- [x] Standard, first-party architecture (no custom `auto_map`)\n- [x] No `trust_remote_code` escape hatches\n- [x] Chat template ready\n- Supported architectures: LlamaForCausalLM, Qwen2ForCausalLM, MistralForCausalLM\n",
   "providers": [
     "Featherless",
     "Chutes",

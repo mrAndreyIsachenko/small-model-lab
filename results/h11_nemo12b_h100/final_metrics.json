@@ -1,0 +1,32 @@
+{
+  "h11_verified": true,
+  "fp8_retention_ratio": 0.9678030014038086,
+  "h11_fp8_kl_reduction_ratio": 0.4892105870710418,
+  "kl_naive_fp8": 3.172443389892578,
+  "kl_lancet_fp8": 1.620450496673584,
+  "fp8_subspace_releakage_naive": 0.499638818799388,
+  "fp8_subspace_releakage_lancet": 0.183885410347825,
+  "fp8_subspace_releakage_naive_per_tensor": 0.4997547968103573,
+  "fp8_subspace_releakage_lancet_per_tensor": 0.18395628866969374,
+  "kl_naive_fp8_per_tensor": 3.1780343055725098,
+  "kl_lancet_fp8_per_tensor": 1.6264135837554932,
+  "provider_ready": true,
+  "readiness_checks": {
+    "standard_architecture": true,
+    "no_trust_remote_code": true,
+    "valid_chat_template": true,
+    "no_nan_inf": true,
+    "no_unmerged_lora": true,
+    "weight_outliers_ok": true,
+    "acceptable_row_crest_factor": true
+  },
+  "max_abs_weight": 0.91796875,
+  "max_row_crest_factor": 10.65080738067627,
+  "backend": "llm",
+  "model_name": "mistralai/Mistral-Nemo-Instruct-2407",
+  "model_cards": [
+    "Tenet-3B-Qwen2.5-Unslop-v1",
+    "Tenet-8B-Llama3.1-Unslop-v1",
+    "Tenet-12B-Nemo-Unslop-v1"
+  ]
+}

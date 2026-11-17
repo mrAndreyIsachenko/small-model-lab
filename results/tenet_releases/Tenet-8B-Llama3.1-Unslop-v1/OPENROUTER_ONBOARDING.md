@@ -18,14 +18,14 @@ Settings: `quantization=fp8`, `dtype=bfloat16`, `trust_remote_code=False`, `enab
 
 | Proof | Value |
 | --- | --- |
-| H11 FP8 retention ratio | 0.954145 |
-| H11 FP8 KL reduction ratio | 0.518488 |
-| H11 FP8 subspace Re-Leakage (Lancet) | 0.0270057 |
-| H11 FP8 subspace Re-Leakage (naive) | 0.500251 |
-| H9 Lancet KL reduction ratio | 0.9941 |
-| H10 subspace-safe LoRA Re-Leakage | 0.0690009 |
-| Max row crest factor | 17.2706 |
-| Max abs weight | 1.42969 |
+| H11 FP8 retention ratio | 0.993578 |
+| H11 FP8 KL reduction ratio | 0.426536 |
+| H11 FP8 subspace Re-Leakage (Lancet) | 0.027783 |
+| H11 FP8 subspace Re-Leakage (naive) | 0.500023 |
+| H9 Lancet KL reduction ratio | 0.8989 |
+| H10 subspace-safe LoRA Re-Leakage | 0.0726127 |
+| Max row crest factor | 6.32439 |
+| Max abs weight | 0.914062 |
 
 ## Architectural compatibility checklist
 

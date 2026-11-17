@@ -192,10 +192,11 @@ def _orthonormalize_basis(
             v = vec.detach().to(dtype=torch.float32)
         v = v.reshape(-1)
 
-        # Modified Gram-Schmidt: subtract projections sequentially against
-        # the already-orthonormalized basis vectors.
-        for b in basis:
-            v = v - (v @ b) * b
+        # Modified Gram-Schmidt with re-orthogonalization ("twice is enough")
+        # to prevent numerical drift when candidate vectors are nearly collinear.
+        for _ in range(2):
+            for b in basis:
+                v = v - (v @ b) * b
 
         norm = float(v.norm(p=2))
         if norm > 1e-6:
@@ -224,12 +225,18 @@ def biproject_direction(
     basis = _orthonormalize_basis(anchor_dirs, device=device)
 
     t = target_dir.detach().to(dtype=torch.float32).reshape(-1)
-    for b in basis:
-        t = t - (t @ b) * b
+    for _ in range(2):
+        for b in basis:
+            t = t - (t @ b) * b
 
     norm = float(t.norm(p=2))
     if norm > 1e-8:
         t = t / norm
+        for b in basis:
+            t = t - (t @ b) * b
+        norm2 = float(t.norm(p=2))
+        if norm2 > 1e-8:
+            t = t / norm2
 
     return t
 

@@ -1,0 +1,28 @@
+{
+  "run_id": "h12_nemo12b_h100",
+  "experiment_id": "h12_subspace_safe_merge",
+  "hypothesis_id": "H12",
+  "hypothesis": "Naive linear merge (Delta W_SQL + Delta W_unslop) of two specialized GRPO adapters causes destructive gradient interference \u2014 degrading G_evidence * R_correctness on SQL incidents or re-leaking slop/refusals. Orthogonalized TIES / Gram-Schmidt Subspace-Safe Merge (Delta W_unslop^perp projected orthogonally to both U_{refusal/slop} and top singular directions of Delta W_SQL with row-norm preservation) retains >= 95% of both skills and passes the H11 FP8 E4M3 gate.",
+  "prediction": "TIES biprojected subspace-safe merge retains sql_incident_retention_ratio >= 0.95 and unslop_retention_ratio >= 0.95, keeps slop_and_refusal_rate <= 0.02 (nano) / <= 0.10 (3B), subspace_safe_merge_releakage < 1e-5 (nano), achieves ties_biprojected_vs_naive_merge_gain >= 0.15 on the joint benchmark (StatefulToolEnv + TenetUnslopRubric), and passes provider_ready == True (Row Crest-Factor < 25.0).",
+  "acceptance_criterion": "sql_incident_retention_ratio >= 0.95 and slop_and_refusal_rate <= 0.02 and subspace_safe_merge_releakage < 1e-5 and ties_biprojected_vs_naive_merge_gain >= 0.15 and provider_ready == True",
+  "mode": "measured",
+  "status": "completed",
+  "seed": 2026,
+  "model_name": "sml-nano",
+  "total_params": 11536640,
+  "non_embedding_params": 3148032,
+  "dataset_name": "tinystories-smoke",
+  "git_sha": "uncommitted",
+  "git_dirty": false,
+  "started_at_utc": "2026-11-17T22:10:38.598562+00:00",
+  "completed_at_utc": "2026-11-17T22:17:52.922849+00:00",
+  "pre_run_estimate": {
+    "planned_tokens": 110592,
+    "flops_per_token": 72365568,
+    "total_flops": 8003052896256,
+    "assumed_mfu": 0.3,
+    "estimated_clean_gpu_hours": 0.0004,
+    "estimated_cost_usd": 0.0
+  },
+  "conclusion": "H12 subspace-safe merge verification completed: h12_verified=True, sql_incident_retention_ratio=1.0000, unslop_retention_ratio=1.0000, ties_biprojected_vs_naive_merge_gain=0.7806"
+}

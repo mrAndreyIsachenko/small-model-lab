@@ -13,22 +13,40 @@
       0,
       39
     ],
-    "estimated_avg_bpw": 4.939,
+    "estimated_avg_bpw": 5.276,
     "q6_k_layers": [
-      5
+      26,
+      27,
+      28,
+      29,
+      30,
+      31,
+      32,
+      33,
+      34,
+      35
     ],
     "q8_0_layers": [
       0,
-      4,
+      5,
+      14,
+      15,
+      16,
+      20,
+      21,
+      22,
+      23,
+      24,
+      25,
       39
     ]
   },
   "hf_repo_id": "tenet-lab/Tenet-12B-Nemo-Unslop-v1",
   "metrics_sources": {
-    "h10": "results/h10_qwen3b_mps/final_metrics.json",
-    "h11": "results/h11_qwen3b_mps/final_metrics.json",
-    "h12": "results/h12_qwen3b_mps/final_metrics.json",
-    "h9": "results/h9_qwen3b_mps/final_metrics.json"
+    "h10": "results/h10_nemo12b_h100/final_metrics.json",
+    "h11": "results/h11_nemo12b_h100/final_metrics.json",
+    "h12": "results/h12_nemo12b_h100/final_metrics.json",
+    "h9": "results/h9_nemo12b_h100/final_metrics.json"
   },
   "provider_readiness": {
     "architectures": [

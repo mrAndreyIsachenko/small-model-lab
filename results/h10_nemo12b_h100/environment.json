@@ -1,0 +1,15 @@
+{
+  "captured_at_utc": "2026-11-17T22:08:06.985999+00:00",
+  "os": "Linux",
+  "os_release": "6.8.0-149-generic",
+  "machine": "x86_64",
+  "python_version": "3.12.15",
+  "torch_version": "2.15.0+cu132",
+  "accelerator": "cuda",
+  "device_name": "NVIDIA H100 80GB HBM3",
+  "vram_gb": 79.18,
+  "cuda_version": "13.2",
+  "git_sha": "uncommitted",
+  "git_dirty": false,
+  "uv_lock_sha256": "1c573a4a28d86c15a7c2942287daea6d326bd9f6b907af25485458d3f2cd0fc9"
+}
