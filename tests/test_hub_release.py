@@ -183,6 +183,7 @@ EXPECTED_TAGS = (
     "tool-use",
     "coding",
     "safetensors",
+    "gguf",
     "conversational",
 )
 
@@ -230,7 +231,7 @@ def test_frontmatter_contains_all_14_tags() -> None:
         if line.startswith("- ")
     ]
     assert tags == list(EXPECTED_TAGS)
-    assert len(tags) == 14
+    assert len(tags) == 15
     for tag in (
         "abliterated",
         "uncensored",
@@ -238,6 +239,7 @@ def test_frontmatter_contains_all_14_tags() -> None:
         "tool-use",
         "coding",
         "safetensors",
+        "gguf",
         "conversational",
     ):
         assert tag in tags

@@ -36,6 +36,7 @@ _TAGS = (
     "tool-use",
     "coding",
     "safetensors",
+    "gguf",
     "conversational",
 )
 
@@ -125,7 +126,9 @@ the repo drops straight into vLLM, OpenRouter providers, GGUF and MLX.
 Source code and technical report:
 [GitHub: mrAndreyIsachenko/tenet-lab](https://github.com/mrAndreyIsachenko/tenet-lab)
 | Interactive audit:
-[FP8 & Abliteration Inspector Space](https://huggingface.co/spaces/mr-andrey-isachenko/fp8-abliteration-inspector).
+[FP8 & Abliteration Inspector Space](https://huggingface.co/spaces/mr-andrey-isachenko/fp8-abliteration-inspector)
+| Model family:
+[Tenet v1 Collection (`mr-andrey-isachenko`)](https://huggingface.co/mr-andrey-isachenko).
 
 ## Lancet surgery engine
 
