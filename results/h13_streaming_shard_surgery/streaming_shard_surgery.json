@@ -1,0 +1,25 @@
+{
+  "backend": "nano",
+  "h13_verified": true,
+  "provider_ready": true,
+  "streaming_surgery_max_abs_diff": 7.450580596923828e-09,
+  "streaming_merge_max_abs_diff": 0.0,
+  "peak_memory_gb": 3.149360418319702e-05,
+  "peak_disk_shard_gb": 0.03564857691526413,
+  "max_row_crest_factor": 1.1926119327545166,
+  "shards_processed": 3,
+  "tensors_merged": 8,
+  "acceptance_checks": {
+    "streaming_surgery_equiv": true,
+    "streaming_merge_equiv": true,
+    "peak_memory_under_16gb": true,
+    "peak_disk_under_15gb": true,
+    "row_crest_factor": true,
+    "provider_ready": true
+  },
+  "seed": 2026,
+  "num_shards": 3,
+  "device": "mps",
+  "sql_svd_rank": 2,
+  "ties_density": 0.85
+}

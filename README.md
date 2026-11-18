@@ -115,6 +115,7 @@ GPU_PROFILE=rtx4090 MAX_DOCS=50000 MAX_STEPS=2000 ./scripts/remote/run_m4_m5_gpu
 
 ## Architecture & Decisions
 
+* [Tenet Lab Technical Report (`H1–H12` & `Tenet` Family Post-Mortem)](reports/tenet_technical_report.md)
 * [Master Roadmap & Sprint Specifications](docs/roadmap.md)
 * [Sprint 1 Measured Results Summary](reports/sprint1/summary.md)
 * [ADR-001: Four-Sprint Architecture vs. Eight Loose Phases](docs/decisions/001-four-sprint-architecture.md)

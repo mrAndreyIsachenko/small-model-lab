@@ -5,16 +5,28 @@
 #   TENET_PROFILE=3b-mps ./scripts/remote/run_tenet_foundry.sh
 #
 # Environment knobs (all optional):
-#   TENET_PROFILE  3b-mps | 8b-h100 | 12b-h100  (default: 3b-mps)
+#   TENET_PROFILE  3b-mps | 8b-h100 | 12b-h100 | 32b-h100 | 70b-h100  (default: 3b-mps)
 #   MODEL_NAME / RELEASE_ID / DEVICE / BACKEND  override the profile values
 #   OUTPUT_DIR     release output root          (default: results/tenet_releases)
 #   HF_NAMESPACE   HF Hub namespace             (default: tenet-lab)
 #   UPLOAD_TO_HF   1 to upload the bundle       (default: 0)
+#   MATERIALIZE    1 to run Tier 3 materialization via `sml materialize-tenet` (default: 0)
+#   MATERIALIZE_OUTPUT_DIR  materialized checkpoint output dir (default: results/tenet_materialized)
+#   LORA_PATH      optional Tenet LoRA adapter path for materialization
+#   SQL_LORA_PATH  optional SQL LoRA adapter to merge during materialization
+#   FP8_EXPORT     1 to also export FP8 shards (default: 0)
+#   DROP_LOCAL_WEIGHTS  1 to drop local materialized shards after a successful Hub push (default: 0)
 #   SMOKE_ONLY     1 for a tiny CPU smoke run   (default: 0)
 #   DRY_RUN        1 to print the command only  (default: 0)
 #   RUN_SUFFIX     run-id suffix for benchmarks (default: per-profile suffix)
 #   RESULTS_ROOT   benchmark/results root       (default: results)
-#   RUN_STAGE_BENCHMARKS  1 to run verify-h9..h12 first (default: 1, or 0 with SMOKE_ONLY=1)
+#   RUN_STAGE_BENCHMARKS  1 to run verify-h9..h13 first (default: 1, or 0 with SMOKE_ONLY=1)
+#   RUN_EXTERNAL_EVAL  1 to run `sml eval-external` (default: 1 when RUN_STAGE_BENCHMARKS=1, else 0)
+#   RUN_VLLM_SMOKE 1 to serve the release with vLLM FP8 and run `sml vllm-smoke` (default: 0)
+#   VLLM_MODEL     model path/repo served by vLLM (default: MODEL_NAME)
+#   VLLM_HOST      vLLM serve host               (default: 127.0.0.1)
+#   VLLM_PORT      vLLM serve port               (default: 8000)
+#   VLLM_MAX_MODEL_LEN  vLLM max model len       (default: 8192)
 #   START_WATCHDOG 1 to start idle_watchdog.sh  (default: 0)
 
 set -euo pipefail
@@ -43,8 +55,22 @@ case "${TENET_PROFILE}" in
     PROFILE_BACKEND="llm"
     PROFILE_RUN_SUFFIX="nemo12b_h100"
     ;;
+  32b-h100)
+    PROFILE_MODEL="Qwen/Qwen2.5-32B-Instruct"
+    PROFILE_RELEASE_ID="Tenet-32B-Qwen2.5-Unslop-v1"
+    PROFILE_DEVICE="cuda"
+    PROFILE_BACKEND="llm"
+    PROFILE_RUN_SUFFIX="qwen32b_h100"
+    ;;
+  70b-h100)
+    PROFILE_MODEL="meta-llama/Llama-3.3-70B-Instruct"
+    PROFILE_RELEASE_ID="Tenet-70B-Llama3.3-Unslop-v1"
+    PROFILE_DEVICE="cuda"
+    PROFILE_BACKEND="llm"
+    PROFILE_RUN_SUFFIX="llama70b_h100"
+    ;;
   *)
-    echo "Unknown TENET_PROFILE '${TENET_PROFILE}' (expected 3b-mps, 8b-h100, or 12b-h100)." >&2
+    echo "Unknown TENET_PROFILE '${TENET_PROFILE}' (expected 3b-mps, 8b-h100, 12b-h100, 32b-h100, or 70b-h100)." >&2
     exit 2
     ;;
 esac
@@ -56,6 +82,12 @@ BACKEND="${BACKEND:-${PROFILE_BACKEND}}"
 OUTPUT_DIR="${OUTPUT_DIR:-results/tenet_releases}"
 HF_NAMESPACE="${HF_NAMESPACE:-tenet-lab}"
 UPLOAD_TO_HF="${UPLOAD_TO_HF:-0}"
+MATERIALIZE="${MATERIALIZE:-0}"
+MATERIALIZE_OUTPUT_DIR="${MATERIALIZE_OUTPUT_DIR:-results/tenet_materialized}"
+LORA_PATH="${LORA_PATH:-}"
+SQL_LORA_PATH="${SQL_LORA_PATH:-}"
+FP8_EXPORT="${FP8_EXPORT:-0}"
+DROP_LOCAL_WEIGHTS="${DROP_LOCAL_WEIGHTS:-0}"
 SMOKE_ONLY="${SMOKE_ONLY:-0}"
 DRY_RUN="${DRY_RUN:-0}"
 RUN_SUFFIX="${RUN_SUFFIX:-${PROFILE_RUN_SUFFIX}}"
@@ -78,6 +110,19 @@ if [[ "${SMOKE_ONLY}" == "1" ]]; then
   RUN_STAGE_BENCHMARKS="${RUN_STAGE_BENCHMARKS:-0}"
 else
   RUN_STAGE_BENCHMARKS="${RUN_STAGE_BENCHMARKS:-1}"
+fi
+
+RUN_VLLM_SMOKE="${RUN_VLLM_SMOKE:-0}"
+VLLM_MODEL="${VLLM_MODEL:-${MODEL_NAME}}"
+VLLM_HOST="${VLLM_HOST:-127.0.0.1}"
+VLLM_PORT="${VLLM_PORT:-8000}"
+VLLM_MAX_MODEL_LEN="${VLLM_MAX_MODEL_LEN:-8192}"
+if [[ -z "${RUN_EXTERNAL_EVAL:-}" ]]; then
+  if [[ "${RUN_STAGE_BENCHMARKS}" == "1" ]]; then
+    RUN_EXTERNAL_EVAL=1
+  else
+    RUN_EXTERNAL_EVAL=0
+  fi
 fi
 
 HF_REPO_ID="${HF_NAMESPACE}/${RELEASE_ID}"
@@ -162,6 +207,33 @@ BUILD_CMD=(
   --hf-namespace "${HF_NAMESPACE}"
 )
 
+if [[ "${MATERIALIZE}" == "1" ]]; then
+  MATERIALIZE_CMD=(
+    uv run sml materialize-tenet
+    --release-id "${RELEASE_ID}"
+    --recipe-dir "${RELEASE_PATH}"
+    --output-dir "${MATERIALIZE_OUTPUT_DIR}"
+    --backend "${BACKEND}"
+    --device "${DEVICE}"
+    --hf-namespace "${HF_NAMESPACE}"
+  )
+  if [[ -n "${LORA_PATH}" ]]; then
+    MATERIALIZE_CMD+=(--lora-path "${LORA_PATH}")
+  fi
+  if [[ -n "${SQL_LORA_PATH}" ]]; then
+    MATERIALIZE_CMD+=(--sql-lora-path "${SQL_LORA_PATH}")
+  fi
+  if [[ "${FP8_EXPORT}" == "1" ]]; then
+    MATERIALIZE_CMD+=(--fp8-export)
+  fi
+  if [[ "${UPLOAD_TO_HF}" == "1" ]]; then
+    MATERIALIZE_CMD+=(--push-to-hub)
+  fi
+  if [[ "${DROP_LOCAL_WEIGHTS}" == "1" ]]; then
+    MATERIALIZE_CMD+=(--drop-local-weights)
+  fi
+fi
+
 mkdir -p "${RESULTS_ROOT}"
 
 if [[ "${START_WATCHDOG}" == "1" && "${DRY_RUN}" == "0" ]]; then
@@ -173,6 +245,11 @@ if [[ "${RUN_STAGE_BENCHMARKS}" == "1" ]]; then
   run_or_print "${VERIFY_H10_CMD[@]}"
   run_or_print "${VERIFY_H11_CMD[@]}"
   run_or_print "${VERIFY_H12_CMD[@]}"
+  run_or_print uv run sml verify-h13 --experiment experiments/h13_streaming_shard_surgery.yaml --output-dir "${RESULTS_ROOT}" --run-id "h13_${RUN_SUFFIX}" --backend "${BACKEND}" --model-name "${MODEL_NAME}" --device "${DEVICE}"
+fi
+
+if [[ "${RUN_EXTERNAL_EVAL}" == "1" ]]; then
+  run_or_print uv run sml eval-external --output-dir "${RESULTS_ROOT}/external_evals" --run-id "ext_${RUN_SUFFIX}" --release-dir "${RELEASE_PATH}"
 fi
 
 if [[ "${DRY_RUN}" == "1" ]]; then
@@ -182,6 +259,13 @@ if [[ "${DRY_RUN}" == "1" ]]; then
   if [[ "${UPLOAD_TO_HF}" == "1" ]]; then
     echo "[dry-run] huggingface-cli upload \"${HF_REPO_ID}\" \"${RELEASE_PATH}\" --repo-type model"
   fi
+  if [[ "${MATERIALIZE}" == "1" ]]; then
+    echo "[dry-run] ${MATERIALIZE_CMD[*]}"
+  fi
+  if [[ "${RUN_VLLM_SMOKE}" == "1" ]]; then
+    echo "[dry-run] vllm serve \"${VLLM_MODEL}\" --quantization fp8 --dtype bfloat16 --host \"${VLLM_HOST}\" --port \"${VLLM_PORT}\" --max-model-len \"${VLLM_MAX_MODEL_LEN}\" --enable-auto-tool-choice"
+    echo "[dry-run] uv run sml vllm-smoke --base-url \"http://${VLLM_HOST}:${VLLM_PORT}/v1\" --model-name \"${VLLM_MODEL}\" --output-json \"${RESULTS_ROOT}/vllm_fp8_smoke.json\""
+  fi
   exit 0
 fi
 
@@ -190,6 +274,59 @@ echo "Building Tenet release '${RELEASE_ID}' (backend=${BACKEND}, device=${DEVIC
 
 "${EXPORT_HUB_CMD[@]}"
 "${REPORT_CMD[@]}"
+
+if [[ "${MATERIALIZE}" == "1" ]]; then
+  echo "Materializing Tenet checkpoint for '${RELEASE_ID}' into '${MATERIALIZE_OUTPUT_DIR}'."
+  "${MATERIALIZE_CMD[@]}"
+fi
+
+if [[ "${RUN_VLLM_SMOKE}" == "1" ]]; then
+  VLLM_PID=""
+  cleanup_vllm() {
+    if [[ -n "${VLLM_PID}" ]] && kill -0 "${VLLM_PID}" 2>/dev/null; then
+      kill "${VLLM_PID}" 2>/dev/null || true
+      wait "${VLLM_PID}" 2>/dev/null || true
+    fi
+  }
+  trap cleanup_vllm EXIT
+
+  echo "Starting vLLM FP8 smoke server for '${VLLM_MODEL}' on ${VLLM_HOST}:${VLLM_PORT}."
+  vllm serve "${VLLM_MODEL}" \
+    --quantization fp8 \
+    --dtype bfloat16 \
+    --host "${VLLM_HOST}" \
+    --port "${VLLM_PORT}" \
+    --max-model-len "${VLLM_MAX_MODEL_LEN}" \
+    --enable-auto-tool-choice \
+    > "${RESULTS_ROOT}/vllm_serve.log" 2>&1 &
+  VLLM_PID=$!
+
+  VLLM_READY=0
+  for _ in $(seq 1 120); do
+    if ! kill -0 "${VLLM_PID}" 2>/dev/null; then
+      echo "ERROR: vLLM server exited unexpectedly; see ${RESULTS_ROOT}/vllm_serve.log" >&2
+      exit 1
+    fi
+    if curl -fsS "http://${VLLM_HOST}:${VLLM_PORT}/v1/models" >/dev/null 2>&1; then
+      VLLM_READY=1
+      break
+    fi
+    sleep 5
+  done
+
+  if [[ "${VLLM_READY}" != "1" ]]; then
+    echo "ERROR: vLLM server did not become ready within 600s; see ${RESULTS_ROOT}/vllm_serve.log" >&2
+    exit 1
+  fi
+
+  uv run sml vllm-smoke \
+    --base-url "http://${VLLM_HOST}:${VLLM_PORT}/v1" \
+    --model-name "${VLLM_MODEL}" \
+    --output-json "${RELEASE_PATH}/vllm_fp8_smoke.json"
+
+  cleanup_vllm
+  trap - EXIT
+fi
 
 if [[ "${UPLOAD_TO_HF}" == "1" ]]; then
   echo "Uploading '${RELEASE_PATH}' to '${HF_REPO_ID}'."

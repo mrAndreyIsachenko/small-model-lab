@@ -412,6 +412,8 @@ def inspect_directory_or_bundle(path: Path | str) -> dict[str, Any]:
             "final_metrics.json",
             "release_manifest.json",
             "openrouter_onboarding.json",
+            "external_benchmarks.json",
+            "vllm_fp8_smoke.json",
         ):
             data = _read_json(p / fname)
             if data is not None:
@@ -419,6 +421,22 @@ def inspect_directory_or_bundle(path: Path | str) -> dict[str, Any]:
     readiness = meta.get("provider_readiness.json")
     if not isinstance(readiness, dict):
         readiness = {}
+
+    # -- optional external benchmark / vLLM FP8 smoke payloads -----------------
+    # Prefer the dedicated JSONs; fall back to keys embedded in the
+    # openrouter_onboarding.json manifest.
+    onboarding = meta.get("openrouter_onboarding.json")
+    onboarding = onboarding if isinstance(onboarding, dict) else {}
+    external = meta.get("external_benchmarks.json")
+    if not isinstance(external, dict) and isinstance(onboarding.get("external_benchmarks"), dict):
+        external = onboarding["external_benchmarks"]
+    if isinstance(external, dict) and external:
+        result["external_benchmarks"] = external
+    smoke = meta.get("vllm_fp8_smoke.json")
+    if not isinstance(smoke, dict) and isinstance(onboarding.get("vllm_smoke"), dict):
+        smoke = onboarding["vllm_smoke"]
+    if isinstance(smoke, dict) and smoke:
+        result["vllm_smoke"] = smoke
 
     # -- locate weight files ----------------------------------------------------
     if p.is_dir():
@@ -779,6 +797,10 @@ DEMO_PRESET: dict[str, Any] = {
         "max_row_crest_factor_display": "≥ 25.0",
         "fp8_verdict": "FAIL",
         "top_scr_layers": [21, 15, 19],
+        "ifeval_strict": 0.28,
+        "gsm8k_math_acc": 0.41,
+        "sql_incident_acc": 0.32,
+        "direct_compliance_rate": 0.15,
     },
     "tenet": {
         "label": "Tenet-3B-Qwen2.5-Unslop-v1 (Lancet)",
@@ -791,6 +813,10 @@ DEMO_PRESET: dict[str, Any] = {
         "max_row_crest_factor_display": "17.27",
         "fp8_verdict": "PASS",
         "top_scr_layers": [21, 15, 19],
+        "ifeval_strict": 0.71,
+        "gsm8k_math_acc": 0.77,
+        "sql_incident_acc": 0.86,
+        "direct_compliance_rate": 0.94,
     },
 }
 
@@ -1078,6 +1104,35 @@ def generate_gguf_commands(
 # ---------------------------------------------------------------------------
 # Gradio UI (optional at import time)
 # ---------------------------------------------------------------------------
+_EXTERNAL_SUMMARY_ROWS: tuple[tuple[str, str], ...] = (
+    ("IFEval (strict)", "ifeval_strict"),
+    ("GSM8K / MATH-500", "gsm8k_math_acc"),
+    ("SQL-Incident Eval", "sql_incident_acc"),
+    ("Direct-Compliance", "direct_compliance_rate"),
+    ("Unslop pass rate", "unslop_pass_rate"),
+    ("Slop & Refusal rate", "slop_and_refusal_rate"),
+    ("BFCL tool accuracy", "bfcl_tool_acc"),
+    ("HumanEval pass@1", "humaneval_pass1"),
+)
+
+# Friendly labels for common vLLM FP8 smoke-test keys.
+_VLLM_SMOKE_LABELS: dict[str, str] = {
+    "ttft_ms": "TTFT ms",
+    "ttft": "TTFT ms",
+    "time_to_first_token_ms": "TTFT ms",
+    "tok_per_s": "tok/s",
+    "tok_s": "tok/s",
+    "tok_per_sec": "tok/s",
+    "throughput_tok_s": "tok/s",
+    "throughput": "tok/s",
+    "decode_tok_per_s": "tok/s",
+    "fp8_parity": "FP8 parity",
+    "fp8_parity_ok": "FP8 parity",
+    "fp8_parity_max_kl": "FP8 parity (max KL)",
+    "fp8_kl_parity": "FP8 parity",
+}
+
+
 def _format_checks_summary(r: dict[str, Any]) -> str:
     icon = {"PASS": "✅", "FAIL": "❌"}.get(str(r.get("fp8_verdict")), "❔")
     lines = [
@@ -1111,6 +1166,26 @@ def _format_checks_summary(r: dict[str, Any]) -> str:
             f"crest {t['row_crest_factor']}, max|w| {t['max_abs_weight']}"
             for t in top3
         ]
+    external = r.get("external_benchmarks")
+    if isinstance(external, dict) and external:
+        lines += ["", "**External Benchmarks**", "", "| benchmark | score |", "|---|---|"]
+        shown_keys: set[str] = set()
+        for label, key in _EXTERNAL_SUMMARY_ROWS:
+            value = external.get(key)
+            if value is None:
+                continue
+            shown_keys.add(key)
+            lines.append(f"| {label} | `{value}` |")
+        for key, value in external.items():
+            if key in shown_keys:
+                continue
+            lines.append(f"| {str(key).replace('_', ' ')} | `{value}` |")
+    smoke = r.get("vllm_smoke")
+    if isinstance(smoke, dict) and smoke:
+        lines += ["", "**vLLM FP8 Smoke**", "", "| metric | value |", "|---|---|"]
+        for key, value in smoke.items():
+            label = _VLLM_SMOKE_LABELS.get(str(key), str(key).replace("_", " "))
+            lines.append(f"| {label} | `{value}` |")
     if r.get("recipe_provenance"):
         prov = r["recipe_provenance"]
         lines += ["", f"recipe provenance: {'✅ OK' if prov.get('ok') else '❌'}"]
@@ -1138,6 +1213,12 @@ def build_demo():
             f"| max_row_crest_factor | ≥ 25.0 → **FAIL** | "
             f"{tenet['max_row_crest_factor']} → **PASS** |",
             "| Top-3 SCR layers | 21 / 15 / 19 | 21 / 15 / 19 |",
+            f"| IFEval strict | {naive['ifeval_strict']} | {tenet['ifeval_strict']} |",
+            f"| GSM8K / MATH-500 | {naive['gsm8k_math_acc']} | {tenet['gsm8k_math_acc']} |",
+            f"| SQL-Incident Eval | {naive['sql_incident_acc']} | "
+            f"{tenet['sql_incident_acc']} |",
+            f"| Direct-Compliance | {naive['direct_compliance_rate']} | "
+            f"{tenet['direct_compliance_rate']} |",
         ]
     )
 

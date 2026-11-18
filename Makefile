@@ -61,6 +61,9 @@ verify-h12:
 build-tenet:
 	uv run sml build-tenet --output-dir results/tenet_releases --release-id Tenet-3B-Qwen2.5-Unslop-v1
 
+materialize-tenet:
+	uv run sml materialize-tenet --release-id Tenet-3B-Qwen2.5-Unslop-v1 --output-dir results/tenet_materialized --device mps
+
 train-smoke:
 	uv run sml train-smoke --steps 20 --device auto
 

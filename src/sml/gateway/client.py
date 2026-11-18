@@ -1,9 +1,10 @@
 import json
 import os
 import re
+import statistics
 import time
 import urllib.request
-from collections.abc import Callable
+from collections.abc import Callable, Sequence
 from dataclasses import dataclass, field
 from typing import Any
 from urllib.error import URLError
@@ -30,6 +31,26 @@ OPENROUTER_DEFAULT_URL = "https://openrouter.ai/api/v1"
 
 # Tenet-targeted OpenRouter upstream providers for FP8 onboarding.
 OPENROUTER_TENET_PROVIDERS = ["Featherless", "Chutes", "Novita", "DeepInfra"]
+
+# Deterministic FP8 smoke prompts: JSON format check, simple arithmetic, SQL
+# read-only check. The matching reference responses are the canonical answers
+# a well-behaved (BF16 or FP8) model should produce.
+VLLM_FP8_SMOKE_PROMPTS: tuple[str, ...] = (
+    'Respond with a single valid JSON object with keys "status" (string) and '
+    '"count" (integer). Output the JSON object only.',
+    "Compute 17 * 23 and reply with the number only.",
+    (
+        "You are auditing a SQL session that must stay read-only. "
+        'Is the statement "DROP TABLE users;" allowed in a read-only session? '
+        "Answer with yes or no only."
+    ),
+)
+
+VLLM_FP8_SMOKE_REFERENCE_RESPONSES: tuple[str, ...] = (
+    '{"status": "ok", "count": 1}',
+    "391",
+    "no",
+)
 
 
 class GatewayError(ValueError):
@@ -241,12 +262,79 @@ def _format_metric(value: Any) -> str:
     return str(value)
 
 
+EXTERNAL_BENCHMARK_LABELS = {
+    "ifeval_strict": "IFEval strict",
+    "gsm8k_math_acc": "GSM8K / MATH-500",
+    "sql_incident_acc": "SQL-Incident Eval",
+    "direct_compliance_rate": "Direct-Compliance / Unslop Audit",
+}
+
+
+def _format_manifest_value(value: Any) -> str:
+    if value is None:
+        return "n/a"
+    if isinstance(value, bool):
+        return "yes" if value else "no"
+    if isinstance(value, float):
+        return f"{value:.6g}"
+    if isinstance(value, dict):
+        return json.dumps(value, sort_keys=True)
+    return str(value)
+
+
+def _external_benchmark_markdown_rows(benchmarks: dict[str, Any]) -> list[str]:
+    rows: list[str] = []
+    covered: set[str] = set()
+    for key, label in EXTERNAL_BENCHMARK_LABELS.items():
+        if key in benchmarks:
+            rows.append(f"| {label} | {_format_manifest_value(benchmarks[key])} |")
+            covered.add(key)
+    for key, value in benchmarks.items():
+        if key in covered:
+            continue
+        rows.append(f"| {str(key).replace('_', ' ').title()} | {_format_manifest_value(value)} |")
+    return rows
+
+
+def _vllm_smoke_markdown_rows(smoke: dict[str, Any]) -> list[str]:
+    ttft = smoke.get("ttft_ms")
+    if isinstance(ttft, dict):
+        ttft_text = (
+            f"mean {_format_manifest_value(ttft.get('mean'))} / "
+            f"p50 {_format_manifest_value(ttft.get('p50'))}"
+        )
+    else:
+        ttft_text = _format_manifest_value(ttft)
+
+    tok_s = smoke.get("tok_s")
+    if isinstance(tok_s, dict):
+        mean_value = _format_manifest_value(tok_s.get("mean"))
+        aggregate = tok_s.get("aggregate")
+        if aggregate is not None:
+            tok_text = f"mean {mean_value} / aggregate {_format_manifest_value(aggregate)}"
+        else:
+            tok_text = mean_value
+    else:
+        tok_text = _format_manifest_value(tok_s)
+
+    rows = [
+        ("TTFT ms", ttft_text),
+        ("tok/s", tok_text),
+        ("FP8 parity", _format_manifest_value(smoke.get("fp8_parity"))),
+        ("Success rate", _format_manifest_value(smoke.get("success_rate"))),
+    ]
+    return [f"| {label} | {value} |" for label, value in rows]
+
+
 def build_openrouter_onboarding_manifest(
     hf_repo_id: str,
     base_model: str,
     h9_metrics: dict[str, Any],
     h10_metrics: dict[str, Any],
     h11_metrics: dict[str, Any],
+    *,
+    external_benchmarks: dict[str, Any] | None = None,
+    vllm_smoke: dict[str, Any] | None = None,
 ) -> dict[str, Any]:
     """Build a structured OpenRouter provider-onboarding manifest.
 
@@ -254,6 +342,12 @@ def build_openrouter_onboarding_manifest(
     max-abs-weight weight-hygiene evidence (H11), plus key H9 Lancet
     surgery and H10 subspace-safe GRPO metrics, a vLLM launch command,
     and an architectural compatibility checklist.
+
+    Optional ``external_benchmarks`` (IFEval strict, GSM8K / MATH-500,
+    SQL-Incident Eval, Direct-Compliance / Unslop Audit) and ``vllm_smoke``
+    (live FP8 serving TTFT / tok-s / parity results from
+    ``run_vllm_fp8_smoke``) are appended as extra manifest keys and
+    markdown sections when provided.
     """
     vllm_launch_args = {
         "model": hf_repo_id,
@@ -387,7 +481,27 @@ def build_openrouter_onboarding_manifest(
         f"- Supported architectures: {supported}\n"
     )
 
-    return {
+    if external_benchmarks:
+        benchmark_rows = _external_benchmark_markdown_rows(external_benchmarks)
+        if benchmark_rows:
+            markdown_summary += (
+                "\n## External Benchmarks\n"
+                "\n"
+                "| Benchmark | Score |\n"
+                "| --- | --- |\n" + "\n".join(benchmark_rows) + "\n"
+            )
+
+    if vllm_smoke:
+        smoke_rows = _vllm_smoke_markdown_rows(vllm_smoke)
+        if smoke_rows:
+            markdown_summary += (
+                "\n## vLLM FP8 Smoke & Parity\n"
+                "\n"
+                "| Metric | Value |\n"
+                "| --- | --- |\n" + "\n".join(smoke_rows) + "\n"
+            )
+
+    manifest = {
         "hf_repo_id": hf_repo_id,
         "base_model": base_model,
         "providers": list(OPENROUTER_TENET_PROVIDERS),
@@ -396,6 +510,241 @@ def build_openrouter_onboarding_manifest(
         "architectural_compatibility": architectural_compatibility,
         "markdown_summary": markdown_summary,
     }
+    if external_benchmarks:
+        manifest["external_benchmarks"] = external_benchmarks
+    if vllm_smoke:
+        manifest["vllm_smoke"] = vllm_smoke
+    return manifest
+
+
+def _extract_response_text(response: dict[str, Any]) -> str:
+    """Pull assistant text out of a chat-completions (or completion) response."""
+    choices = response.get("choices")
+    if not isinstance(choices, list) or not choices:
+        return ""
+    first = choices[0]
+    if not isinstance(first, dict):
+        return ""
+    message = first.get("message")
+    if isinstance(message, dict):
+        return str(message.get("content") or "")
+    return str(first.get("text") or "")
+
+
+def _extract_ttft_ms(response: dict[str, Any]) -> float | None:
+    """Return a server-reported TTFT when present, else None."""
+    candidates: list[Any] = [
+        response.get("ttft_ms"),
+        response.get("time_to_first_token_ms"),
+    ]
+    timing = response.get("timing")
+    if isinstance(timing, dict):
+        candidates.extend([timing.get("ttft_ms"), timing.get("time_to_first_token_ms")])
+    usage = response.get("usage")
+    if isinstance(usage, dict):
+        candidates.extend([usage.get("ttft_ms"), usage.get("time_to_first_token_ms")])
+    for value in candidates:
+        if isinstance(value, (int, float)) and not isinstance(value, bool) and value >= 0:
+            return float(value)
+    return None
+
+
+def _fp8_token_set(text: str) -> set[str]:
+    return set(re.findall(r"[a-z0-9]+", text.lower()))
+
+
+def _fp8_parity_score(response_text: str, reference_text: str) -> float:
+    """Token/substring overlap parity between two responses in [0.0, 1.0]."""
+    response_lower = response_text.strip().lower()
+    reference_lower = reference_text.strip().lower()
+    if not response_lower and not reference_lower:
+        return 0.0
+    if response_lower and response_lower in reference_lower:
+        return 1.0
+    if reference_lower and reference_lower in response_lower:
+        return 1.0
+    response_tokens = _fp8_token_set(response_lower)
+    reference_tokens = _fp8_token_set(reference_lower)
+    if not response_tokens or not reference_tokens:
+        return 0.0
+    overlap = len(response_tokens & reference_tokens)
+    precision = overlap / len(response_tokens)
+    recall = overlap / len(reference_tokens)
+    if precision + recall == 0.0:
+        return 0.0
+    return 2.0 * precision * recall / (precision + recall)
+
+
+def run_vllm_fp8_smoke(
+    client: "OpenRouterGatewayClient",
+    model: str,
+    prompts: Sequence[str] | None = None,
+    reference_responses: Sequence[str] | None = None,
+    max_tokens: int = 128,
+) -> dict[str, Any]:
+    """Run deterministic FP8 smoke prompts against a served vLLM endpoint.
+
+    Issues one chat completion per prompt (JSON format check, simple
+    arithmetic, SQL read-only check by default), measures per-request and
+    aggregate TTFT/tok-s, and computes an FP8 parity score against optional
+    reference responses (token/substring overlap in [0.0, 1.0]). Without
+    references, parity is 1.0 when every request succeeds with a non-empty
+    response.
+    """
+    selected_prompts = list(prompts) if prompts else list(VLLM_FP8_SMOKE_PROMPTS)
+    references = list(reference_responses) if reference_responses is not None else None
+
+    requests: list[dict[str, Any]] = []
+    ttft_values: list[float] = []
+    tok_per_sec_values: list[float] = []
+    total_completion_tokens = 0
+    total_elapsed_seconds = 0.0
+    successes = 0
+
+    for index, prompt in enumerate(selected_prompts):
+        record: dict[str, Any] = {
+            "index": index,
+            "prompt": prompt,
+            "ok": False,
+            "response": "",
+            "completion_tokens": 0,
+            "elapsed_ms": 0,
+            "ttft_ms": None,
+            "tok_s": None,
+            "error": None,
+        }
+        start_time = time.monotonic()
+        try:
+            response = client.chat_completions(
+                {
+                    "model": model,
+                    "messages": [{"role": "user", "content": prompt}],
+                    "temperature": 0.0,
+                    "max_tokens": max_tokens,
+                },
+                request_id=f"vllm-fp8-smoke-{index}",
+            )
+        except Exception as exc:  # noqa: BLE001 - record any per-request failure
+            record["elapsed_ms"] = round((time.monotonic() - start_time) * 1000)
+            record["error"] = str(exc)
+            requests.append(record)
+            continue
+
+        elapsed_ms = round((time.monotonic() - start_time) * 1000)
+        elapsed_seconds = max(elapsed_ms / 1000.0, 1e-6)
+        total_elapsed_seconds += elapsed_seconds
+
+        text = _extract_response_text(response)
+        usage = response.get("usage") if isinstance(response.get("usage"), dict) else {}
+        completion_tokens = int(usage.get("completion_tokens") or 0)
+        ttft_ms = _extract_ttft_ms(response)
+        if ttft_ms is None:
+            # Non-streaming: elapsed time of the whole request is the best
+            # available first-token proxy.
+            ttft_ms = float(elapsed_ms)
+        tok_s = completion_tokens / elapsed_seconds if completion_tokens > 0 else None
+
+        successes += 1
+        total_completion_tokens += completion_tokens
+        ttft_values.append(float(ttft_ms))
+        if tok_s is not None:
+            tok_per_sec_values.append(float(tok_s))
+
+        record.update(
+            {
+                "ok": True,
+                "response": text,
+                "completion_tokens": completion_tokens,
+                "elapsed_ms": elapsed_ms,
+                "ttft_ms": round(ttft_ms, 3),
+                "tok_s": round(tok_s, 3) if tok_s is not None else None,
+            }
+        )
+        requests.append(record)
+
+    if references is None:
+        valid = sum(1 for entry in requests if entry["ok"] and str(entry["response"]).strip())
+        fp8_parity = valid / len(requests) if requests else 0.0
+    else:
+        scores = [
+            _fp8_parity_score(str(entry["response"]), reference)
+            for entry, reference in zip(requests, references, strict=False)
+        ]
+        fp8_parity = statistics.mean(scores) if scores else 0.0
+
+    aggregate_tok_s = (
+        total_completion_tokens / total_elapsed_seconds
+        if total_elapsed_seconds > 0.0 and total_completion_tokens > 0
+        else None
+    )
+
+    return {
+        "model": model,
+        "num_requests": len(requests),
+        "success_rate": successes / len(requests) if requests else 0.0,
+        "ttft_ms": {
+            "mean": round(statistics.mean(ttft_values), 3) if ttft_values else 0.0,
+            "p50": round(statistics.median(ttft_values), 3) if ttft_values else 0.0,
+        },
+        "tok_s": {
+            "mean": round(statistics.mean(tok_per_sec_values), 3) if tok_per_sec_values else 0.0,
+            "p50": round(statistics.median(tok_per_sec_values), 3) if tok_per_sec_values else 0.0,
+            "aggregate": round(aggregate_tok_s, 3) if aggregate_tok_s is not None else 0.0,
+        },
+        "total_completion_tokens": total_completion_tokens,
+        "fp8_parity": round(fp8_parity, 4),
+        "requests": requests,
+    }
+
+
+def build_vllm_fp8_mock_transport() -> Callable[[urllib.request.Request, int], dict[str, Any]]:
+    """Deterministic transport emulating a local vLLM OpenAI-compatible server."""
+
+    def _deterministic_smoke_response(prompt: str) -> str:
+        lowered = prompt.lower()
+        arithmetic = re.search(r"(\d+)\s*([*+])\s*(\d+)", lowered)
+        if arithmetic:
+            left, op, right = (
+                int(arithmetic.group(1)),
+                arithmetic.group(2),
+                int(arithmetic.group(3)),
+            )
+            return str(left * right if op == "*" else left + right)
+        if "json" in lowered:
+            return VLLM_FP8_SMOKE_REFERENCE_RESPONSES[0]
+        if "sql" in lowered or "drop table" in lowered:
+            return VLLM_FP8_SMOKE_REFERENCE_RESPONSES[2]
+        return "ok"
+
+    def transport(request: urllib.request.Request, timeout_seconds: int) -> dict[str, Any]:
+        payload = json.loads(bytes(request.data or b"").decode("utf-8"))
+        prompt = ""
+        for message in payload.get("messages", []):
+            if isinstance(message, dict) and message.get("role") == "user":
+                prompt = str(message.get("content") or "")
+        content = _deterministic_smoke_response(prompt)
+        prompt_tokens = max(len(prompt.split()), 1)
+        completion_tokens = max(len(content.split()), 1)
+        return {
+            "id": "chatcmpl-vllm-fp8-mock",
+            "object": "chat.completion",
+            "created": 0,
+            "model": str(payload.get("model") or ""),
+            "choices": [
+                {
+                    "index": 0,
+                    "message": {"role": "assistant", "content": content},
+                    "finish_reason": "stop",
+                }
+            ],
+            "usage": {
+                "prompt_tokens": prompt_tokens,
+                "completion_tokens": completion_tokens,
+                "total_tokens": prompt_tokens + completion_tokens,
+            },
+        }
+
+    return transport
 
 
 class OpenRouterGatewayClient:

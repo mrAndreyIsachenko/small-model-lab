@@ -3,9 +3,14 @@
 from __future__ import annotations
 
 import copy
+import gc
 import json
+import re
+import shutil
+import tracemalloc
 from dataclasses import dataclass
 from pathlib import Path
+from typing import Any
 
 import torch
 from safetensors.torch import load_file, save_file
@@ -875,3 +880,200 @@ def apply_lancet_recipe(
             )
 
     return target_model
+
+
+_TARGET_WEIGHT_KEY_RE = re.compile(
+    r"^(?:model\.)?layers\.(\d+)\.(self_attn\.o_proj|mlp\.down_proj)\.weight$"
+)
+
+
+def _resolve_safetensors_shards(checkpoint_dir: Path) -> tuple[list[str], dict[str, Any] | None]:
+    """
+    Resolve the ordered list of safetensors shard filenames in a checkpoint.
+
+    Resolution order:
+
+    1. ``model.safetensors.index.json``: shard filenames are taken from
+       ``weight_map.values()`` preserving first-seen order, and the parsed
+       index document is returned as the second element.
+    2. ``model.safetensors``: a single-file checkpoint; the index is ``None``.
+    3. ``model-*-of-*.safetensors``: sorted glob fallback; the index is ``None``.
+
+    Args:
+        checkpoint_dir: Directory that may hold a sharded or single-file
+            safetensors checkpoint.
+
+    Returns:
+        Tuple ``(shards, index_data)`` with ordered unique shard filenames and
+        the parsed index JSON (``None`` when no index file exists).
+
+    Raises:
+        FileNotFoundError: If no safetensors shard can be resolved.
+    """
+    index_path = checkpoint_dir / "model.safetensors.index.json"
+    if index_path.is_file():
+        index_data = json.loads(index_path.read_text(encoding="utf-8"))
+        weight_map = index_data.get("weight_map", {}) if isinstance(index_data, dict) else {}
+        shards: list[str] = []
+        seen: set[str] = set()
+        for filename in weight_map.values():
+            name = str(filename)
+            if name not in seen:
+                seen.add(name)
+                shards.append(name)
+        return shards, index_data
+
+    if (checkpoint_dir / "model.safetensors").is_file():
+        return ["model.safetensors"], None
+
+    shard_names = sorted(p.name for p in checkpoint_dir.glob("model-*-of-*.safetensors"))
+    if not shard_names:
+        raise FileNotFoundError(f"No safetensors shards found in {checkpoint_dir}")
+    return shard_names, None
+
+
+def _parse_target_layer_weight_key(key: str) -> tuple[int, str] | None:
+    """
+    Parse a transformer checkpoint weight key into ``(layer_idx, proj_name)``.
+
+    Matches ``layers.<idx>.self_attn.o_proj.weight`` and
+    ``layers.<idx>.mlp.down_proj.weight`` with an optional ``model.`` prefix
+    (the HF key layout). Any other key returns ``None``.
+    """
+    match = _TARGET_WEIGHT_KEY_RE.match(key)
+    if match is None:
+        return None
+    return int(match.group(1)), match.group(2)
+
+
+def _compute_row_crest_factor(weight: torch.Tensor) -> float:
+    """
+    Compute the peak-to-mean row-norm ratio (crest factor) of a 2D weight.
+
+    Returns ``max_row_norm / mean_row_norm``; 1.0 when all rows share the same
+    norm. Non-2D or empty tensors report 1.0 (no crest to flag).
+    """
+    if weight.ndim != 2 or weight.numel() == 0:
+        return 1.0
+    norms = weight.float().norm(dim=-1)
+    mean_norm = norms.mean().clamp_min(1e-8)
+    return float((norms.max() / mean_norm).item())
+
+
+def apply_lancet_recipe_streaming(
+    checkpoint_dir: str | Path,
+    output_dir: str | Path,
+    recipe: LancetRecipe,
+    *,
+    preserve_row_norm: bool = True,
+    cleanup_input_shards: bool = False,
+) -> dict[str, Any]:
+    """
+    Apply a Lancet recipe to a sharded safetensors checkpoint on disk.
+
+    Unlike ``apply_lancet_recipe`` (in-memory, requires the full model), this
+    streams one shard at a time on CPU: each shard is loaded, target weights
+    (``self_attn.o_proj`` / ``mlp.down_proj`` of layers selected by the recipe)
+    are modified in-place via ``project_out_subspace_norm_preserving``, and the
+    shard is written back to ``output_dir`` before the next one is loaded. Peak
+    memory and per-shard disk footprint are tracked so callers can verify the
+    streaming behavior.
+
+    Args:
+        checkpoint_dir: Directory holding the source safetensors checkpoint
+            (single file, sharded with index JSON, or sharded without index).
+        output_dir: Directory to create for the modified checkpoint.
+        recipe: Recipe produced by ``build_lancet_recipe`` /
+            ``load_lancet_recipe``.
+        preserve_row_norm: Passed through to the projection.
+        cleanup_input_shards: If True, delete each processed input shard
+            (only when ``checkpoint_dir`` and ``output_dir`` differ).
+
+    Returns:
+        Dict with ``shards_processed``, ``tensors_modified``,
+        ``max_row_norm_drift``, ``max_row_crest_factor``, ``provider_ready``
+        (``max_row_crest_factor < 25.0``), ``peak_memory_bytes``,
+        ``peak_memory_gb``, and ``peak_disk_shard_bytes``.
+    """
+    src_dir = Path(checkpoint_dir)
+    dst_dir = Path(output_dir)
+    dst_dir.mkdir(parents=True, exist_ok=True)
+    shards, index_data = _resolve_safetensors_shards(src_dir)
+    same_dir = src_dir.resolve() == dst_dir.resolve()
+
+    tensors_modified = 0
+    max_row_norm_drift = 0.0
+    max_row_crest_factor = 1.0
+    peak_disk_shard_bytes = 0
+
+    tracemalloc.start()
+    try:
+        for shard_name in shards:
+            shard_path = src_dir / shard_name
+            shard_size = shard_path.stat().st_size
+            peak_disk_shard_bytes = max(peak_disk_shard_bytes, shard_size)
+
+            shard_tensors = load_file(str(shard_path))
+
+            for key, tensor in shard_tensors.items():
+                parsed = _parse_target_layer_weight_key(key)
+                if parsed is None:
+                    continue
+                layer_idx, _proj_name = parsed
+                if layer_idx not in recipe.selected_layers:
+                    continue
+                if layer_idx not in recipe.basis_per_layer:
+                    continue
+
+                layer_scale = recipe.scale * float(recipe.layer_weights.get(layer_idx, 1.0))
+                orig_row_norms = tensor.detach().to(dtype=torch.float32).norm(p=2, dim=-1)
+                modified = project_out_subspace_norm_preserving(
+                    tensor,
+                    recipe.basis_per_layer[layer_idx],
+                    scale=layer_scale,
+                    preserve_row_norm=preserve_row_norm,
+                )
+                if orig_row_norms.numel() > 0:
+                    new_row_norms = modified.detach().to(dtype=torch.float32).norm(p=2, dim=-1)
+                    drift = float((new_row_norms - orig_row_norms).abs().max().item())
+                    max_row_norm_drift = max(max_row_norm_drift, drift)
+                shard_tensors[key] = modified
+                tensors_modified += 1
+
+            for tensor in shard_tensors.values():
+                if tensor.ndim == 2:
+                    crest = _compute_row_crest_factor(tensor)
+                    max_row_crest_factor = max(max_row_crest_factor, crest)
+
+            out_path = dst_dir / shard_name
+            save_file(shard_tensors, str(out_path))
+            peak_disk_shard_bytes = max(peak_disk_shard_bytes, out_path.stat().st_size)
+
+            del shard_tensors
+            gc.collect()
+
+            if cleanup_input_shards and not same_dir:
+                shard_path.unlink()
+    finally:
+        _, peak_memory_bytes = tracemalloc.get_traced_memory()
+        tracemalloc.stop()
+
+    if not same_dir:
+        if index_data is not None:
+            index_src = src_dir / "model.safetensors.index.json"
+            shutil.copy2(index_src, dst_dir / "model.safetensors.index.json")
+        for aux_name in ("config.json", "tokenizer.json", "tokenizer_config.json"):
+            aux_path = src_dir / aux_name
+            if aux_path.is_file():
+                shutil.copy2(aux_path, dst_dir / aux_name)
+
+    return {
+        "shards_processed": len(shards),
+        "tensors_modified": tensors_modified,
+        "max_row_norm_drift": max_row_norm_drift,
+        "max_row_crest_factor": max_row_crest_factor,
+        "provider_ready": max_row_crest_factor < 25.0,
+        "peak_memory_bytes": int(peak_memory_bytes),
+        "peak_memory_gb": float(peak_memory_bytes) / (1024**3),
+        "peak_disk_shard_bytes": int(peak_disk_shard_bytes),
+    }

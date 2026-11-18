@@ -4,9 +4,11 @@ from __future__ import annotations
 
 import copy
 import dataclasses
+from pathlib import Path
 from typing import Any
 
 import torch
+import torch.nn.functional as F
 
 from sml.surgery.cka import get_transformer_layers
 
@@ -746,4 +748,298 @@ def evaluate_llm_h11_fp8_provider_survival(
         "device": str(resolved_device),
         "max_row_crest_factor": max_row_crest_factor,
         "max_abs_weight": max_abs_weight,
+    }
+
+
+# ---------------------------------------------------------------------------
+# CKA-guided GGUF recipes (llama.cpp / llama-quantize)
+# ---------------------------------------------------------------------------
+
+GGUF_BPW_BY_QUANT: dict[str, float] = {
+    "Q8_0": 8.50,
+    "Q6_K": 6.56,
+    "Q4_K_M": 4.85,
+}
+
+GGUF_PROTECTED_TENSORS: tuple[str, ...] = ("attn_output", "ffn_down")
+
+GGUF_PROTECTED_PARAM_FRACTION: float = 0.28
+
+
+def _normalize_layer_indices(layers: Any, num_hidden_layers: int = 0) -> list[int]:
+    """
+    Normalize a collection of layer indices into a sorted, deduplicated list.
+
+    Booleans and non-integer entries are dropped. When ``num_hidden_layers``
+    is positive, indices outside ``[0, num_hidden_layers)`` are discarded.
+    """
+    indices: set[int] = set()
+    for idx in layers or []:
+        if isinstance(idx, bool) or not isinstance(idx, int):
+            continue
+        indices.add(idx)
+    if num_hidden_layers > 0:
+        indices = {idx for idx in indices if 0 <= idx < num_hidden_layers}
+    return sorted(indices)
+
+
+def generate_llama_cpp_tensor_type_args(recipe: dict[str, Any]) -> list[str]:
+    """
+    Build ``--tensor-type`` CLI flags for ``llama-quantize`` from a CKA recipe.
+
+    Layers in ``q8_0_layers`` (plus ``boundary_layers``) map the protected
+    tensors to ``q8_0``; remaining ``q6_k_layers`` map them to ``q6_k``.
+    Layers listed in both prefer ``q8_0``.
+    """
+    num_hidden_layers = int(recipe.get("num_hidden_layers") or 0)
+    q8_set = set(_normalize_layer_indices(recipe.get("q8_0_layers", []), num_hidden_layers)) | set(
+        _normalize_layer_indices(recipe.get("boundary_layers", []), num_hidden_layers)
+    )
+    q6_set = (
+        set(_normalize_layer_indices(recipe.get("q6_k_layers", []), num_hidden_layers)) - q8_set
+    )
+    protected = recipe.get("protected_tensors", {}).get("llama_cpp") or list(GGUF_PROTECTED_TENSORS)
+
+    args: list[str] = []
+    for layer in sorted(q8_set | q6_set):
+        token = "q8_0" if layer in q8_set else "q6_k"
+        for tensor in protected:
+            args.extend(["--tensor-type", f"blk.{layer}.{tensor}.weight={token}"])
+    return args
+
+
+def estimate_cka_recipe_avg_bpw(recipe: dict[str, Any]) -> float:
+    """
+    Estimate the average bits-per-weight of a CKA-guided GGUF recipe.
+
+    Protected tensors (``param_fraction`` of each layer) run at the Q8_0/Q6_K
+    rate for elevated layers, while the remainder of every layer stays at the
+    ``default_quant`` rate.
+    """
+    num_hidden_layers = int(recipe.get("num_hidden_layers") or 0)
+    q8_set = set(_normalize_layer_indices(recipe.get("q8_0_layers", []), num_hidden_layers)) | set(
+        _normalize_layer_indices(recipe.get("boundary_layers", []), num_hidden_layers)
+    )
+    q6_set = (
+        set(_normalize_layer_indices(recipe.get("q6_k_layers", []), num_hidden_layers)) - q8_set
+    )
+    default_quant = str(recipe.get("default_quant") or "Q4_K_M").upper()
+    param_fraction = float(
+        recipe.get("protected_tensors", {}).get("param_fraction", GGUF_PROTECTED_PARAM_FRACTION)
+    )
+
+    bpw_map = dict(GGUF_BPW_BY_QUANT)
+    bpw_model = recipe.get("bpw_model") or {}
+    if isinstance(bpw_model, dict):
+        bpw_map.update({str(key).upper(): float(value) for key, value in bpw_model.items()})
+
+    base_bpw = float(bpw_map.get(default_quant, GGUF_BPW_BY_QUANT["Q4_K_M"]))
+    q8_layer_bpw = (
+        param_fraction * float(bpw_map.get("Q8_0", 8.50)) + (1.0 - param_fraction) * base_bpw
+    )
+    q6_layer_bpw = (
+        param_fraction * float(bpw_map.get("Q6_K", 6.56)) + (1.0 - param_fraction) * base_bpw
+    )
+
+    if num_hidden_layers > 0:
+        protected_layers = len(q8_set) + len(q6_set)
+        remaining = max(0, num_hidden_layers - protected_layers)
+        total_bpw = len(q8_set) * q8_layer_bpw + len(q6_set) * q6_layer_bpw + remaining * base_bpw
+        return float(total_bpw / num_hidden_layers)
+
+    protected_layers = sorted(q8_set | q6_set)
+    if protected_layers:
+        total_bpw = len(q8_set) * q8_layer_bpw + len(q6_set) * q6_layer_bpw
+        return float(total_bpw / len(protected_layers))
+    return float(base_bpw)
+
+
+def validate_cka_quant_recipe(recipe: dict[str, Any], tolerance: float = 0.02) -> dict[str, Any]:
+    """
+    Validate a CKA-guided GGUF quantization recipe.
+
+    Checks layer bounds, boundary-layer consistency, the default quant type
+    and that the recorded ``estimated_avg_bpw`` matches the recomputed one
+    within ``tolerance``.
+    """
+    errors: list[str] = []
+
+    num_hidden_layers = int(recipe.get("num_hidden_layers") or 0)
+    if num_hidden_layers < 0:
+        errors.append(f"num_hidden_layers must be >= 0, got {num_hidden_layers}")
+        num_hidden_layers = 0
+
+    q8_0_layers = _normalize_layer_indices(recipe.get("q8_0_layers", []), num_hidden_layers)
+    q6_k_layers = _normalize_layer_indices(recipe.get("q6_k_layers", []), num_hidden_layers)
+    boundary_layers = _normalize_layer_indices(recipe.get("boundary_layers", []), num_hidden_layers)
+
+    def _bounds_check(indices: list[int], name: str) -> None:
+        if num_hidden_layers > 0:
+            for idx in indices:
+                if not 0 <= idx < num_hidden_layers:
+                    errors.append(f"{name} index {idx} out of range [0, {num_hidden_layers})")
+
+    _bounds_check(q8_0_layers, "q8_0_layers")
+    _bounds_check(q6_k_layers, "q6_k_layers")
+    _bounds_check(boundary_layers, "boundary_layers")
+
+    effective_q8_layers = set(q8_0_layers) | set(boundary_layers)
+    if not set(boundary_layers).issubset(effective_q8_layers):
+        errors.append(
+            "boundary_layers must be a subset of the effective q8_0 layers "
+            f"(effective: {sorted(effective_q8_layers)})"
+        )
+
+    default_quant = str(recipe.get("default_quant") or "Q4_K_M").upper()
+    if default_quant != "Q4_K_M":
+        errors.append(f"default_quant must be Q4_K_M, got {default_quant}")
+
+    computed_avg_bpw = estimate_cka_recipe_avg_bpw(recipe)
+
+    recorded_raw = recipe.get("estimated_avg_bpw")
+    recorded_avg_bpw: float | None = None
+    if recorded_raw is None:
+        errors.append("estimated_avg_bpw is missing from the recipe")
+    else:
+        try:
+            recorded_avg_bpw = float(recorded_raw)
+        except (TypeError, ValueError):
+            errors.append(f"estimated_avg_bpw is not a number: {recorded_raw!r}")
+            recorded_avg_bpw = None
+
+    delta_bpw: float | None = None
+    if recorded_avg_bpw is not None:
+        delta_bpw = computed_avg_bpw - recorded_avg_bpw
+        if abs(delta_bpw) > tolerance:
+            errors.append(
+                f"estimated_avg_bpw mismatch: recorded {recorded_avg_bpw:.6f} vs "
+                f"computed {computed_avg_bpw:.6f} (delta {delta_bpw:.6f} > {tolerance})"
+            )
+
+    return {
+        "valid": len(errors) == 0,
+        "recorded_avg_bpw": recorded_avg_bpw,
+        "computed_avg_bpw": computed_avg_bpw,
+        "delta_bpw": delta_bpw,
+        "num_hidden_layers": num_hidden_layers,
+        "q8_0_layers": q8_0_layers,
+        "q6_k_layers": q6_k_layers,
+        "boundary_layers": boundary_layers,
+        "default_quant": default_quant,
+        "errors": errors,
+    }
+
+
+def build_llama_quantize_command(
+    recipe: dict[str, Any],
+    input_gguf: str | Path,
+    output_gguf: str | Path,
+    llama_quantize_bin: str = "llama-quantize",
+    nthreads: int | None = None,
+) -> list[str]:
+    """
+    Assemble the full ``llama-quantize`` command line for a CKA recipe.
+
+    The tensor-type flags for the protected layers come first, followed by the
+    input/output GGUF paths, the default quant type and the optional thread
+    count (llama-quantize's trailing positional ``nthreads`` argument).
+    """
+    command = [
+        llama_quantize_bin,
+        *generate_llama_cpp_tensor_type_args(recipe),
+        str(input_gguf),
+        str(output_gguf),
+        str(recipe.get("default_quant") or "Q4_K_M").upper(),
+    ]
+    if nthreads is not None:
+        command.append(str(nthreads))
+    return command
+
+
+def evaluate_cka_gguf_kl_vs_uniform(
+    model: torch.nn.Module,
+    recipe: dict[str, Any],
+    seed: int = 2026,
+    n_prompts: int = 4,
+    seq_len: int = 32,
+    group_size: int = 32,
+) -> dict[str, Any]:
+    """
+    Compare a CKA-guided GGUF recipe against uniform Q4_K_M via next-token KL.
+
+    The model is cloned twice. The uniform proxy fake-quantizes every
+    q/k/v/o_proj and gate/up/down_proj weight to 4 bits. The CKA mixed proxy
+    keeps 4 bits everywhere except ``o_proj``/``down_proj`` of the protected
+    layers: 8 bits for ``q8_set`` layers (``q8_0_layers`` + ``boundary_layers``)
+    and 6 bits for ``q6_set`` layers. Both proxies are scored by the mean token
+    KL(reference || quantized) against the original model on deterministic
+    prompts.
+    """
+    num_hidden_layers = int(recipe.get("num_hidden_layers") or 0)
+    q8_set = set(_normalize_layer_indices(recipe.get("q8_0_layers", []), num_hidden_layers)) | set(
+        _normalize_layer_indices(recipe.get("boundary_layers", []), num_hidden_layers)
+    )
+    q6_set = (
+        set(_normalize_layer_indices(recipe.get("q6_k_layers", []), num_hidden_layers)) - q8_set
+    )
+
+    uniform_model = copy.deepcopy(model)
+    cka_model = copy.deepcopy(model)
+    uniform_layers = get_transformer_layers(uniform_model)
+    cka_layers = get_transformer_layers(cka_model)
+
+    with torch.no_grad():
+        for layer_idx, (uni_block, cka_block) in enumerate(
+            zip(uniform_layers, cka_layers, strict=True)
+        ):
+            for section, proj_names in (
+                ("self_attn", ("q_proj", "k_proj", "v_proj", "o_proj")),
+                ("mlp", ("gate_proj", "up_proj", "down_proj")),
+            ):
+                for proj_name in proj_names:
+                    uni_proj = getattr(getattr(uni_block, section, None), proj_name, None)
+                    cka_proj = getattr(getattr(cka_block, section, None), proj_name, None)
+                    if uni_proj is None or cka_proj is None:
+                        continue
+                    bits = 4
+                    if proj_name in ("o_proj", "down_proj"):
+                        if layer_idx in q8_set:
+                            bits = 8
+                        elif layer_idx in q6_set:
+                            bits = 6
+                    uni_proj.weight.data = quantize_tensor_groupwise(
+                        uni_proj.weight.data, 4, group_size
+                    )
+                    cka_proj.weight.data = quantize_tensor_groupwise(
+                        cka_proj.weight.data, bits, group_size
+                    )
+
+    try:
+        device = next(model.parameters()).device
+    except StopIteration:
+        device = torch.device("cpu")
+    config = getattr(model, "config", None)
+    vocab_size = int(getattr(config, "vocab_size", 0) or 0) or 256
+
+    prompt_gen = torch.Generator().manual_seed(seed)
+    prompt_ids = torch.randint(0, vocab_size, (n_prompts, seq_len), generator=prompt_gen).to(device)
+
+    ref_logits = _forward_logits(prompt_ids, model).float().reshape(-1, vocab_size)
+    probs_ref = torch.softmax(ref_logits, dim=-1)
+
+    def _mean_token_kl(candidate: torch.nn.Module) -> float:
+        """Mean token KL(reference || candidate) via F.kl_div(batchmean)."""
+        logits = _forward_logits(prompt_ids, candidate).float().reshape(-1, vocab_size)
+        log_probs_q = torch.log_softmax(logits, dim=-1)
+        return float(F.kl_div(log_probs_q, probs_ref, reduction="batchmean").item())
+
+    kl_uniform_q4_k_m = _mean_token_kl(uniform_model)
+    kl_cka_mixed = _mean_token_kl(cka_model)
+    kl_reduction_ratio = (kl_uniform_q4_k_m - kl_cka_mixed) / max(kl_uniform_q4_k_m, 1e-12)
+
+    return {
+        "kl_uniform_q4_k_m": kl_uniform_q4_k_m,
+        "kl_cka_mixed": kl_cka_mixed,
+        "kl_reduction_ratio": kl_reduction_ratio,
+        "cka_beats_uniform": bool(kl_cka_mixed < kl_uniform_q4_k_m),
     }

@@ -1,0 +1,28 @@
+{
+  "run_id": "h13_streaming_shard_surgery",
+  "experiment_id": "h13_streaming_shard_surgery",
+  "hypothesis_id": "H13",
+  "hypothesis": "Layer-streaming safetensors shard surgery (apply_lancet_recipe_streaming) and shard-streaming TIES subspace-safe merge (stream_subspace_safe_ties_merge) with float32 Modified Gram-Schmidt and per-row L2-norm restoration match in-memory surgery and merge within < 1e-6 on sml-nano while bounding peak memory < 16 GB, local scratch disk delta < 15 GB, and FP8 E4M3 Row Crest-Factor < 25.0 for 32B-70B checkpoints on a single H100 80GB SXM.",
+  "prediction": "Streaming surgery and merge achieve streaming_surgery_max_abs_diff < 1e-6 and streaming_merge_max_abs_diff < 1e-6 on sml-nano, keep peak_memory_gb < 16.0 and peak_disk_shard_gb < 15.0, and satisfy max_row_crest_factor < 25.0 and provider_ready == True across 32b-h100 (Qwen/Qwen2.5-32B-Instruct) and 70b-h100 (meta-llama/Llama-3.3-70B-Instruct).",
+  "acceptance_criterion": "streaming_surgery_max_abs_diff < 1e-6 and streaming_merge_max_abs_diff < 1e-6 and peak_memory_gb < 16.0 and peak_disk_shard_gb < 15.0 and max_row_crest_factor < 25.0 and provider_ready == True",
+  "mode": "measured",
+  "status": "completed",
+  "seed": 2026,
+  "model_name": "sml-nano",
+  "total_params": 11536640,
+  "non_embedding_params": 3148032,
+  "dataset_name": "tinystories-smoke",
+  "git_sha": "ff9b373b868437c4f8df21ae1c0db5bc145116b5",
+  "git_dirty": true,
+  "started_at_utc": "2026-11-18T11:37:49.837708+00:00",
+  "completed_at_utc": "2026-11-18T11:37:50.864187+00:00",
+  "pre_run_estimate": {
+    "planned_tokens": 110592,
+    "flops_per_token": 72365568,
+    "total_flops": 8003052896256,
+    "assumed_mfu": 0.3,
+    "estimated_clean_gpu_hours": 0.0004,
+    "estimated_cost_usd": 0.0
+  },
+  "conclusion": "H13 streaming shard surgery verification completed: h13_verified=True, backend=nano"
+}
