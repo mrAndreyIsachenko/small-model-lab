@@ -1,10 +1,12 @@
 {
   "artifacts": {
     "cka_quant_recipe": "results/tenet_releases/Tenet-3B-Qwen2.5-Unslop-v1/cka_quant_recipe.json",
+    "modelfile": "results/tenet_releases/Tenet-3B-Qwen2.5-Unslop-v1/Modelfile",
     "openrouter_onboarding_json": "results/tenet_releases/Tenet-3B-Qwen2.5-Unslop-v1/openrouter_onboarding.json",
     "openrouter_onboarding_md": "results/tenet_releases/Tenet-3B-Qwen2.5-Unslop-v1/OPENROUTER_ONBOARDING.md",
     "pareto_svg": "results/tenet_releases/Tenet-3B-Qwen2.5-Unslop-v1/assets/lancet_vs_naive_pareto.svg",
     "provider_readiness_json": "results/tenet_releases/Tenet-3B-Qwen2.5-Unslop-v1/provider_readiness.json",
+    "quantize_cka_gguf_sh": "results/tenet_releases/Tenet-3B-Qwen2.5-Unslop-v1/quantize_cka_gguf.sh",
     "readme": "results/tenet_releases/Tenet-3B-Qwen2.5-Unslop-v1/README.md"
   },
   "base_model": "Qwen/Qwen2.5-3B-Instruct",

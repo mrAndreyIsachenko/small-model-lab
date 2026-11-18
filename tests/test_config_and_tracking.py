@@ -14,7 +14,7 @@ from sml.config import (
     load_model_config,
 )
 from sml.tracking.cost import compute_run_cost, estimate_experiment_compute
-from sml.tracking.report import compile_markdown_report
+from sml.tracking.report import compile_markdown_report, update_technical_report_tables
 
 REPO_ROOT = Path(__file__).resolve().parent.parent
 
@@ -91,6 +91,7 @@ def test_all_experiment_specs_load_and_compute_budget() -> None:
             "H10",
             "H11",
             "H12",
+            "H13",
         }
         assert spec.train.grad_accum_steps >= 1
 
@@ -167,3 +168,129 @@ def test_m0_dry_run_and_report_compiler_isolation(tmp_path: Path) -> None:
     run_json = json.loads((run_dir / "run.json").read_text(encoding="utf-8"))
     assert run_json["status"] == "completed"
     assert run_json["mode"] == "dry_run"
+
+
+def _write_json(path: Path, payload) -> None:
+    path.parent.mkdir(parents=True, exist_ok=True)
+    path.write_text(json.dumps(payload, indent=2), encoding="utf-8")
+
+
+def test_update_technical_report_tables(tmp_path: Path) -> None:
+    """AUTO-TABLE blocks must be rebuilt from JSON artifacts; surrounding prose preserved."""
+    results_dir = tmp_path / "results"
+
+    _write_json(
+        results_dir / "h1_parity" / "run.json",
+        {
+            "run_id": "h1_parity",
+            "hypothesis_id": "H1",
+            "mode": "measured",
+            "model_name": "gpt2-124m",
+            "prediction": "parity",
+        },
+    )
+    _write_json(
+        results_dir / "h1_parity" / "final_metrics.json",
+        {
+            "max_abs_logit_diff_sdpa": 1.23e-05,
+            "max_abs_logit_diff_naive": 4.56e-06,
+            "max_diff_sdpa_vs_naive": 2.34e-06,
+            "max_diff_kv_cache": 7.89e-07,
+            "cross_doc_leakage": 6.0e-07,
+        },
+    )
+    _write_json(
+        results_dir / "h1_parity" / "cost.json",
+        {"hardware_name": "mps", "billed_cost_usd": 0.01},
+    )
+    _write_json(
+        results_dir / "h1_parity" / "environment.json",
+        {"accelerator_name": "mps"},
+    )
+
+    _write_json(
+        results_dir / "h9_lancet_run" / "run.json",
+        {
+            "run_id": "h9_lancet_run",
+            "hypothesis_id": "H9",
+            "mode": "measured",
+            "model_name": "Qwen/Qwen2.5-3B-Instruct",
+            "prediction": "surgery",
+        },
+    )
+    _write_json(
+        results_dir / "h9_lancet_run" / "final_metrics.json",
+        {
+            "target_suppression_ratio": 42.5,
+            "h9_kl_reduction_ratio": 0.8125,
+            "naive_kl_collateral": 0.05,
+            "lancet_kl_collateral": 0.01,
+            "anchor_orthogonality_error": 3.2e-07,
+            "max_row_norm_drift": 1.8e-08,
+        },
+    )
+    _write_json(
+        results_dir / "h9_lancet_run" / "cost.json",
+        {"hardware_name": "mps", "billed_cost_usd": 0.02},
+    )
+    _write_json(
+        results_dir / "h9_lancet_run" / "environment.json",
+        {"accelerator_name": "mps"},
+    )
+
+    report_path = tmp_path / "reports" / "technical_report.md"
+    report_path.parent.mkdir(parents=True, exist_ok=True)
+    report_path.write_text(
+        "\n".join(
+            [
+                "# Technical Report",
+                "",
+                "Prologue prose that must survive untouched.",
+                "",
+                "<!-- AUTO-TABLE:H1_PARITY:START -->",
+                "| STALE H1 PLACEHOLDER |",
+                "<!-- AUTO-TABLE:H1_PARITY:END -->",
+                "",
+                "Middle prose between the tables.",
+                "",
+                "<!-- AUTO-TABLE:H9_LANCET:START -->",
+                "| STALE H9 PLACEHOLDER |",
+                "<!-- AUTO-TABLE:H9_LANCET:END -->",
+                "",
+                "Epilogue prose that must survive untouched.",
+                "",
+            ]
+        ),
+        encoding="utf-8",
+    )
+
+    updated = update_technical_report_tables(results_dir=results_dir, report_path=report_path)
+
+    # Only marker blocks changed: prose and markers survive, stale placeholders are gone.
+    assert "Prologue prose that must survive untouched." in updated
+    assert "Middle prose between the tables." in updated
+    assert "Epilogue prose that must survive untouched." in updated
+    assert "STALE" not in updated
+    assert "<!-- AUTO-TABLE:H1_PARITY:START -->" in updated
+    assert "<!-- AUTO-TABLE:H1_PARITY:END -->" in updated
+    assert "<!-- AUTO-TABLE:H9_LANCET:START -->" in updated
+    assert "<!-- AUTO-TABLE:H9_LANCET:END -->" in updated
+
+    # H1 table strictly reflects final_metrics.json
+    assert "| `h1_parity` |" in updated
+    assert "1.23e-05" in updated
+    assert "4.56e-06" in updated
+    assert "2.34e-06" in updated
+    assert "7.89e-07" in updated
+    assert "6.00e-07" in updated
+
+    # H9 table strictly reflects final_metrics.json + environment.accelerator_name
+    assert "| `Qwen/Qwen2.5-3B-Instruct` |" in updated
+    assert "| `mps` |" in updated
+    assert "42.5000" in updated
+    assert "0.8125" in updated
+    assert "3.20e-07" in updated
+    assert "1.80e-08" in updated
+
+    # The file on disk matches the returned content.
+    assert report_path.read_text(encoding="utf-8") == updated

@@ -18,6 +18,7 @@
 | `h12_nemo12b_h100` | `H12` | `measured` | `sml-nano` | `3,148,032` | `0` | `n/a` | `n/a` | `n/a` | `apple-m4-pro-48gb` | `$0.0000` | `uncommit` |
 | `h12_qwen3b_mps` | `H12` | `measured` | `sml-nano` | `3,148,032` | `0` | `n/a` | `n/a` | `n/a` | `apple-m4-pro-48gb` | `$0.0000` | `eab01f01` |
 | `h12_subspace_safe_merge` | `H12` | `measured` | `sml-nano` | `3,148,032` | `0` | `n/a` | `n/a` | `n/a` | `apple-m4-pro-48gb` | `$0.0000` | `eab01f01` |
+| `h13_streaming_shard_surgery` | `H13` | `measured` | `sml-nano` | `3,148,032` | `0` | `n/a` | `n/a` | `n/a` | `apple-m4-pro-48gb` | `$0.0000` | `ff9b373b` |
 | `h1_gpt2_parity` | `H1` | `measured` | `gpt2-124m` | `85,842,432` | `128` | `n/a` | `17` | `n/a` | `apple-m4-pro-48gb` | `$0.0000` | `uncommit` |
 | `h2_mfu_waterfall` | `H2` | `measured` | `sml-100m` | `75,516,672` | `6,553,600` | `n/a` | `472,081` | `34.2%` | `nvidia-h100-sxm-80gb` | `$0.0790` | `uncommit` |
 | `h3_wsd_100m` | `H3` | `measured` | `sml-100m` | `75,516,672` | `4,000,317,440` | `1.0400` | `445,068` | `32.3%` | `nvidia-h100-sxm-80gb` | `$6.7161` | `uncommit` |
@@ -98,6 +99,10 @@
 ### `h12_subspace_safe_merge` (`H12` — `measured`)
 - **Prediction:** TIES biprojected subspace-safe merge retains sql_incident_retention_ratio >= 0.95 and unslop_retention_ratio >= 0.95, keeps slop_and_refusal_rate <= 0.02 (nano) / <= 0.10 (3B), subspace_safe_merge_releakage < 1e-5 (nano), achieves ties_biprojected_vs_naive_merge_gain >= 0.15 on the joint benchmark (StatefulToolEnv + TenetUnslopRubric), and passes provider_ready == True (Row Crest-Factor < 25.0).
 - **Conclusion:** H12 subspace-safe merge verification completed: h12_verified=True, sql_incident_retention_ratio=1.0000, unslop_retention_ratio=1.0000, ties_biprojected_vs_naive_merge_gain=0.4995
+
+### `h13_streaming_shard_surgery` (`H13` — `measured`)
+- **Prediction:** Streaming surgery and merge achieve streaming_surgery_max_abs_diff < 1e-6 and streaming_merge_max_abs_diff < 1e-6 on sml-nano, keep peak_memory_gb < 16.0 and peak_disk_shard_gb < 15.0, and satisfy max_row_crest_factor < 25.0 and provider_ready == True across 32b-h100 (Qwen/Qwen2.5-32B-Instruct) and 70b-h100 (meta-llama/Llama-3.3-70B-Instruct).
+- **Conclusion:** H13 streaming shard surgery verification completed: h13_verified=True, backend=nano
 
 ### `h1_gpt2_parity` (`H1` — `measured`)
 - **Prediction:** Max absolute logit difference < 1.0e-4 in fp32 across random and natural prompts; future-token and cross-document gradient norm == 0.0.

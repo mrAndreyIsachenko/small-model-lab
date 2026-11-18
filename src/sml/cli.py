@@ -6,11 +6,17 @@ import argparse
 import dataclasses
 import json
 import math
+import sys
 import time
 from pathlib import Path
 
 from sml.config import ModelConfig, load_experiment_spec, load_model_config
-from sml.hub.release import build_tenet_release_bundle, export_hub_bundle_from_results
+from sml.hub.release import (
+    build_tenet_release_bundle,
+    export_gguf_recipe,
+    export_hub_bundle_from_results,
+    materialize_tenet_checkpoint,
+)
 from sml.model import (
     KVCache,
     Transformer,
@@ -19,7 +25,7 @@ from sml.model import (
 )
 from sml.tracking.cost import estimate_experiment_compute
 from sml.tracking.manifest import RunRecorder
-from sml.tracking.report import compile_markdown_report
+from sml.tracking.report import compile_markdown_report, update_technical_report_tables
 
 
 def _cmd_inspect_config(args: argparse.Namespace) -> int:
@@ -110,6 +116,15 @@ def _cmd_report(args: argparse.Namespace) -> int:
         include_dry_runs=bool(args.include_dry_runs),
     )
     print(f"Compiled report to: {output_path}")
+    technical_report = getattr(args, "technical_report", None)
+    if technical_report:
+        technical_report_path = Path(technical_report)
+        update_technical_report_tables(
+            results_dir=results_dir,
+            report_path=technical_report_path,
+            include_dry_runs=bool(args.include_dry_runs),
+        )
+        print(f"Updated AUTO-TABLE blocks in: {technical_report_path}")
     return 0
 
 
@@ -1164,6 +1179,96 @@ def _cmd_verify_h12(args: argparse.Namespace) -> int:
     return 0 if res["h12_verified"] else 1
 
 
+def _cmd_verify_h13(args: argparse.Namespace) -> int:
+    import json
+    import time
+
+    from sml.adaptation.merge import (
+        run_h13_streaming_shard_benchmark,
+        run_llm_h13_streaming_shard_benchmark,
+    )
+    from sml.config import load_experiment_spec
+    from sml.tracking.manifest import RunRecorder
+
+    spec = load_experiment_spec(args.experiment)
+    output_dir = Path(args.output_dir)
+    run_id = args.run_id or ("h13_32b_h100" if args.backend == "llm" else spec.experiment_id)
+
+    t0 = time.perf_counter()
+    recorder = RunRecorder(
+        run_id=run_id,
+        spec=spec,
+        output_root=output_dir,
+        mode="measured",
+    )
+
+    if args.backend == "llm":
+        res = run_llm_h13_streaming_shard_benchmark(
+            model_name=args.model_name,
+            device=args.device,
+            checkpoint_dir=args.checkpoint_dir,
+            sql_svd_rank=args.sql_svd_rank,
+            ties_density=args.ties_density,
+            seed=spec.seed,
+        )
+    else:
+        res = run_h13_streaming_shard_benchmark(
+            seed=spec.seed,
+            num_shards=args.num_shards,
+            device=args.device,
+            sql_svd_rank=args.sql_svd_rank,
+            ties_density=args.ties_density,
+        )
+
+    numeric_metrics = {
+        key: float(value)
+        for key, value in res.items()
+        if isinstance(value, (int, float)) and not isinstance(value, bool)
+    }
+    recorder.log_step(step=1, metrics=numeric_metrics)
+
+    # Write streaming_shard_surgery.json
+    streaming_shard_surgery_path = recorder.run_dir / "streaming_shard_surgery.json"
+    streaming_shard_surgery_path.write_text(
+        json.dumps(res, indent=2),
+        encoding="utf-8",
+    )
+
+    elapsed = time.perf_counter() - t0
+
+    # Final metrics
+    final_metrics = {
+        "h13_verified": res["h13_verified"],
+        **numeric_metrics,
+        "backend": args.backend,
+        "model_name": res.get("model_name", args.model_name),
+    }
+
+    run_path = recorder.finalize(
+        final_metrics=final_metrics,
+        active_seconds=elapsed,
+        billed_seconds=elapsed,
+        status="completed" if res["h13_verified"] else "failed",
+        conclusion=(
+            "H13 streaming shard surgery verification completed: "
+            f"h13_verified={res['h13_verified']}, backend={args.backend}"
+        ),
+    )
+
+    # Print JSON summary
+    summary = {
+        "experiment_id": spec.experiment_id,
+        "hypothesis_id": spec.hypothesis_id,
+        "backend": args.backend,
+        "model_name": args.model_name,
+        "h13_verified": res["h13_verified"],
+        "run_path": str(run_path),
+    }
+    print(json.dumps(summary, indent=2))
+
+    return 0 if res["h13_verified"] else 1
+
+
 def _cmd_verify_h11(args: argparse.Namespace) -> int:
     import json
     import time
@@ -1476,6 +1581,14 @@ def build_parser() -> argparse.ArgumentParser:
         "--include-dry-runs",
         action="store_true",
         help="Include runs marked with mode='dry_run' (excluded by default).",
+    )
+    rep_p.add_argument(
+        "--technical-report",
+        default=None,
+        help=(
+            "Optional path to a technical report Markdown file whose AUTO-TABLE "
+            "blocks are refreshed in place from the results JSON artifacts."
+        ),
     )
     rep_p.set_defaults(func=_cmd_report)
 
@@ -1973,6 +2086,63 @@ def build_parser() -> argparse.ArgumentParser:
     )
     verify_h12_p.set_defaults(func=_cmd_verify_h12)
 
+    # Verify H13 subcommand
+    verify_h13_p = sub.add_parser(
+        "verify-h13",
+        help="Execute H13 streaming shard surgery verification benchmark.",
+    )
+    verify_h13_p.add_argument(
+        "--experiment",
+        default="experiments/h13_streaming_shard_surgery.yaml",
+        help="Path to H13 experiment YAML.",
+    )
+    verify_h13_p.add_argument(
+        "--output-dir",
+        default="results",
+        help="Directory for run output bundle.",
+    )
+    verify_h13_p.add_argument("--run-id", default=None, help="Optional explicit run_id override.")
+    verify_h13_p.add_argument(
+        "--num-shards",
+        type=int,
+        default=3,
+        help="Number of synthetic streaming shards for the benchmark.",
+    )
+    verify_h13_p.add_argument(
+        "--sql-svd-rank",
+        type=int,
+        default=2,
+        help="Number of top singular directions of Delta W_SQL to project against.",
+    )
+    verify_h13_p.add_argument(
+        "--ties-density",
+        type=float,
+        default=0.85,
+        help="TIES density parameter.",
+    )
+    verify_h13_p.add_argument(
+        "--backend",
+        choices=["nano", "llm"],
+        default="nano",
+        help="Benchmark backend: 'nano' (built-in tiny model) or 'llm' (HF checkpoint).",
+    )
+    verify_h13_p.add_argument(
+        "--model-name",
+        default="Qwen/Qwen2.5-32B-Instruct",
+        help="HF model checkpoint used when --backend llm.",
+    )
+    verify_h13_p.add_argument(
+        "--checkpoint-dir",
+        default=None,
+        help="Optional local checkpoint directory used when --backend llm.",
+    )
+    verify_h13_p.add_argument(
+        "--device",
+        default="auto",
+        help="Torch device used when --backend llm.",
+    )
+    verify_h13_p.set_defaults(func=_cmd_verify_h13)
+
     # Build Tenet release subcommand
     build_tenet_p = sub.add_parser(
         "build-tenet",
@@ -2052,6 +2222,15 @@ def build_parser() -> argparse.ArgumentParser:
         default="tenet-lab",
         help="HF Hub namespace for the release repo id.",
     )
+    build_tenet_p.add_argument(
+        "--export-gguf-recipe",
+        action="store_true",
+        default=False,
+        help=(
+            "Also validate/export the CKA GGUF quant recipe after the build "
+            "(Modelfile + quantize_cka_gguf.sh, optional llama-quantize run)."
+        ),
+    )
     build_tenet_p.set_defaults(func=_cmd_build_tenet)
 
     # Export hub release subcommand
@@ -2089,6 +2268,256 @@ def build_parser() -> argparse.ArgumentParser:
     )
     export_hub_p.set_defaults(func=_cmd_export_hub)
 
+    # Export GGUF quant recipe subcommand
+    export_gguf_p = sub.add_parser(
+        "export-gguf-recipe",
+        help=(
+            "Validate the CKA quant recipe in a release dir and quantize the "
+            "GGUF with llama-quantize (Modelfile + quantize script included)."
+        ),
+    )
+    export_gguf_p.add_argument(
+        "--release-dir",
+        required=True,
+        help="Release directory containing cka_quant_recipe.json.",
+    )
+    export_gguf_p.add_argument(
+        "--input-gguf",
+        default=None,
+        help="Input f16 GGUF (default: <release_dir>/<release_id>-f16.gguf).",
+    )
+    export_gguf_p.add_argument(
+        "--output-gguf",
+        default=None,
+        help="Output GGUF (default: <release_dir>/<release_id>-cka-q4_k_m.gguf).",
+    )
+    export_gguf_p.add_argument(
+        "--llama-quantize-bin",
+        default=None,
+        help="Path to llama-quantize (defaults to a PATH lookup).",
+    )
+    export_gguf_p.add_argument(
+        "--tolerance",
+        type=float,
+        default=0.02,
+        help="Allowed average-bpw drift when validating the recipe (default: 0.02).",
+    )
+    export_gguf_p.add_argument(
+        "--skip-kl-check",
+        action="store_true",
+        default=False,
+        help="Skip the post-quantize KL check against the uniform baseline.",
+    )
+    export_gguf_p.set_defaults(func=_cmd_export_gguf_recipe)
+
+    # Materialize tenet checkpoint subcommand
+    materialize_p = sub.add_parser(
+        "materialize-tenet",
+        help=(
+            "Materialize a Tenet release recipe into a sharded HF checkpoint "
+            "(merged LoRA, optional FP8 export, optional Hub push)."
+        ),
+    )
+    materialize_p.add_argument(
+        "--release-id",
+        default="Tenet-3B-Qwen2.5-Unslop-v1",
+        help="Tenet release identifier.",
+    )
+    materialize_p.add_argument(
+        "--recipe-dir",
+        default=None,
+        help=("Recipe bundle directory (defaults to results/tenet_releases/<release_id>)"),
+    )
+    materialize_p.add_argument(
+        "--output-dir",
+        default="results/tenet_materialized",
+        help="Output directory for the materialized checkpoint.",
+    )
+    materialize_p.add_argument(
+        "--base-model",
+        default=None,
+        help="Override base model from lancet_recipe.json",
+    )
+    materialize_p.add_argument(
+        "--backend",
+        choices=["auto", "llm", "nano"],
+        default="auto",
+        help="Backend used to load the base model.",
+    )
+    materialize_p.add_argument(
+        "--device",
+        default="auto",
+        help="Device for materialization (auto, cpu, mps, cuda).",
+    )
+    materialize_p.add_argument(
+        "--dtype",
+        default="auto",
+        help="dtype for the materialized weights (auto, float16, bfloat16, float32).",
+    )
+    materialize_p.add_argument(
+        "--lora-path",
+        default=None,
+        help="Path to the Tenet LoRA adapter (defaults to the recipe bundle).",
+    )
+    materialize_p.add_argument(
+        "--sql-lora-path",
+        default=None,
+        help="Optional SQL LoRA adapter to merge.",
+    )
+    materialize_p.add_argument(
+        "--no-preserve-row-norm",
+        action="store_false",
+        dest="preserve_row_norm",
+        default=True,
+        help="Skip per-row norm preservation when merging adapters.",
+    )
+    materialize_p.add_argument(
+        "--fp8-export",
+        action="store_true",
+        default=False,
+        help="Also export FP8-quantized shards.",
+    )
+    materialize_p.add_argument(
+        "--max-shard-size",
+        default="4GB",
+        help="Maximum safetensors shard size.",
+    )
+    materialize_p.add_argument(
+        "--hf-namespace",
+        default="mr-andrey-isachenko",
+        help="HF Hub namespace for the materialized repo id.",
+    )
+    materialize_p.add_argument(
+        "--push-to-hub",
+        action="store_true",
+        default=False,
+        help="Push the materialized checkpoint to the HF Hub.",
+    )
+    materialize_p.add_argument(
+        "--no-cleanup-cache",
+        action="store_false",
+        dest="cleanup_cache",
+        default=True,
+        help="Keep intermediate merge cache files.",
+    )
+    materialize_p.add_argument(
+        "--drop-local-weights",
+        action="store_false",
+        dest="keep_local_weights",
+        default=True,
+        help="Drop local weight shards after a successful Hub push.",
+    )
+    materialize_p.add_argument(
+        "--nano-config",
+        default=None,
+        help="Path to a nano backend config JSON (nano backend only).",
+    )
+    materialize_p.set_defaults(func=_cmd_materialize_tenet)
+
+    # External benchmark evaluation subcommand
+    eval_external_p = sub.add_parser(
+        "eval-external",
+        help=(
+            "Run the external benchmark suite (IFEval strict subset, GSM8K/MATH-500 "
+            "subset, SQL incident eval, direct-compliance/unslop audit) before vs. "
+            "after the Lancet + Unslop GRPO + TIES merge pipeline."
+        ),
+    )
+    eval_external_p.add_argument(
+        "--output-dir",
+        default="results/external_evals",
+        help="Directory for the evaluation JSON artifact.",
+    )
+    eval_external_p.add_argument(
+        "--run-id",
+        default="external_eval",
+        help="Run identifier for the output JSON file.",
+    )
+    eval_external_p.add_argument(
+        "--backend",
+        choices=["deterministic", "nano", "gateway"],
+        default="deterministic",
+        help=(
+            "Responder backend: 'deterministic' (reference responders, zero network), "
+            "'nano' (local tiny-model identity with deterministic responders), or "
+            "'gateway' (OpenAI-compatible HTTP endpoint)."
+        ),
+    )
+    eval_external_p.add_argument(
+        "--base-url",
+        default=None,
+        help="OpenAI-compatible base URL for --backend gateway.",
+    )
+    eval_external_p.add_argument(
+        "--model-name",
+        default="tenet-local",
+        help="Model identity recorded in the report.",
+    )
+    eval_external_p.add_argument(
+        "--api-key-env",
+        default="OPENROUTER_API_KEY",
+        help="Environment variable holding the gateway API key.",
+    )
+    eval_external_p.add_argument(
+        "--release-dir",
+        default=None,
+        help="Optional release directory receiving external_benchmarks.json.",
+    )
+    eval_external_p.add_argument(
+        "--seed",
+        type=int,
+        default=1337,
+        help="Deterministic seed.",
+    )
+    eval_external_p.add_argument(
+        "--no-compare",
+        action="store_true",
+        help="Skip the before/after comparison and evaluate the 'after' stage only.",
+    )
+    eval_external_p.set_defaults(func=_cmd_eval_external)
+
+    # vLLM FP8 smoke subcommand
+    vllm_smoke_p = sub.add_parser(
+        "vllm-smoke",
+        help=(
+            "Run deterministic FP8 smoke prompts (JSON format, arithmetic, SQL "
+            "read-only) against a served vLLM endpoint and report TTFT, tok/s, "
+            "FP8 parity, and success rate."
+        ),
+    )
+    vllm_smoke_p.add_argument(
+        "--base-url",
+        default="http://127.0.0.1:8000/v1",
+        help="OpenAI-compatible base URL of the vLLM server (default: http://127.0.0.1:8000/v1).",
+    )
+    vllm_smoke_p.add_argument(
+        "--model-name",
+        required=True,
+        help="Model name as served by the vLLM endpoint.",
+    )
+    vllm_smoke_p.add_argument(
+        "--api-key-env",
+        default="VLLM_API_KEY",
+        help="Environment variable holding the endpoint API key (default: VLLM_API_KEY).",
+    )
+    vllm_smoke_p.add_argument(
+        "--output-json",
+        default=None,
+        help="Optional path for the full smoke JSON artifact.",
+    )
+    vllm_smoke_p.add_argument(
+        "--max-tokens",
+        type=int,
+        default=128,
+        help="max_tokens per smoke completion (default: 128).",
+    )
+    vllm_smoke_p.add_argument(
+        "--dry-run",
+        action="store_true",
+        help="Use a deterministic mock transport instead of contacting a live server.",
+    )
+    vllm_smoke_p.set_defaults(func=_cmd_vllm_smoke)
+
     return parser
 
 
@@ -2117,8 +2546,27 @@ def _cmd_build_tenet(args: argparse.Namespace) -> int:
         "ready": bundle["ready"],
         "artifacts": bundle["artifacts"],
     }
-    print(json.dumps(summary, indent=2))
+    if args.export_gguf_recipe:
+        summary["gguf_recipe"] = export_gguf_recipe(bundle["release_dir"])
+    print(json.dumps(summary, indent=2, default=str))
     return 0 if bundle["ready"] else 1
+
+
+def _cmd_export_gguf_recipe(args: argparse.Namespace) -> int:
+    try:
+        result = export_gguf_recipe(
+            release_dir=args.release_dir,
+            input_gguf=args.input_gguf,
+            output_gguf=args.output_gguf,
+            llama_quantize_bin=args.llama_quantize_bin,
+            run_kl_check=not args.skip_kl_check,
+            tolerance=float(args.tolerance),
+        )
+    except (FileNotFoundError, ValueError) as exc:
+        print(f"error: {exc}", file=sys.stderr)
+        return 1
+    print(json.dumps(result, indent=2, default=str))
+    return 0
 
 
 def _cmd_export_hub(args: argparse.Namespace) -> int:
@@ -2139,6 +2587,226 @@ def _cmd_export_hub(args: argparse.Namespace) -> int:
     }
     print(json.dumps(summary, indent=2))
     return 0 if bundle["ready"] else 1
+
+
+def _cmd_materialize_tenet(args: argparse.Namespace) -> int:
+    result = materialize_tenet_checkpoint(
+        release_id=args.release_id,
+        recipe_dir=args.recipe_dir,
+        output_dir=args.output_dir,
+        base_model=args.base_model,
+        backend=args.backend,
+        device=args.device,
+        dtype=args.dtype,
+        lora_path=args.lora_path,
+        sql_lora_path=args.sql_lora_path,
+        preserve_row_norm=args.preserve_row_norm,
+        fp8_export=args.fp8_export,
+        max_shard_size=args.max_shard_size,
+        hf_namespace=args.hf_namespace,
+        push_to_hub=args.push_to_hub,
+        cleanup_cache=args.cleanup_cache,
+        keep_local_weights=args.keep_local_weights,
+        nano_config_path=args.nano_config,
+    )
+    summary = {
+        "release_id": result["release_id"],
+        "release_dir": result["release_dir"],
+        "hf_repo_id": result["hf_repo_id"],
+        "backend": result["backend"],
+        "ready": result["ready"],
+        "shards": result["shards"],
+        "lora_applied": result["lora_applied"],
+        "pushed": result["pushed"],
+        "cache_cleanup": result["cache_cleanup"],
+    }
+    print(json.dumps(summary, indent=2))
+    return 0 if result["ready"] else 1
+
+
+class _GatewayChatResponder:
+    """Minimal OpenAI-compatible chat-completions responder for the gateway backend."""
+
+    def __init__(
+        self,
+        base_url: str,
+        model_name: str,
+        api_key: str | None = None,
+        timeout: float = 120.0,
+    ) -> None:
+        self.url = base_url.rstrip("/") + "/chat/completions"
+        self.model_name = model_name
+        self.api_key = api_key
+        self.timeout = timeout
+
+    def __call__(self, prompt: str) -> str:
+        import urllib.request
+
+        payload = {
+            "model": self.model_name,
+            "messages": [{"role": "user", "content": prompt}],
+            "temperature": 0.0,
+        }
+        headers = {"Content-Type": "application/json"}
+        if self.api_key:
+            headers["Authorization"] = f"Bearer {self.api_key}"
+        request = urllib.request.Request(
+            self.url,
+            data=json.dumps(payload).encode("utf-8"),
+            headers=headers,
+            method="POST",
+        )
+        with urllib.request.urlopen(request, timeout=self.timeout) as response:
+            data = json.loads(response.read().decode("utf-8"))
+        return str(data["choices"][0]["message"]["content"])
+
+
+def _cmd_eval_external(args: argparse.Namespace) -> int:
+    """Run the deterministic external benchmark suite (pre/post Tenet pipeline)."""
+    import os
+
+    from sml.evals.harness import evaluate_external_benchmarks, run_before_after_external_eval
+
+    responder = None
+    gateway_client = None
+    if args.backend == "gateway":
+        if not args.base_url:
+            print("error: --base-url is required when --backend gateway", file=sys.stderr)
+            return 1
+        gateway_client = _GatewayChatResponder(
+            base_url=args.base_url,
+            model_name=args.model_name,
+            api_key=os.environ.get(args.api_key_env),
+        )
+    # 'deterministic' and 'nano' both use the harness's deterministic stage-aware
+    # reference responders (zero network calls); 'nano' only records the model identity.
+
+    try:
+        if args.no_compare:
+            stage_result = evaluate_external_benchmarks(
+                responder=responder,
+                stage="after",
+                seed=args.seed,
+                gateway_client=gateway_client,
+                model_name=args.model_name,
+            )
+            result = {
+                "seed": int(args.seed),
+                "backend": args.backend,
+                "model_name": stage_result["model_name"],
+                "before": None,
+                "after": stage_result,
+                "deltas": {},
+                "external_benchmarks": stage_result,
+                "verified": True,
+                "compared": False,
+            }
+        else:
+            result = run_before_after_external_eval(
+                seed=args.seed,
+                before_responder=None,
+                after_responder=responder,
+                gateway_client=gateway_client,
+                model_name=args.model_name,
+            )
+            result["backend"] = args.backend
+            result["compared"] = True
+    except Exception as exc:
+        print(f"error: external evaluation failed: {exc}", file=sys.stderr)
+        return 1
+
+    output_dir = Path(args.output_dir)
+    output_dir.mkdir(parents=True, exist_ok=True)
+    results_path = output_dir / f"{args.run_id}.json"
+    results_path.write_text(
+        json.dumps(result, indent=2, sort_keys=True),
+        encoding="utf-8",
+    )
+
+    if args.release_dir:
+        release_dir = Path(args.release_dir)
+        release_dir.mkdir(parents=True, exist_ok=True)
+        (release_dir / "external_benchmarks.json").write_text(
+            json.dumps(result["external_benchmarks"], indent=2, sort_keys=True),
+            encoding="utf-8",
+        )
+
+    after = result["external_benchmarks"]
+    summary = {
+        "backend": args.backend,
+        "run_id": args.run_id,
+        "model_name": after.get("model_name"),
+        "verified": result["verified"],
+        "results_path": str(results_path),
+        "release_dir": str(args.release_dir) if args.release_dir else None,
+        "external_benchmarks": {
+            key: after[key]
+            for key in (
+                "ifeval_strict",
+                "gsm8k_math_acc",
+                "sql_incident_acc",
+                "sql_incident_reward",
+                "direct_compliance_rate",
+                "unslop_pass_rate",
+                "slop_and_refusal_rate",
+            )
+        },
+        "deltas": result["deltas"],
+    }
+    print(json.dumps(summary, indent=2, sort_keys=True))
+    return 0
+
+
+def _cmd_vllm_smoke(args: argparse.Namespace) -> int:
+    """Run deterministic FP8 smoke prompts against a served vLLM endpoint."""
+    import os
+
+    from sml.gateway.client import (
+        GatewayConfig,
+        OpenRouterGatewayClient,
+        build_vllm_fp8_mock_transport,
+        run_vllm_fp8_smoke,
+    )
+
+    if args.dry_run:
+        config = GatewayConfig(
+            upstream_url=args.base_url,
+            api_key="mock-key",
+            model_allowlist=(args.model_name,),
+        )
+        client = OpenRouterGatewayClient(config, transport=build_vllm_fp8_mock_transport())
+    else:
+        config = GatewayConfig(
+            upstream_url=args.base_url,
+            api_key=os.environ.get(args.api_key_env, ""),
+            model_allowlist=(args.model_name,),
+        )
+        client = OpenRouterGatewayClient(config)
+
+    smoke = run_vllm_fp8_smoke(client, model=args.model_name, max_tokens=args.max_tokens)
+
+    if args.output_json:
+        output_path = Path(args.output_json)
+        output_path.parent.mkdir(parents=True, exist_ok=True)
+        output_path.write_text(
+            json.dumps(smoke, indent=2, sort_keys=True),
+            encoding="utf-8",
+        )
+
+    summary = {
+        "dry_run": bool(args.dry_run),
+        "base_url": args.base_url,
+        "model": smoke["model"],
+        "num_requests": smoke["num_requests"],
+        "success_rate": smoke["success_rate"],
+        "ttft_ms": smoke["ttft_ms"],
+        "tok_s": smoke["tok_s"],
+        "fp8_parity": smoke["fp8_parity"],
+        "total_completion_tokens": smoke["total_completion_tokens"],
+        "output_json": str(args.output_json) if args.output_json else None,
+    }
+    print(json.dumps(summary, indent=2))
+    return 0 if smoke["success_rate"] == 1.0 else 1
 
 
 def main(argv: list[str] | None = None) -> int:

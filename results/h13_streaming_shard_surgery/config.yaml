@@ -1,0 +1,71 @@
+experiment_id: h13_streaming_shard_surgery
+hypothesis_id: H13
+hypothesis: Layer-streaming safetensors shard surgery (apply_lancet_recipe_streaming)
+  and shard-streaming TIES subspace-safe merge (stream_subspace_safe_ties_merge) with
+  float32 Modified Gram-Schmidt and per-row L2-norm restoration match in-memory surgery
+  and merge within < 1e-6 on sml-nano while bounding peak memory < 16 GB, local scratch
+  disk delta < 15 GB, and FP8 E4M3 Row Crest-Factor < 25.0 for 32B-70B checkpoints
+  on a single H100 80GB SXM.
+prediction: Streaming surgery and merge achieve streaming_surgery_max_abs_diff < 1e-6
+  and streaming_merge_max_abs_diff < 1e-6 on sml-nano, keep peak_memory_gb < 16.0
+  and peak_disk_shard_gb < 15.0, and satisfy max_row_crest_factor < 25.0 and provider_ready
+  == True across 32b-h100 (Qwen/Qwen2.5-32B-Instruct) and 70b-h100 (meta-llama/Llama-3.3-70B-Instruct).
+acceptance_criterion: streaming_surgery_max_abs_diff < 1e-6 and streaming_merge_max_abs_diff
+  < 1e-6 and peak_memory_gb < 16.0 and peak_disk_shard_gb < 15.0 and max_row_crest_factor
+  < 25.0 and provider_ready == True
+seed: 2026
+model:
+  name: sml-nano
+  vocab_size: 32768
+  d_model: 256
+  n_layers: 4
+  n_heads: 4
+  n_kv_heads: 2
+  d_ff: 768
+  max_seq_len: 1024
+  norm_type: rmsnorm
+  pos_encoding: rope
+  mlp_type: swiglu
+  bias: false
+  tie_embeddings: true
+  rope_theta: 10000.0
+  norm_eps: 1.0e-05
+data:
+  name: tinystories-smoke
+  hf_dataset: roneneldan/TinyStories
+  hf_subset: default
+  vocab_size: 32768
+  train_tokens: 20000000
+  val_tokens: 1000000
+  test_tokens: 1000000
+  shard_size_tokens: 10000000
+  hf_repo_id: mrAndreyIsachenko/sml-tinystories-shards
+  license: CDLA-Sharing-1.0
+hardware:
+  name: apple-m4-pro-48gb
+  accelerator: mps
+  vram_gb: 48.0
+  peak_bf16_tflops: 18.0
+  hourly_rate_usd: 0.0
+  price_as_of: '2026-10-31'
+  provider_notes: Local MacBook Pro 16-inch (Apple M4 Pro, 48 GB Unified Memory)
+train:
+  batch_size_tokens: 4096
+  micro_batch_size: 2
+  seq_len: 512
+  max_steps: 27
+  lr: 0.0005
+  min_lr_ratio: 0.1
+  weight_decay: 0.05
+  beta1: 0.9
+  beta2: 0.95
+  grad_clip: 1.0
+  schedule: wsd
+  warmup_steps: 2
+  decay_fraction: 0.2
+  branch_cooldown_tokens: null
+  precision: bf16
+  compile: false
+model_config_path: configs/model/sml_nano.yaml
+data_config_path: configs/data/tinystories.yaml
+hardware_config_path: configs/hardware/m4_pro_mps.yaml

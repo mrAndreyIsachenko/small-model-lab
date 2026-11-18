@@ -424,24 +424,103 @@ def _why_tenet_table(metrics: dict[str, Any]) -> str:
     return "\n".join(lines) + "\n\n"
 
 
+_EXTERNAL_BENCHMARK_ROWS: tuple[tuple[str, str], ...] = (
+    ("IFEval (strict)", "ifeval_strict"),
+    ("GSM8K / MATH-500 accuracy", "gsm8k_math_acc"),
+    ("SQL-Incident Eval accuracy", "sql_incident_acc"),
+    ("Direct-Compliance rate", "direct_compliance_rate"),
+    ("Unslop pass rate", "unslop_pass_rate"),
+    ("Slop & Refusal rate", "slop_and_refusal_rate"),
+    ("BFCL tool accuracy", "bfcl_tool_acc"),
+    ("HumanEval pass@1", "humaneval_pass1"),
+)
+
+
+def _format_delta(value: Any) -> str:
+    """Format a before/after delta with an explicit sign."""
+    if value is None:
+        return "—"
+    if isinstance(value, str):
+        return value
+    try:
+        number = float(value)
+    except (TypeError, ValueError):
+        return str(value)
+    sign = "+" if number >= 0 else "-"
+    magnitude = abs(number)
+    if magnitude != 0.0 and magnitude < 0.01:
+        return f"{sign}{magnitude:.2e}"
+    return f"{sign}{magnitude:.2f}"
+
+
+def _external_comparison_lines(comparison: Any) -> list[str]:
+    """Render the Before vs After external benchmark table (may be empty)."""
+    if not isinstance(comparison, dict):
+        return []
+    before = comparison.get("before")
+    after = comparison.get("after")
+    if not isinstance(before, dict) or not isinstance(after, dict):
+        return []
+    if not before and not after:
+        return []
+    delta_map = comparison.get("deltas")
+    if not isinstance(delta_map, dict):
+        delta_map = {}
+    known = {key: label for label, key in _EXTERNAL_BENCHMARK_ROWS}
+    keys: list[str] = []
+    for key, _ in _EXTERNAL_BENCHMARK_ROWS:
+        if key in before or key in after or key in delta_map:
+            keys.append(key)
+    for key in list(before) + list(after) + list(delta_map):
+        if key not in keys:
+            keys.append(key)
+    lines = [
+        "",
+        "### Before vs After (Lancet + Unslop GRPO + TIES Merge)",
+        "",
+        "| Benchmark | Before | After | Δ |",
+        "| --- | --- | --- | --- |",
+    ]
+    for key in keys:
+        label = known.get(key, str(key).replace("_", " "))
+        before_value = before.get(key)
+        after_value = after.get(key)
+        lines.append(
+            f"| {label} | "
+            f"{_format_value(before_value) if before_value is not None else '—'} | "
+            f"{_format_value(after_value) if after_value is not None else '—'} | "
+            f"{_format_delta(delta_map.get(key))} |"
+        )
+    return lines
+
+
 def _external_benchmarks_section(metrics: dict[str, Any]) -> str:
-    """Render optional external benchmark scores when supplied."""
+    """Render optional external benchmark scores when supplied.
+
+    Supports both the legacy trio (``ifeval_strict``, ``bfcl_tool_acc``,
+    ``humaneval_pass1``) and the full external benchmark suite
+    (``gsm8k_math_acc``, ``sql_incident_acc``, ``direct_compliance_rate``,
+    ``unslop_pass_rate``, ``slop_and_refusal_rate``). Only rows whose key is
+    actually present are rendered — missing entries never show up as
+    ``n/a`` dash rows. When ``metrics`` also carries
+    ``external_benchmarks_comparison`` with ``before``/``after``/``deltas``,
+    a Before vs After (Lancet + Unslop GRPO + TIES Merge) table is appended.
+    """
     external = metrics.get("external_benchmarks")
     if not isinstance(external, dict) or not external:
         return ""
-    rows = (
-        ("IFEval (strict)", "ifeval_strict"),
-        ("BFCL tool accuracy", "bfcl_tool_acc"),
-        ("HumanEval pass@1", "humaneval_pass1"),
-    )
     lines = [
         "## External Benchmarks",
         "",
         "| Benchmark | Score |",
         "| --- | --- |",
     ]
-    for label, key in rows:
-        lines.append(f"| {label} | {_dash_cell(external, key)} |")
+    for label, key in _EXTERNAL_BENCHMARK_ROWS:
+        value = external.get(key)
+        if value is None:
+            continue
+        lines.append(f"| {label} | {_format_value(value)} |")
+    lines.extend(_external_comparison_lines(metrics.get("external_benchmarks_comparison")))
     return "\n".join(lines) + "\n\n"
 
 
