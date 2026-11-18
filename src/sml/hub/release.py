@@ -7,6 +7,7 @@ card, OpenRouter onboarding manifest and release manifest.
 
 from __future__ import annotations
 
+import gc
 import json
 import math
 import os
@@ -14,6 +15,7 @@ import re
 import shlex
 import shutil
 import subprocess
+import tempfile
 from pathlib import Path
 from typing import Any
 
@@ -982,6 +984,24 @@ def _preferred_run_tokens(base_model: str, release_id: str = "") -> tuple[str, .
         return ("llama8b_h100", "llama8b", "qwen3b_mps", "qwen3b")
     if "mistral-nemo" in lowered or "tenet-12b" in lowered:
         return ("nemo12b_h100", "nemo12b", "qwen3b_mps", "qwen3b")
+    if "32b" in lowered:
+        return (
+            "qwen32b_h100",
+            "qwen32b",
+            "32b_h100",
+            "nemo12b_h100",
+            "qwen3b_mps",
+            "qwen3b",
+        )
+    if "70b" in lowered:
+        return (
+            "llama70b_h100",
+            "llama70b",
+            "70b_h100",
+            "llama8b_h100",
+            "qwen3b_mps",
+            "qwen3b",
+        )
     return ("qwen3b_mps", "qwen3b")
 
 
@@ -1074,6 +1094,10 @@ def _nano_model_geometry(model_name: str) -> tuple[int, int]:
         return 32, 4096
     if "nemo" in lowered or "12b" in lowered:
         return 40, 5120
+    if "32b" in lowered:
+        return 64, 5120
+    if "70b" in lowered:
+        return 80, 8192
     return 36, 2048
 
 
@@ -1865,6 +1889,440 @@ def _apply_lora_adapters_in_place(
     }
 
 
+def _should_use_streaming_shards(
+    base_model: str,
+    release_id: str,
+    backend: str,
+    streaming_shards: bool | None,
+) -> bool:
+    """Decide whether materialization should stream the H13 recipe shard-by-shard.
+
+    Streaming only applies to the ``llm`` backend; an explicit
+    ``streaming_shards`` flag wins, otherwise models whose base model or
+    release id mentions a large parameter count (``32b`` / ``70b``) default to
+    streaming so the full checkpoint never has to fit in memory.
+    """
+    if backend != "llm":
+        return False
+    if streaming_shards is not None:
+        return bool(streaming_shards)
+    lowered = f"{base_model} {release_id}".lower()
+    return any(token in lowered for token in ("32b", "70b"))
+
+
+def _linear_percentile(values: list[float], fraction: float) -> float:
+    """Linear-interpolation percentile (numpy default convention) of ``values``."""
+    if not values:
+        return 0.0
+    ordered = sorted(float(value) for value in values)
+    if len(ordered) == 1:
+        return ordered[0]
+    rank = (len(ordered) - 1) * float(fraction)
+    lo = int(math.floor(rank))
+    hi = int(math.ceil(rank))
+    if lo == hi:
+        return ordered[lo]
+    return ordered[lo] + (ordered[hi] - ordered[lo]) * (rank - lo)
+
+
+def _outlier_sort_score(entry: Any) -> float:
+    """Best-effort numeric score used to rank accumulated outlier-layer entries."""
+    if isinstance(entry, dict):
+        for key in ("crest_factor", "row_crest_factor", "max_row_crest_factor", "value"):
+            value = entry.get(key)
+            if isinstance(value, (int, float)) and not isinstance(value, bool):
+                return float(value)
+        return 0.0
+    if (
+        isinstance(entry, (list, tuple))
+        and len(entry) > 1
+        and isinstance(entry[1], (int, float))
+        and not isinstance(entry[1], bool)
+    ):
+        return float(entry[1])
+    return 0.0
+
+
+def _materialize_streaming_shards(
+    *,
+    release_id: str,
+    recipe: Any,
+    resolved_recipe_dir: Path,
+    resolved_base: str,
+    resolved_backend: str,
+    target_dir: Path,
+    lora_path: Path | str | None,
+    sql_lora_path: Path | str | None,
+    fp8_export: bool,
+    preserve_row_norm: bool,
+    push_to_hub: bool,
+    hf_repo_id: str,
+    keep_local_weights: bool,
+) -> dict[str, Any]:
+    """Materialize a Tenet checkpoint shard-by-shard (H13 streaming surgery).
+
+    Instead of loading the whole base model into memory, each safetensors
+    shard is staged alone, the streaming Lancet recipe is applied to it, and
+    the result is audited and (optionally) pushed before the next shard is
+    fetched. Config/tokenizer files are copied straight from the base model
+    so the target directory stays a complete HF-style checkpoint.
+    """
+    if lora_path is not None or sql_lora_path is not None or fp8_export:
+        raise ValueError(
+            "streaming_shards mode does not currently support LoRA merging or fp8_export"
+        )
+
+    from sml.hub.validator import (
+        MAX_ABS_WEIGHT_THRESHOLD,
+        MAX_ROW_CREST_FACTOR_THRESHOLD,
+        _inspect_weights,
+    )
+    from sml.surgery.subspace import apply_lancet_recipe_streaming
+
+    config_files = ("config.json", "generation_config.json", "model.safetensors.index.json")
+    tokenizer_files = (
+        "tokenizer.json",
+        "tokenizer_config.json",
+        "vocab.json",
+        "merges.txt",
+        "special_tokens_map.json",
+        "added_tokens.json",
+        "tokenizer.model",
+    )
+
+    api = None
+    if push_to_hub:
+        from huggingface_hub import HfApi
+
+        api = HfApi()
+        api.create_repo(repo_id=hf_repo_id, exist_ok=True, repo_type="model")
+
+    base_path = Path(resolved_base)
+    shard_names: list[str] = []
+    index_data: dict[str, Any] | None = None
+
+    with tempfile.TemporaryDirectory() as tmp_dir:
+        tmp_root = Path(tmp_dir)
+        staging_in = tmp_root / "staging_in"
+        staging_out = tmp_root / "staging_out"
+        staging_cache = tmp_root / "staging_cache"
+        staging_in.mkdir(parents=True, exist_ok=True)
+        staging_out.mkdir(parents=True, exist_ok=True)
+        staging_cache.mkdir(parents=True, exist_ok=True)
+
+        if base_path.is_dir():
+            from sml.surgery.subspace import _resolve_safetensors_shards
+
+            shard_names, index_data = _resolve_safetensors_shards(base_path)
+            for file_name in (*config_files, *tokenizer_files):
+                source_file = base_path / file_name
+                if source_file.is_file():
+                    shutil.copy2(source_file, target_dir / file_name)
+        else:
+            from huggingface_hub import HfApi, hf_hub_download
+
+            repo_files = HfApi().list_repo_files(resolved_base, repo_type="model")
+            repo_file_set = set(repo_files)
+
+            def _fetch_repo_file(file_name: str) -> Path | None:
+                if file_name not in repo_file_set:
+                    return None
+                downloaded = hf_hub_download(
+                    repo_id=resolved_base,
+                    filename=file_name,
+                    repo_type="model",
+                    cache_dir=str(staging_cache),
+                )
+                return Path(downloaded)
+
+            index_local = _fetch_repo_file("model.safetensors.index.json")
+            if index_local is not None:
+                try:
+                    index_data = json.loads(index_local.read_text(encoding="utf-8"))
+                except (OSError, json.JSONDecodeError, ValueError):
+                    index_data = None
+                shutil.copy2(index_local, target_dir / "model.safetensors.index.json")
+            if isinstance(index_data, dict) and isinstance(index_data.get("weight_map"), dict):
+                weight_map = index_data["weight_map"]
+                shard_names = list(dict.fromkeys(str(name) for name in weight_map.values()))
+            elif "model.safetensors" in repo_file_set:
+                shard_names = ["model.safetensors"]
+            else:
+                shard_names = sorted(
+                    name
+                    for name in repo_files
+                    if re.fullmatch(r"model-\d+-of-\d+\.safetensors", name)
+                )
+            for file_name in (*config_files, *tokenizer_files):
+                if file_name == "model.safetensors.index.json":
+                    continue
+                local_file = _fetch_repo_file(file_name)
+                if local_file is not None:
+                    shutil.copy2(local_file, target_dir / file_name)
+
+        config_target = target_dir / "config.json"
+        if config_target.is_file():
+            try:
+                config_payload = json.loads(config_target.read_text(encoding="utf-8"))
+            except (OSError, json.JSONDecodeError, ValueError):
+                config_payload = None
+            if isinstance(config_payload, dict):
+                config_changed = False
+                if "auto_map" in config_payload:
+                    config_payload.pop("auto_map", None)
+                    config_changed = True
+                if "trust_remote_code" in config_payload:
+                    config_payload["trust_remote_code"] = False
+                    config_changed = True
+                if config_changed:
+                    config_target.write_text(
+                        json.dumps(config_payload, indent=2, sort_keys=True) + "\n",
+                        encoding="utf-8",
+                    )
+
+        tokenizer_config_target = target_dir / "tokenizer_config.json"
+        if tokenizer_config_target.is_file():
+            try:
+                tokenizer_payload = json.loads(
+                    tokenizer_config_target.read_text(encoding="utf-8")
+                )
+            except (OSError, json.JSONDecodeError, ValueError):
+                tokenizer_payload = None
+            if isinstance(tokenizer_payload, dict):
+                if not tokenizer_payload.get("chat_template"):
+                    tokenizer_payload["chat_template"] = _CHAT_TEMPLATE
+                    tokenizer_config_target.write_text(
+                        json.dumps(tokenizer_payload, indent=2, sort_keys=True) + "\n",
+                        encoding="utf-8",
+                    )
+            else:
+                _write_tokenizer_config_json(target_dir, None)
+        else:
+            _write_tokenizer_config_json(target_dir, None)
+
+        if resolved_recipe_dir.resolve() != target_dir.resolve():
+            for artifact_name in (
+                "lancet_recipe.json",
+                "lancet_basis.safetensors",
+                "README.md",
+                "cka_quant_recipe.json",
+                "openrouter_onboarding.json",
+                "OPENROUTER_ONBOARDING.md",
+                "release_manifest.json",
+                "Modelfile",
+                "quantize_cka_gguf.sh",
+            ):
+                artifact_src = resolved_recipe_dir / artifact_name
+                if artifact_src.is_file():
+                    shutil.copy2(artifact_src, target_dir / artifact_name)
+            pareto_src = resolved_recipe_dir / "assets" / "lancet_vs_naive_pareto.svg"
+            if pareto_src.is_file():
+                (target_dir / "assets").mkdir(parents=True, exist_ok=True)
+                shutil.copy2(pareto_src, target_dir / "assets" / "lancet_vs_naive_pareto.svg")
+
+        shard_checks: dict[str, Any] = {}
+        shard_errors: list[str] = []
+        accumulated: dict[str, Any] = {
+            "max_abs_weight": 0.0,
+            "max_row_crest_factor": 0.0,
+            "crest_factors": [],
+            "outlier_layers": [],
+            "no_nan_inf": True,
+            "no_unmerged_lora": True,
+            "weight_files_checked": 0,
+        }
+        shards_processed = 0
+        tensors_modified = 0
+        max_row_norm_drift = 0.0
+        max_row_crest_factor = 0.0
+        peak_memory_bytes = 0
+        peak_disk_shard_bytes = 0
+
+        for shard_name in shard_names:
+            if base_path.is_dir():
+                shutil.copy2(base_path / shard_name, staging_in / shard_name)
+            else:
+                from huggingface_hub import hf_hub_download
+
+                hf_hub_download(
+                    repo_id=resolved_base,
+                    filename=shard_name,
+                    repo_type="model",
+                    local_dir=str(staging_in),
+                    cache_dir=str(staging_cache),
+                )
+
+            shard_stats = apply_lancet_recipe_streaming(
+                staging_in,
+                staging_out,
+                recipe,
+                preserve_row_norm=preserve_row_norm,
+                cleanup_input_shards=True,
+            )
+            if not isinstance(shard_stats, dict):
+                shard_stats = {}
+
+            shard_max_crest = float(shard_stats.get("max_row_crest_factor", 0.0) or 0.0)
+            if shard_max_crest >= 25.0 or not shard_stats.get("provider_ready"):
+                raise RuntimeError(
+                    f"streamed shard {shard_name} failed the provider audit: "
+                    f"max_row_crest_factor={shard_max_crest}, "
+                    f"provider_ready={shard_stats.get('provider_ready')}"
+                )
+
+            shards_processed += 1
+            tensors_modified += int(shard_stats.get("tensors_modified", 0) or 0)
+            max_row_norm_drift = max(
+                max_row_norm_drift, float(shard_stats.get("max_row_norm_drift", 0.0) or 0.0)
+            )
+            peak_memory_bytes = max(
+                peak_memory_bytes, int(shard_stats.get("peak_memory_bytes", 0) or 0)
+            )
+            peak_disk_shard_bytes = max(
+                peak_disk_shard_bytes, int(shard_stats.get("peak_disk_shard_bytes", 0) or 0)
+            )
+            max_row_crest_factor = max(max_row_crest_factor, shard_max_crest)
+
+            out_shard = staging_out / shard_name
+            shard_weight_stats = _inspect_weights([out_shard], shard_checks, shard_errors)
+            stats_map: dict[str, Any] = {}
+            if isinstance(shard_weight_stats, dict):
+                stats_map.update(shard_weight_stats)
+            for check_key, check_value in shard_checks.items():
+                stats_map.setdefault(check_key, check_value)
+
+            accumulated["max_abs_weight"] = max(
+                float(accumulated["max_abs_weight"]),
+                float(stats_map.get("max_abs_weight", 0.0) or 0.0),
+            )
+            accumulated["max_row_crest_factor"] = max(
+                float(accumulated["max_row_crest_factor"]),
+                float(stats_map.get("max_row_crest_factor", 0.0) or 0.0),
+            )
+            shard_crest_factors = stats_map.get("crest_factors")
+            if isinstance(shard_crest_factors, (list, tuple)):
+                accumulated["crest_factors"].extend(shard_crest_factors)
+            elif stats_map.get("row_crest_factor_p50") is not None:
+                accumulated["crest_factors"].append(float(stats_map["row_crest_factor_p50"]))
+                if stats_map.get("row_crest_factor_p99") is not None:
+                    accumulated["crest_factors"].append(float(stats_map["row_crest_factor_p99"]))
+            shard_outliers = stats_map.get("outlier_layers") or stats_map.get(
+                "top_3_outlier_layers"
+            )
+            if isinstance(shard_outliers, (list, tuple)):
+                accumulated["outlier_layers"].extend(shard_outliers)
+            accumulated["no_nan_inf"] = bool(accumulated["no_nan_inf"]) and bool(
+                stats_map.get("no_nan_inf", True)
+            )
+            accumulated["no_unmerged_lora"] = bool(accumulated["no_unmerged_lora"]) and bool(
+                stats_map.get("no_unmerged_lora", True)
+            )
+            accumulated["weight_files_checked"] += int(
+                stats_map.get("weight_files_checked", 1) or 1
+            )
+
+            if push_to_hub and api is not None:
+                api.upload_file(
+                    path_or_fileobj=str(out_shard),
+                    path_in_repo=shard_name,
+                    repo_id=hf_repo_id,
+                    repo_type="model",
+                    commit_message=f"Upload streamed shard {shard_name} for {release_id}",
+                )
+
+            if keep_local_weights:
+                shutil.move(str(out_shard), str(target_dir / shard_name))
+            else:
+                out_shard.unlink()
+
+            for leftover in list(staging_in.iterdir()):
+                if leftover.is_dir() and not leftover.is_symlink():
+                    shutil.rmtree(leftover)
+                else:
+                    leftover.unlink()
+            for leftover in list(staging_cache.iterdir()):
+                if leftover.is_dir() and not leftover.is_symlink():
+                    shutil.rmtree(leftover)
+                else:
+                    leftover.unlink()
+            gc.collect()
+
+    readiness = verify_provider_readiness(target_dir)
+    provenance = verify_recipe_provenance(target_dir)
+    if not keep_local_weights:
+        from sml.hub.validator import (
+            MAX_ABS_WEIGHT_THRESHOLD,
+            MAX_ROW_CREST_FACTOR_THRESHOLD,
+        )
+
+        crest_factors = [float(value) for value in accumulated["crest_factors"]]
+        checks = dict(readiness.get("checks") or {})
+        checks["no_nan_inf"] = bool(accumulated["no_nan_inf"])
+        checks["no_unmerged_lora"] = bool(accumulated["no_unmerged_lora"])
+        checks["weight_outliers_ok"] = (
+            float(accumulated["max_abs_weight"]) < MAX_ABS_WEIGHT_THRESHOLD
+        )
+        checks["acceptable_row_crest_factor"] = (
+            float(accumulated["max_row_crest_factor"]) < MAX_ROW_CREST_FACTOR_THRESHOLD
+        )
+        outlier_entries = list(accumulated["outlier_layers"])
+        try:
+            ranked_outliers = sorted(outlier_entries, key=_outlier_sort_score, reverse=True)
+        except TypeError:  # pragma: no cover - defensive
+            ranked_outliers = outlier_entries
+        readiness["weight_files_checked"] = int(accumulated["weight_files_checked"])
+        readiness["max_abs_weight"] = float(accumulated["max_abs_weight"])
+        readiness["max_row_crest_factor"] = float(accumulated["max_row_crest_factor"])
+        readiness["row_crest_factor_p50"] = _linear_percentile(crest_factors, 0.50)
+        readiness["row_crest_factor_p99"] = _linear_percentile(crest_factors, 0.99)
+        readiness["top_3_outlier_layers"] = ranked_outliers[:3]
+        readiness["checks"] = checks
+        readiness["errors"] = list(readiness.get("errors") or []) + list(shard_errors)
+        readiness["ready"] = all(bool(value) for value in checks.values())
+    (target_dir / "provider_readiness.json").write_text(
+        json.dumps(readiness, indent=2, sort_keys=True) + "\n",
+        encoding="utf-8",
+    )
+
+    if push_to_hub:
+        if not readiness.get("ready", False):
+            raise RuntimeError(f"Checkpoint failed provider readiness: {readiness.get('errors')}")
+        api.upload_folder(
+            folder_path=str(target_dir),
+            repo_id=hf_repo_id,
+            repo_type="model",
+            ignore_patterns=["model*.safetensors"],
+            commit_message=f"Materialize {release_id} (H13 streaming shards)",
+        )
+
+    shards = len(list(target_dir.glob("*.safetensors")))
+
+    return {
+        "release_id": release_id,
+        "release_dir": str(target_dir),
+        "recipe_dir": str(resolved_recipe_dir),
+        "hf_repo_id": hf_repo_id,
+        "base_model": resolved_base,
+        "backend": resolved_backend,
+        "ready": bool(readiness.get("ready", False)),
+        "provider_readiness": readiness,
+        "recipe_provenance": provenance,
+        "shards": shards,
+        "lora_applied": False,
+        "fp8_export": False,
+        "pushed": bool(push_to_hub),
+        "cache_cleanup": None,
+        "streaming_shards": True,
+        "shards_processed": shards_processed,
+        "tensors_modified": tensors_modified,
+        "max_row_norm_drift": max_row_norm_drift,
+        "max_row_crest_factor": max_row_crest_factor,
+        "peak_memory_bytes": peak_memory_bytes,
+        "peak_memory_gb": round(peak_memory_bytes / (1024**3), 3),
+        "peak_disk_shard_bytes": peak_disk_shard_bytes,
+    }
+
+
 def materialize_tenet_checkpoint(
     release_id: str = "Tenet-3B-Qwen2.5-Unslop-v1",
     *,
@@ -1883,6 +2341,7 @@ def materialize_tenet_checkpoint(
     push_to_hub: bool = False,
     cleanup_cache: bool = True,
     keep_local_weights: bool = True,
+    streaming_shards: bool | None = None,
     nano_config_path: Path | str | None = None,
 ) -> dict[str, Any]:
     """Materialize a provider-ready Tenet checkpoint (ADR-006 Tier 3).
@@ -1932,6 +2391,23 @@ def materialize_tenet_checkpoint(
         resolved_backend = "nano"
     else:
         resolved_backend = "llm"
+
+    if _should_use_streaming_shards(resolved_base, release_id, resolved_backend, streaming_shards):
+        return _materialize_streaming_shards(
+            release_id=release_id,
+            recipe=recipe,
+            resolved_recipe_dir=resolved_recipe_dir,
+            resolved_base=resolved_base,
+            resolved_backend=resolved_backend,
+            target_dir=target_dir,
+            lora_path=lora_path,
+            sql_lora_path=sql_lora_path,
+            fp8_export=fp8_export,
+            preserve_row_norm=preserve_row_norm,
+            push_to_hub=push_to_hub,
+            hf_repo_id=f"{hf_namespace}/{release_id}",
+            keep_local_weights=keep_local_weights,
+        )
 
     resolved_device = device
     if resolved_device == "auto":
@@ -2108,4 +2584,5 @@ def materialize_tenet_checkpoint(
         "fp8_export": fp8_export,
         "pushed": pushed,
         "cache_cleanup": cache_cleanup,
+        "streaming_shards": False,
     }

@@ -11,6 +11,7 @@ models:
   - mr-andrey-isachenko/Tenet-3B-Qwen2.5-Unslop-v1
   - mr-andrey-isachenko/Tenet-8B-Llama3.1-Unslop-v1
   - mr-andrey-isachenko/Tenet-12B-Nemo-Unslop-v1
+  - mr-andrey-isachenko/Tenet-32B-Qwen2.5-Unslop-v1
   - mr-andrey-isachenko/Tenet-16K-Nano-Lab-v1
 ---
 

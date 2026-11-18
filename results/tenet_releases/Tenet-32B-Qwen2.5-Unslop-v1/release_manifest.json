@@ -1,0 +1,62 @@
+{
+  "artifacts": {
+    "cka_quant_recipe": "results/tenet_releases/Tenet-32B-Qwen2.5-Unslop-v1/cka_quant_recipe.json",
+    "config": "results/tenet_releases/Tenet-32B-Qwen2.5-Unslop-v1/config.json",
+    "lancet_basis": "results/tenet_releases/Tenet-32B-Qwen2.5-Unslop-v1/lancet_basis.safetensors",
+    "lancet_recipe": "results/tenet_releases/Tenet-32B-Qwen2.5-Unslop-v1/lancet_recipe.json",
+    "modelfile": "results/tenet_releases/Tenet-32B-Qwen2.5-Unslop-v1/Modelfile",
+    "openrouter_onboarding_json": "results/tenet_releases/Tenet-32B-Qwen2.5-Unslop-v1/openrouter_onboarding.json",
+    "openrouter_onboarding_md": "results/tenet_releases/Tenet-32B-Qwen2.5-Unslop-v1/OPENROUTER_ONBOARDING.md",
+    "pareto_svg": "results/tenet_releases/Tenet-32B-Qwen2.5-Unslop-v1/assets/lancet_vs_naive_pareto.svg",
+    "provider_readiness_json": "results/tenet_releases/Tenet-32B-Qwen2.5-Unslop-v1/provider_readiness.json",
+    "quantize_cka_gguf_sh": "results/tenet_releases/Tenet-32B-Qwen2.5-Unslop-v1/quantize_cka_gguf.sh",
+    "readme": "results/tenet_releases/Tenet-32B-Qwen2.5-Unslop-v1/README.md",
+    "release_manifest": "results/tenet_releases/Tenet-32B-Qwen2.5-Unslop-v1/release_manifest.json",
+    "tokenizer_config": "results/tenet_releases/Tenet-32B-Qwen2.5-Unslop-v1/tokenizer_config.json",
+    "weights": "results/tenet_releases/Tenet-32B-Qwen2.5-Unslop-v1/model.safetensors"
+  },
+  "backend": "nano",
+  "hf_repo_id": "mr-andrey-isachenko/Tenet-32B-Qwen2.5-Unslop-v1",
+  "model_name": "Qwen/Qwen2.5-32B-Instruct",
+  "provider_readiness": {
+    "architectures": [
+      "Qwen2ForCausalLM"
+    ],
+    "checks": {
+      "acceptable_row_crest_factor": true,
+      "no_nan_inf": true,
+      "no_trust_remote_code": true,
+      "no_unmerged_lora": true,
+      "recipe_provenance": true,
+      "standard_architecture": true,
+      "valid_chat_template": true,
+      "weight_outliers_ok": true
+    },
+    "errors": [],
+    "max_abs_weight": 0.0848047137260437,
+    "max_row_crest_factor": 3.6828184127807617,
+    "ready": true,
+    "row_crest_factor_p50": 3.4506185054779053,
+    "row_crest_factor_p99": 3.6745986938476562,
+    "top_3_outlier_layers": [
+      {
+        "crest_factor": 3.6828184127807617,
+        "max_abs": 0.0776083841919899,
+        "tensor": "model.embed_tokens.weight"
+      },
+      {
+        "crest_factor": 3.565394163131714,
+        "max_abs": 0.08322040736675262,
+        "tensor": "model.layers.0.mlp.gate_proj.weight"
+      },
+      {
+        "crest_factor": 3.480825424194336,
+        "max_abs": 0.06623952090740204,
+        "tensor": "model.layers.0.mlp.down_proj.weight"
+      }
+    ],
+    "weight_files_checked": 1
+  },
+  "ready": true,
+  "release_id": "Tenet-32B-Qwen2.5-Unslop-v1"
+}

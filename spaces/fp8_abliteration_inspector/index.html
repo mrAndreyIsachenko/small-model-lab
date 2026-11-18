@@ -270,6 +270,7 @@
         <button class="btn" id="prof-12b" onclick="selectProfile('12b')">
           Tenet-12B-Nemo-Unslop-v1 (NVIDIA H100)
         </button>
+        <button class="btn" id="prof-32b" onclick="selectProfile('32b')">Tenet-32B-Qwen2.5-Unslop-v1 (H13 Streaming)</button>
       </div>
 
       <div class="grid-4" id="kpi-row"></div>
@@ -333,6 +334,7 @@
             <button class="btn" onclick="loadSampleBundle('Tenet-3B-Qwen2.5-Unslop-v1')">Load Tenet-3B Bundle</button>
             <button class="btn" onclick="loadSampleBundle('Tenet-8B-Llama3.1-Unslop-v1')">Load Tenet-8B Bundle</button>
             <button class="btn" onclick="loadSampleBundle('Tenet-12B-Nemo-Unslop-v1')">Load Tenet-12B Bundle</button>
+            <button class="btn" onclick="loadSampleBundle('Tenet-32B-Qwen2.5-Unslop-v1')">Load Tenet-32B Bundle</button>
           </div>
 
           <h3>2. Or Drop Local Checkpoint / Bundle Files (Zero Server Upload)</h3>
@@ -371,6 +373,7 @@
               <option value="3b">Tenet-3B-Qwen2.5-Unslop-v1 (36 layers, 18 high-SCR surgical layers)</option>
               <option value="8b">Tenet-8B-Llama3.1-Unslop-v1 (32 layers, 16 high-SCR surgical layers)</option>
               <option value="12b">Tenet-12B-Nemo-Unslop-v1 (40 layers, 18 high-SCR surgical layers)</option>
+              <option value="32b">Tenet-32B-Qwen2.5-Unslop-v1 (64 layers, H13 streaming surgery)</option>
             </select>
           </div>
           <div class="form-group">
@@ -463,6 +466,28 @@
         crestFactor: 10.65,
         h12Gain: "+0.7806",
         h12Releak: "3.26e-7"
+      },
+      "32b": {
+        id: "Tenet-32B-Qwen2.5-Unslop-v1",
+        base: "Qwen/Qwen2.5-32B-Instruct",
+        hw: "H13 Streaming Shards (< 16 GB RAM)",
+        numLayers: 64,
+        selectedLayers: [5, 4, 0],
+        naiveKl: 0.0013,
+        lancetKl: 0.0005,
+        klReduction: "60.92%",
+        suppression: "98.54%",
+        anchorOrtho: "1.00e-8",
+        sqlOrtho: "2.00e-8",
+        slopRate: "0.00%",
+        loraReleakNaive: "351.24%",
+        loraReleakTenet: "0.00%",
+        fp8Retention: "99.99%",
+        fp8ReleakNaive: "50.00%",
+        fp8ReleakTenet: "2.99%",
+        crestFactor: 3.68,
+        h12Gain: "+0.6611",
+        h12Releak: "7.50e-7"
       }
     };
 
@@ -510,7 +535,7 @@
     }
 
     function selectProfile(key) {
-      ['3b', '8b', '12b'].forEach(k => {
+      ['3b', '8b', '12b', '32b'].forEach(k => {
         document.getElementById('prof-' + k).classList.toggle('active', k === key);
       });
       const p = PROFILES[key];
@@ -598,7 +623,7 @@
           hf_repo_id: manifest.hf_repo_id
         });
       } catch (e) {
-        const key = bundleId.includes('8B') ? '8b' : (bundleId.includes('12B') ? '12b' : '3b');
+        const key = bundleId.includes('32B') ? '32b' : (bundleId.includes('8B') ? '8b' : (bundleId.includes('12B') ? '12b' : '3b'));
         const p = PROFILES[key];
         renderAuditReport({
           bundle_id: p.id,
