@@ -1,0 +1,70 @@
+{
+  "architectural_compatibility": {
+    "auto_map": null,
+    "chat_template_ready": true,
+    "standard_architecture": true,
+    "supported_architectures": [
+      "LlamaForCausalLM",
+      "Qwen2ForCausalLM",
+      "MistralForCausalLM"
+    ],
+    "trust_remote_code": false
+  },
+  "base_model": "Qwen/Qwen2.5-32B-Instruct",
+  "fp8_and_crest_proof": {
+    "h10_subspace_safe_grpo": {
+      "h10_gated_vs_naive_gain": 0.227591,
+      "h10_post_surgery_gain": 0.661059,
+      "h10_verified": true,
+      "length_collapse_rate": 0.0,
+      "merged_lora_count": 0,
+      "post_merge_suppression_retention": 1.0,
+      "subspace_safe_lora_releakage": 7.5e-07,
+      "unprojected_lora_releakage": 3.51243305
+    },
+    "h11_fp8_provider_audit": {
+      "fp8_retention_ratio": 0.9999265670776367,
+      "fp8_subspace_releakage_lancet": 0.02992258438945319,
+      "fp8_subspace_releakage_lancet_per_tensor": 0.02961898341952166,
+      "fp8_subspace_releakage_naive": 0.49997418158034607,
+      "fp8_subspace_releakage_naive_per_tensor": 0.5002142406167072,
+      "h11_fp8_kl_reduction_ratio": 0.466080809594083,
+      "kl_lancet_fp8": 0.0003870920918416232,
+      "kl_naive_fp8": 0.0007250012713484466,
+      "max_abs_weight": 0.0848047137260437,
+      "max_row_crest_factor": 3.6828184127807617
+    },
+    "h9_lancet_surgery": {
+      "anchor_orthogonality_error": 1e-08,
+      "h9_kl_reduction_ratio": 0.6092,
+      "h9_verified": true,
+      "lancet_kl_collateral": 0.000515,
+      "max_row_norm_drift": 2e-08,
+      "naive_kl_collateral": 0.001317,
+      "target_suppression_ratio": 0.98542
+    }
+  },
+  "hf_repo_id": "mr-andrey-isachenko/Tenet-32B-Qwen2.5-Unslop-v1",
+  "markdown_summary": "# OpenRouter Onboarding \u2014 mr-andrey-isachenko/Tenet-32B-Qwen2.5-Unslop-v1\n\n## Repository\n\n- **HF repo id:** `mr-andrey-isachenko/Tenet-32B-Qwen2.5-Unslop-v1`\n- **Base model:** `Qwen/Qwen2.5-32B-Instruct`\n- **Target providers:** Featherless, Chutes, Novita, DeepInfra\n\n## vLLM launch command\n\n```bash\nvllm serve --model mr-andrey-isachenko/Tenet-32B-Qwen2.5-Unslop-v1 --quantization fp8 --dtype bfloat16 --enable-auto-tool-choice\n```\n\nSettings: `quantization=fp8`, `dtype=bfloat16`, `trust_remote_code=False`, `enable-auto-tool-choice=True`.\n\n## FP8 Re-Leakage & Row Crest-Factor proof\n\n| Proof | Value |\n| --- | --- |\n| H11 FP8 retention ratio | 0.999927 |\n| H11 FP8 KL reduction ratio | 0.466081 |\n| H11 FP8 subspace Re-Leakage (Lancet) | 0.0299226 |\n| H11 FP8 subspace Re-Leakage (naive) | 0.499974 |\n| H9 Lancet KL reduction ratio | 0.6092 |\n| H10 subspace-safe LoRA Re-Leakage | 7.5e-07 |\n| Max row crest factor | 3.68282 |\n| Max abs weight | 0.0848047 |\n\n## Architectural compatibility checklist\n\n- [x] Standard, first-party architecture (no custom `auto_map`)\n- [x] No `trust_remote_code` escape hatches\n- [x] Chat template ready\n- Supported architectures: LlamaForCausalLM, Qwen2ForCausalLM, MistralForCausalLM\n",
+  "providers": [
+    "Featherless",
+    "Chutes",
+    "Novita",
+    "DeepInfra"
+  ],
+  "vllm_launch_args": {
+    "cli_args": [
+      "--model",
+      "mr-andrey-isachenko/Tenet-32B-Qwen2.5-Unslop-v1",
+      "--quantization",
+      "fp8",
+      "--dtype",
+      "bfloat16",
+      "--enable-auto-tool-choice"
+    ],
+    "dtype": "bfloat16",
+    "model": "mr-andrey-isachenko/Tenet-32B-Qwen2.5-Unslop-v1",
+    "quantization": "fp8",
+    "trust_remote_code": false
+  }
+}

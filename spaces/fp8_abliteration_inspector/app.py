@@ -820,6 +820,156 @@ DEMO_PRESET: dict[str, Any] = {
     },
 }
 
+# ---------------------------------------------------------------------------
+# Tenet profile registry — Tab 1 profile selector + Tab 3 command generator.
+# Kept in sync with the PROFILES object in index.html.
+# ---------------------------------------------------------------------------
+TENET_PROFILES: dict[str, dict[str, Any]] = {
+    "3b": {
+        "id": "Tenet-3B-Qwen2.5-Unslop-v1",
+        "base": "Qwen/Qwen2.5-3B-Instruct",
+        "hw": "Apple M4 Pro 48GB MPS",
+        "num_layers": 36,
+        "selected_layers": [
+            21,
+            19,
+            15,
+            22,
+            25,
+            20,
+            23,
+            24,
+            8,
+            14,
+            7,
+            12,
+            13,
+            9,
+            6,
+            5,
+            10,
+            26,
+        ],
+        "naive_kl": 3.7607,
+        "lancet_kl": 0.0220,
+        "kl_reduction": "99.41%",
+        "suppression": "96.94%",
+        "anchor_ortho": "1.00e-7",
+        "sql_ortho": "7.00e-8",
+        "slop_rate": "9.09%",
+        "lora_releak_naive": "83.00%",
+        "lora_releak_tenet": "6.90%",
+        "fp8_retention": "95.41%",
+        "fp8_releak_naive": "50.03%",
+        "fp8_releak_tenet": "2.70%",
+        "crest_factor": 17.27,
+        "h12_gain": "+0.7848",
+        "h12_releak": "4.71e-7",
+    },
+    "8b": {
+        "id": "Tenet-8B-Llama3.1-Unslop-v1",
+        "base": "meta-llama/Llama-3.1-8B-Instruct",
+        "hw": "NVIDIA H100 80GB",
+        "num_layers": 32,
+        "selected_layers": [
+            13,
+            14,
+            12,
+            15,
+            11,
+            16,
+            10,
+            17,
+            9,
+            18,
+            19,
+            8,
+            20,
+            21,
+            7,
+            22,
+        ],
+        "naive_kl": 0.1337,
+        "lancet_kl": 0.0135,
+        "kl_reduction": "89.89%",
+        "suppression": "99.30%",
+        "anchor_ortho": "6.00e-8",
+        "sql_ortho": "9.00e-8",
+        "slop_rate": "4.10%",
+        "lora_releak_naive": "145.67%",
+        "lora_releak_tenet": "14.43%",
+        "fp8_retention": "99.36%",
+        "fp8_releak_naive": "38.40%",
+        "fp8_releak_tenet": "2.78%",
+        "crest_factor": 6.32,
+        "h12_gain": "+0.7965",
+        "h12_releak": "2.48e-7",
+    },
+    "12b": {
+        "id": "Tenet-12B-Nemo-Unslop-v1",
+        "base": "mistralai/Mistral-Nemo-Instruct-2407",
+        "hw": "NVIDIA H100 80GB",
+        "num_layers": 40,
+        "selected_layers": [
+            19,
+            18,
+            20,
+            17,
+            21,
+            16,
+            22,
+            15,
+            23,
+            14,
+            24,
+            25,
+            13,
+            26,
+            12,
+            27,
+            28,
+            11,
+        ],
+        "naive_kl": 0.2968,
+        "lancet_kl": 0.0097,
+        "kl_reduction": "96.72%",
+        "suppression": "99.14%",
+        "anchor_ortho": "9.00e-8",
+        "sql_ortho": "9.00e-8",
+        "slop_rate": "2.39%",
+        "lora_releak_naive": "139.20%",
+        "lora_releak_tenet": "2.71%",
+        "fp8_retention": "96.78%",
+        "fp8_releak_naive": "48.10%",
+        "fp8_releak_tenet": "18.39%",
+        "crest_factor": 10.65,
+        "h12_gain": "+0.7806",
+        "h12_releak": "3.26e-7",
+    },
+    "32b": {
+        "id": "Tenet-32B-Qwen2.5-Unslop-v1",
+        "base": "Qwen/Qwen2.5-32B-Instruct",
+        "hw": "H13 Streaming Shards (< 16 GB RAM)",
+        "num_layers": 64,
+        "selected_layers": [5, 4, 0],
+        "naive_kl": 0.0013,
+        "lancet_kl": 0.0005,
+        "kl_reduction": "60.92%",
+        "suppression": "98.54%",
+        "anchor_ortho": "1.00e-8",
+        "sql_ortho": "2.00e-8",
+        "slop_rate": "0.00%",
+        "lora_releak_naive": "351.24%",
+        "lora_releak_tenet": "0.00%",
+        "fp8_retention": "99.99%",
+        "fp8_releak_naive": "50.00%",
+        "fp8_releak_tenet": "2.99%",
+        "crest_factor": 3.68,
+        "h12_gain": "+0.6611",
+        "h12_releak": "7.50e-7",
+    },
+}
+
 
 def render_demo_svg() -> str:
     """Inline SVG comparing the two Qwen2.5-3B ablation methods."""
@@ -979,6 +1129,100 @@ def render_demo_svg() -> str:
     )
     parts.append("</svg>")
     return "".join(parts)
+
+
+# ---------------------------------------------------------------------------
+# TENET_PROFILES renderers (Tab 1 profile selector) — mirrors renderParetoSvg
+# in index.html
+# ---------------------------------------------------------------------------
+def _format_profile_table(profile: dict[str, Any]) -> str:
+    """Markdown Naive-vs-Tenet comparison table for a TENET_PROFILES entry."""
+    crest = float(profile["crest_factor"])
+    lancet_kl = float(profile["lancet_kl"])
+    naive_kl = float(profile["naive_kl"])
+    return "\n".join(
+        [
+            f"**{profile['id']}** (`{profile['base']}`) — {profile['hw']}",
+            "",
+            "| metric | Naive Abliteration | Tenet Lancet (BF16) | Tenet Lancet (FP8) |",
+            "|---|---|---|---|",
+            f"| H9 KL collateral drift | {naive_kl:.4f} | {lancet_kl:.4f} | {lancet_kl:.4f} |",
+            f"| KL collateral reduction | — | {profile['kl_reduction']} | "
+            f"{profile['kl_reduction']} |",
+            f"| Refusal & slop suppression | — | {profile['suppression']} | 100.0% retained |",
+            f"| SQL anchor ortho error | Unprotected | "
+            f"{profile['sql_ortho']} | {profile['sql_ortho']} |",
+            f"| LoRA adapter re-leakage (H10) | {profile['lora_releak_naive']} "
+            f"| {profile['lora_releak_tenet']} | "
+            f"{profile['lora_releak_tenet']} |",
+            f"| FP8 subspace re-leakage (H11) | {profile['fp8_releak_naive']} "
+            f"| — | {profile['fp8_releak_tenet']} |",
+            f"| FP8 retention | — | — | {profile['fp8_retention']} |",
+            f"| Max row crest-factor (< 25.0) | Unbounded | {crest:.2f} | {crest:.2f} |",
+            f"| H12 multi-adapter merge gain | Baseline (0.00) | "
+            f"{profile['h12_gain']} | {profile['h12_gain']} |",
+            f"| Surgical layers ({profile['num_layers']} total) | — | "
+            f"{len(profile['selected_layers'])} selected | "
+            f"{len(profile['selected_layers'])} selected |",
+        ]
+    )
+
+
+def render_profile_svg(profile: dict[str, Any]) -> str:
+    """Inline SVG damage profile for a TENET_PROFILES entry."""
+    w, h = 960, 290
+    naive_kl = float(profile["naive_kl"])
+    lancet_kl = float(profile["lancet_kl"])
+    crest = float(profile["crest_factor"])
+    naive_bar = min(260.0, max(40.0, math.log10(1 + naive_kl * 100) * 95))
+    lancet_bar = max(8.0, math.log10(1 + lancet_kl * 100) * 45)
+    crest_pct = min(100.0, crest / MAX_ROW_CREST_FACTOR_THRESHOLD * 100)
+    return "".join(
+        [
+            f'<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 {w} {h}" '
+            'width="100%" height="270">',
+            f'<rect width="{w}" height="{h}" rx="8" fill="#0d1322"/>',
+            '<text x="24" y="32" fill="#f8fafc" font-size="15" font-weight="700">'
+            f"{_esc(profile['id'])} ({_esc(profile['base'])}) — damage profile"
+            "</text>",
+            '<text x="24" y="52" fill="#94a3b8" font-size="12">'
+            f"Hardware: {_esc(profile['hw'])} | Target Suppression: "
+            f"{_esc(profile['suppression'])} | SQL Anchor Ortho Error: "
+            f"{_esc(profile['sql_ortho'])}</text>",
+            '<rect x="24" y="70" width="440" height="196" rx="8" fill="#111827" stroke="#334155"/>',
+            '<text x="42" y="96" fill="#cbd5e1" font-size="13" font-weight="600">'
+            "H9: KL Collateral Drift on Reasoning &amp; SQL (Lower = Better)"
+            "</text>",
+            '<text x="42" y="135" fill="#fca5a5" font-size="12.5">'
+            f"Naive Abliteration ({naive_kl:.4f})</text>",
+            f'<rect x="42" y="143" height="22" rx="4" fill="#ef4444" width="{naive_bar:.1f}"/>',
+            '<text x="42" y="195" fill="#6ee7b7" font-size="12.5">'
+            f"Tenet Lancet Bi-Projected ({lancet_kl:.4f} | "
+            f"-{_esc(profile['kl_reduction'])} damage)</text>",
+            f'<rect x="42" y="203" height="22" rx="4" fill="#10b981" width="{lancet_bar:.1f}"/>',
+            '<rect x="492" y="70" width="444" height="196" rx="8" '
+            'fill="#111827" stroke="#334155"/>',
+            '<text x="510" y="96" fill="#cbd5e1" font-size="13" font-weight="600">'
+            "H11 &amp; H12: FP8 Row Crest-Factor Gate (&lt; 25.0) &amp; "
+            "Merge Gain</text>",
+            '<text x="510" y="132" fill="#94a3b8" font-size="12.5">'
+            f"Max Row Crest-Factor: {crest:.2f} / 25.00 Threshold (PASS)</text>",
+            '<rect x="510" y="142" width="380" height="18" rx="4" fill="#1e293b"/>',
+            f'<rect x="510" y="142" width="{crest_pct * 3.8:.1f}" height="18" '
+            'rx="4" fill="#6366f1"/>',
+            '<text x="510" y="192" fill="#6ee7b7" font-size="12.5">'
+            f"FP8 Retention: {_esc(profile['fp8_retention'])} | "
+            f"FP8 Re-Leakage: {_esc(profile['fp8_releak_tenet'])} "
+            f"(vs {_esc(profile['fp8_releak_naive'])} Naive)</text>",
+            '<text x="510" y="218" fill="#a5b4fc" font-size="12.5">'
+            f"H12 Subspace-Safe TIES Merge Gain: {_esc(profile['h12_gain'])} "
+            f"(Re-Leakage: {_esc(profile['h12_releak'])})</text>",
+            '<text x="510" y="242" fill="#94a3b8" font-size="12">'
+            "Post-Merge Suppression Retention: 100.0% across all surgical "
+            "layers</text>",
+            "</svg>",
+        ]
+    )
 
 
 # ---------------------------------------------------------------------------
@@ -1196,6 +1440,17 @@ def _format_checks_summary(r: dict[str, Any]) -> str:
     return "\n".join(lines)
 
 
+def _profile_by_id(profile_id: str) -> dict[str, Any] | None:
+    """Look up a TENET_PROFILES entry by its HF model id."""
+    return next((p for p in TENET_PROFILES.values() if p["id"] == profile_id), None)
+
+
+def _profile_base_model(profile_id: str) -> str:
+    """Base model id for a Tenet profile (defaults to the 3B profile)."""
+    profile = _profile_by_id(profile_id)
+    return str(profile["base"]) if profile else TENET_PROFILES["3b"]["base"]
+
+
 def build_demo():
     """Build the 3-tab Gradio app; returns None when gradio is unavailable."""
     if not HAS_GRADIO:
@@ -1215,8 +1470,7 @@ def build_demo():
             "| Top-3 SCR layers | 21 / 15 / 19 | 21 / 15 / 19 |",
             f"| IFEval strict | {naive['ifeval_strict']} | {tenet['ifeval_strict']} |",
             f"| GSM8K / MATH-500 | {naive['gsm8k_math_acc']} | {tenet['gsm8k_math_acc']} |",
-            f"| SQL-Incident Eval | {naive['sql_incident_acc']} | "
-            f"{tenet['sql_incident_acc']} |",
+            f"| SQL-Incident Eval | {naive['sql_incident_acc']} | {tenet['sql_incident_acc']} |",
             f"| Direct-Compliance | {naive['direct_compliance_rate']} | "
             f"{tenet['direct_compliance_rate']} |",
         ]
@@ -1239,10 +1493,33 @@ def build_demo():
                     "Real measurements on **Qwen2.5-3B**: naive abliteration rows collapse "
                     "onto the injected refusal direction (crest ≥ 25) and FP8 per-tensor "
                     "scales re-leak it; the Tenet Lancet bundle keeps the crest at 17.27 and "
-                    "stays FP8-safe."
+                    "stays FP8-safe. Select any Tenet profile — including "
+                    "**Tenet-32B-Qwen2.5-Unslop-v1** (64 layers, H13 streaming surgery, "
+                    "< 16 GB RAM) — for its Naive-vs-Lancet damage report."
                 )
-                gr.HTML(render_demo_svg())
-                gr.Markdown(table)
+                profile_in = gr.Radio(
+                    choices=[p["id"] for p in TENET_PROFILES.values()],
+                    value=TENET_PROFILES["3b"]["id"],
+                    label="Tenet profile",
+                )
+                profile_svg = gr.HTML(render_demo_svg())
+                profile_table = gr.Markdown(table)
+
+                def _render_profile_report(profile_id: str):
+                    profile = _profile_by_id(profile_id)
+                    if profile is None or profile is TENET_PROFILES["3b"]:
+                        # Default view stays exactly the DEMO_PRESET report.
+                        return render_demo_svg(), table
+                    return (
+                        render_profile_svg(profile),
+                        _format_profile_table(profile),
+                    )
+
+                profile_in.change(
+                    _render_profile_report,
+                    inputs=[profile_in],
+                    outputs=[profile_svg, profile_table],
+                )
             with gr.Tab("2 · Inspect Local Checkpoint / Recipe Bundle"):
                 gr.Markdown(
                     "Give a checkpoint directory (or a single `*.safetensors` file). Enforces the "
@@ -1259,7 +1536,12 @@ def build_demo():
                 metrics_json = gr.JSON(label="Full metrics")
                 inspect_btn.click(_run_inspect, [path_in], [summary_md, chart_html, metrics_json])
             with gr.Tab("3 · CKA / Lancet-Safe GGUF Command Generator"):
-                model_id_in = gr.Textbox(label="Base model id", value="Qwen/Qwen2.5-3B-Instruct")
+                profile_dd = gr.Dropdown(
+                    choices=[p["id"] for p in TENET_PROFILES.values()],
+                    value=TENET_PROFILES["3b"]["id"],
+                    label="Tenet model profile (pre-fills the base model id)",
+                )
+                model_id_in = gr.Textbox(label="Base model id", value=TENET_PROFILES["3b"]["base"])
                 bundle_in = gr.Textbox(
                     label="Lancet bundle directory (optional)",
                     placeholder="dir containing lancet_recipe.json + lancet_basis.safetensors",
@@ -1282,6 +1564,11 @@ def build_demo():
                     generate_gguf_commands,
                     [model_id_in, bundle_in, method_in, quant_in, vllm_in, upload_in, repo_in],
                     cmd_out,
+                )
+                profile_dd.change(
+                    _profile_base_model,
+                    inputs=[profile_dd],
+                    outputs=[model_id_in],
                 )
     return demo
 

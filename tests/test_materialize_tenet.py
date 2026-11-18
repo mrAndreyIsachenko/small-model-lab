@@ -12,6 +12,7 @@ from safetensors.torch import load_file, save_file
 
 from sml.config import load_model_config
 from sml.hub.release import (
+    _should_use_streaming_shards,
     cleanup_hf_model_cache,
     materialize_tenet_checkpoint,
     verify_provider_readiness,
@@ -343,4 +344,278 @@ def test_cli_materialize_tenet_nano(
     )
     assert return_code == 0
     payload = json.loads(capsys.readouterr().out)
+    assert payload["ready"] is True
+
+
+# ---------------------------------------------------------------------------
+# H13: streaming shard-by-shard materialization (backend="llm")
+# ---------------------------------------------------------------------------
+
+STREAMING_RELEASE_ID = "Tenet-32B-Qwen2.5-Unslop-v1"
+STREAMING_CHAT_TEMPLATE = (
+    "{% for message in messages %}{{ message['role'] }}: {{ message['content'] }}\n{% endfor %}"
+)
+STREAMING_CONFIG = {
+    "architectures": ["Qwen2ForCausalLM"],
+    "model_type": "qwen2",
+    "torch_dtype": "float32",
+    "num_hidden_layers": 2,
+    "hidden_size": 8,
+    "intermediate_size": 8,
+}
+STREAMING_TARGET_KEYS = (
+    "model.layers.0.self_attn.o_proj.weight",
+    "model.layers.0.mlp.down_proj.weight",
+    "model.layers.1.self_attn.o_proj.weight",
+)
+STREAMING_SHARD_NAMES = (
+    "model-00001-of-00002.safetensors",
+    "model-00002-of-00002.safetensors",
+)
+
+
+def _write_streaming_checkpoint(ckpt_dir: Path) -> Path:
+    """Create a tiny 2-shard Qwen2-style HF checkpoint (hidden_size=8)."""
+    ckpt_dir.mkdir(parents=True, exist_ok=True)
+    (ckpt_dir / "config.json").write_text(
+        json.dumps(STREAMING_CONFIG, indent=2, sort_keys=True) + "\n", encoding="utf-8"
+    )
+    (ckpt_dir / "tokenizer_config.json").write_text(
+        json.dumps(
+            {
+                "chat_template": STREAMING_CHAT_TEMPLATE,
+                "tokenizer_class": "PreTrainedTokenizerFast",
+            },
+            indent=2,
+        )
+        + "\n",
+        encoding="utf-8",
+    )
+
+    generator = torch.Generator().manual_seed(4242)
+    weights = {
+        key: (0.02 * torch.randn((8, 8), generator=generator)).contiguous()
+        for key in STREAMING_TARGET_KEYS
+    }
+    save_file(
+        {key: weights[key] for key in STREAMING_TARGET_KEYS if ".layers.0." in key},
+        str(ckpt_dir / STREAMING_SHARD_NAMES[0]),
+    )
+    save_file(
+        {key: weights[key] for key in STREAMING_TARGET_KEYS if ".layers.1." in key},
+        str(ckpt_dir / STREAMING_SHARD_NAMES[1]),
+    )
+    index = {
+        "metadata": {"total_size": sum(weight.numel() * 4 for weight in weights.values())},
+        "weight_map": {
+            "model.layers.0.self_attn.o_proj.weight": STREAMING_SHARD_NAMES[0],
+            "model.layers.0.mlp.down_proj.weight": STREAMING_SHARD_NAMES[0],
+            "model.layers.1.self_attn.o_proj.weight": STREAMING_SHARD_NAMES[1],
+        },
+    }
+    (ckpt_dir / "model.safetensors.index.json").write_text(
+        json.dumps(index, indent=2) + "\n", encoding="utf-8"
+    )
+    return ckpt_dir
+
+
+def _write_streaming_recipe(
+    recipe_dir: Path, base_model: str = "Qwen/Qwen2.5-32B-Instruct"
+) -> Path:
+    """Hand-build a Lancet recipe matching the tiny checkpoint geometry."""
+    recipe_dir.mkdir(parents=True, exist_ok=True)
+    basis: dict[int, torch.Tensor] = {}
+    tensors: dict[str, torch.Tensor] = {}
+    for layer_idx in (0, 1):
+        raw = torch.randn(2, 8, generator=torch.Generator().manual_seed(100 + layer_idx))
+        q, _ = torch.linalg.qr(raw.T)  # columns of q are orthonormal
+        vectors = q.T.contiguous()  # (2, 8) rows are unit-norm orthonormal vectors
+        basis[layer_idx] = vectors
+        tensors[f"layer_{layer_idx}"] = vectors
+    save_file(tensors, str(recipe_dir / "lancet_basis.safetensors"))
+    metadata = {
+        "schema_version": "1.0",
+        "model_id": STREAMING_RELEASE_ID,
+        "base_model": base_model,
+        "extraction_mode": "activation_contrastive",
+        "d_model": 8,
+        "num_layers": 2,
+        "scale": 1.0,
+        "top_k_layers": 2,
+        "selected_layers": [0, 1],
+        "layer_weights": {"0": 1.0, "1": 1.0},
+        "probes_sha256": "",
+    }
+    (recipe_dir / "lancet_recipe.json").write_text(
+        json.dumps(metadata, indent=2) + "\n", encoding="utf-8"
+    )
+    return recipe_dir
+
+
+def _assert_streaming_projection_near_zero(
+    weights: dict[str, torch.Tensor],
+    basis: dict[int, torch.Tensor],
+    threshold: float = 0.05,
+) -> None:
+    """Modified LLM weights must not project onto the forbidden basis."""
+    for key in STREAMING_TARGET_KEYS:
+        tensor = weights[key].to(torch.float32)
+        layer_idx = int(key.split(".")[2])
+        projection = basis[layer_idx].to(torch.float32) @ tensor
+        max_coeff = projection.abs().max().item()
+        assert max_coeff < threshold, f"{key}: projection {max_coeff:.4f} >= {threshold}"
+
+
+def test_should_use_streaming_shards_auto_and_override() -> None:
+    assert not _should_use_streaming_shards("Qwen/Qwen2.5-3B-Instruct", RELEASE_ID, "llm", None)
+    assert _should_use_streaming_shards("Qwen/Qwen2.5-32B-Instruct", RELEASE_ID, "llm", None)
+    assert _should_use_streaming_shards(
+        "meta-llama/Llama-3.3-70B-Instruct", RELEASE_ID, "llm", None
+    )
+    assert _should_use_streaming_shards("Qwen/Qwen2.5-3B-Instruct", RELEASE_ID, "llm", True)
+    assert not _should_use_streaming_shards(
+        "Qwen/Qwen2.5-32B-Instruct", STREAMING_RELEASE_ID, "llm", False
+    )
+    assert not _should_use_streaming_shards(
+        "Qwen/Qwen2.5-32B-Instruct", STREAMING_RELEASE_ID, "nano", True
+    )
+    assert not _should_use_streaming_shards("Qwen/Qwen2.5-3B-Instruct", RELEASE_ID, "nano", None)
+
+
+def test_materialize_tenet_streaming_shards_local_multi_shard(tmp_path: Path) -> None:
+    ckpt_dir = _write_streaming_checkpoint(tmp_path / "base_ckpt")
+    recipe_dir = _write_streaming_recipe(tmp_path / "recipe")
+    result = materialize_tenet_checkpoint(
+        release_id=STREAMING_RELEASE_ID,
+        recipe_dir=recipe_dir,
+        output_dir=tmp_path / "mat",
+        base_model=str(ckpt_dir),
+        backend="llm",
+        device="cpu",
+        streaming_shards=True,
+        keep_local_weights=True,
+    )
+    assert result["streaming_shards"] is True
+    assert result["shards_processed"] == 2
+    assert result["tensors_modified"] >= 3
+    assert result["max_row_crest_factor"] < 25.0
+    assert result["max_row_norm_drift"] < 1e-4
+    _assert_readiness(result)
+
+    basis_tensors = load_file(str(recipe_dir / "lancet_basis.safetensors"))
+    basis = {idx: basis_tensors[f"layer_{idx}"] for idx in (0, 1)}
+
+    target_dir = tmp_path / "mat" / STREAMING_RELEASE_ID
+    merged: dict[str, torch.Tensor] = {}
+    for shard_name in STREAMING_SHARD_NAMES:
+        shard_path = target_dir / shard_name
+        assert shard_path.is_file(), f"missing streamed shard: {shard_name}"
+        merged.update(load_file(str(shard_path)))
+    _assert_streaming_projection_near_zero(merged, basis)
+
+
+def test_materialize_tenet_streaming_shards_hub_push_and_drop_local_weights(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    ckpt_dir = _write_streaming_checkpoint(tmp_path / "base_ckpt")
+    recipe_dir = _write_streaming_recipe(tmp_path / "recipe")
+    repo_files = [
+        "config.json",
+        "tokenizer_config.json",
+        "model.safetensors.index.json",
+        *STREAMING_SHARD_NAMES,
+    ]
+    created_repos: list[str] = []
+    uploaded_files: list[str] = []
+    folder_uploads: list[str] = []
+
+    class _FakeHfApi:
+        def list_repo_files(self, repo_id: str, **kwargs):
+            assert repo_id == "Qwen/Qwen2.5-32B-Instruct"
+            return list(repo_files)
+
+        def create_repo(self, **kwargs):
+            created_repos.append(kwargs["repo_id"])
+            return "https://fake-hub"
+
+        def upload_file(self, **kwargs):
+            uploaded_files.append(kwargs["path_in_repo"])
+            return None
+
+        def upload_folder(self, **kwargs):
+            folder_uploads.append(kwargs["repo_id"])
+            return None
+
+    def _fake_hf_hub_download(
+        repo_id: str,
+        filename: str,
+        repo_type: str | None = None,
+        local_dir: str | None = None,
+        cache_dir: str | None = None,
+        **kwargs,
+    ):
+        source = ckpt_dir / filename
+        if not source.is_file():
+            return None
+        destination = Path(local_dir or cache_dir) / filename
+        destination.parent.mkdir(parents=True, exist_ok=True)
+        shutil.copy2(source, destination)
+        return str(destination)
+
+    fake_hub = types.ModuleType("huggingface_hub")
+    fake_hub.HfApi = _FakeHfApi  # type: ignore[attr-defined]
+    fake_hub.hf_hub_download = _fake_hf_hub_download  # type: ignore[attr-defined]
+    monkeypatch.setitem(sys.modules, "huggingface_hub", fake_hub)
+
+    result = materialize_tenet_checkpoint(
+        release_id=STREAMING_RELEASE_ID,
+        recipe_dir=recipe_dir,
+        output_dir=tmp_path / "push",
+        base_model="Qwen/Qwen2.5-32B-Instruct",
+        backend="llm",
+        device="cpu",
+        push_to_hub=True,
+        keep_local_weights=False,
+        hf_namespace=HF_NAMESPACE,
+    )
+    assert result["streaming_shards"] is True
+    assert result["pushed"] is True
+    _assert_readiness(result)
+    assert result["provider_readiness"]["weight_files_checked"] == 2
+
+    expected_repo = f"{HF_NAMESPACE}/{STREAMING_RELEASE_ID}"
+    assert created_repos == [expected_repo]
+    assert sorted(uploaded_files) == sorted(STREAMING_SHARD_NAMES)
+    assert folder_uploads == [expected_repo]
+
+    target_dir = tmp_path / "push" / STREAMING_RELEASE_ID
+    assert list(target_dir.glob("model-*.safetensors")) == []
+
+
+def test_cli_materialize_tenet_streaming_shards_flag(
+    tmp_path: Path, capsys: pytest.CaptureFixture[str]
+) -> None:
+    from sml.cli import main
+
+    ckpt_dir = _write_streaming_checkpoint(tmp_path / "cli_ckpt")
+    recipe_dir = _write_streaming_recipe(tmp_path / "cli_recipe", base_model=str(ckpt_dir))
+    return_code = main(
+        [
+            "materialize-tenet",
+            "--release-id",
+            "Tenet-Test-Streaming",
+            "--recipe-dir",
+            str(recipe_dir),
+            "--output-dir",
+            str(tmp_path / "cli_out"),
+            "--base-model",
+            str(ckpt_dir),
+            "--backend",
+            "llm",
+            "--streaming-shards",
+        ]
+    )
+    assert return_code == 0
+    payload = json.loads(capsys.readouterr().out)
+    assert payload["streaming_shards"] is True
     assert payload["ready"] is True

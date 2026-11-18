@@ -2378,6 +2378,12 @@ def build_parser() -> argparse.ArgumentParser:
         help="Also export FP8-quantized shards.",
     )
     materialize_p.add_argument(
+        "--streaming-shards",
+        action=argparse.BooleanOptionalAction,
+        default=None,
+        help="Stream base model shards one-by-one (auto-enabled for 32B/70B models).",
+    )
+    materialize_p.add_argument(
         "--max-shard-size",
         default="4GB",
         help="Maximum safetensors shard size.",
@@ -2607,6 +2613,7 @@ def _cmd_materialize_tenet(args: argparse.Namespace) -> int:
         push_to_hub=args.push_to_hub,
         cleanup_cache=args.cleanup_cache,
         keep_local_weights=args.keep_local_weights,
+        streaming_shards=args.streaming_shards,
         nano_config_path=args.nano_config,
     )
     summary = {
@@ -2619,6 +2626,7 @@ def _cmd_materialize_tenet(args: argparse.Namespace) -> int:
         "lora_applied": result["lora_applied"],
         "pushed": result["pushed"],
         "cache_cleanup": result["cache_cleanup"],
+        "streaming_shards": result.get("streaming_shards", False),
     }
     print(json.dumps(summary, indent=2))
     return 0 if result["ready"] else 1
