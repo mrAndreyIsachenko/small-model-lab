@@ -2037,6 +2037,9 @@ def materialize_tenet_checkpoint(
             "cka_quant_recipe.json",
             "openrouter_onboarding.json",
             "OPENROUTER_ONBOARDING.md",
+            "release_manifest.json",
+            "Modelfile",
+            "quantize_cka_gguf.sh",
         ):
             artifact_src = resolved_recipe_dir / artifact_name
             if artifact_src.is_file():

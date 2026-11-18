@@ -1,6 +1,7 @@
 """End-to-end tests for ADR-006 Tier 3 Tenet checkpoint materialization."""
 
 import json
+import shutil
 import sys
 import types
 from pathlib import Path
@@ -261,6 +262,62 @@ def test_cleanup_hf_model_cache_and_push_to_hub(
     assert ("upload_folder", expected_repo) in calls
     target_dir = tmp_path / "push" / RELEASE_ID
     assert list(target_dir.glob("model*.safetensors")) == []
+
+
+def test_materialize_tenet_copies_release_artifacts(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch, nano_recipe
+) -> None:
+    """Release artifacts staged in the recipe dir must land in the checkpoint and upload."""
+    _, _, recipe_dir, _ = nano_recipe
+
+    recipe_copy = tmp_path / "recipe_copy"
+    shutil.copytree(recipe_dir, recipe_copy)
+    artifacts = {
+        "release_manifest.json": json.dumps({"release_id": RELEASE_ID}, indent=2) + "\n",
+        "Modelfile": "FROM ./model.safetensors\n",
+        "quantize_cka_gguf.sh": "#!/usr/bin/env bash\nset -euo pipefail\n",
+    }
+    for name, content in artifacts.items():
+        (recipe_copy / name).write_text(content, encoding="utf-8")
+
+    upload_snapshots: list[set[str]] = []
+
+    class _FakeHfApi:
+        def create_repo(self, **kwargs):
+            return "https://fake-hub"
+
+        def upload_folder(self, **kwargs):
+            folder = Path(kwargs["folder_path"])
+            upload_snapshots.append(
+                {p.relative_to(folder).as_posix() for p in folder.rglob("*") if p.is_file()}
+            )
+            return None
+
+    fake_hub = types.ModuleType("huggingface_hub")
+    fake_hub.HfApi = _FakeHfApi  # type: ignore[attr-defined]
+    monkeypatch.setitem(sys.modules, "huggingface_hub", fake_hub)
+
+    result = materialize_tenet_checkpoint(
+        release_id=RELEASE_ID,
+        recipe_dir=recipe_copy,
+        output_dir=tmp_path / "artifacts",
+        backend="nano",
+        device="cpu",
+        push_to_hub=True,
+        hf_namespace=HF_NAMESPACE,
+    )
+    assert result["pushed"] is True
+    _assert_readiness(result)
+
+    target_dir = tmp_path / "artifacts" / RELEASE_ID
+    for name, content in artifacts.items():
+        copied = target_dir / name
+        assert copied.is_file(), f"missing release artifact in target_dir: {name}"
+        assert copied.read_text(encoding="utf-8") == content, f"content mismatch: {name}"
+
+    assert len(upload_snapshots) == 1
+    for name in artifacts:
+        assert name in upload_snapshots[0], f"{name} absent from upload_folder snapshot"
 
 
 def test_cli_materialize_tenet_nano(

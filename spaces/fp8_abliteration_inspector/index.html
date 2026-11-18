@@ -233,7 +233,7 @@
           and <strong>KL Collateral Drift</strong> across <code>3B</code>, <code>8B</code>, and <code>12B</code> models.
         </p>
         <div class="badge-row">
-          <span class="badge pass">✓ H1–H12 Verified (12/12)</span>
+          <span class="badge pass">✓ H1–H13 Verified (13/13)</span>
           <span class="badge accent">Lancet Bi-Projected Surgery (ADR-005)</span>
           <span class="badge accent">Tier-1 &lt;500 KB Recipes (ADR-006)</span>
           <span class="badge accent">Subspace-Safe TIES Merge (ADR-007)</span>
@@ -730,7 +730,7 @@ llama-quantize \\
   ${baseQuant}
 
 # 2. vLLM Production FP8 (E4M3) Deployment (Row Crest-Factor = ${p.crestFactor.toFixed(2)} < 25.0)
-vllm serve small-model-lab/${p.id} \\
+vllm serve mr-andrey-isachenko/${p.id} \\
   --quantization fp8 \\
   --kv-cache-dtype fp8 \\
   --max-model-len 32768

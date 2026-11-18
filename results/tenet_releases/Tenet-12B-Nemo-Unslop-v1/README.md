@@ -2,6 +2,7 @@
 license: apache-2.0
 base_model: mistralai/Mistral-Nemo-Instruct-2407
 pipeline_tag: text-generation
+library_name: transformers
 tags:
 - tenet
 - lancet
@@ -28,6 +29,7 @@ surgical de-refusal and de-slop work by the **Lancet** engine, finalized
 with gated unslop GRPO and exported as a provider-ready FP8 (E4M3)
 checkpoint. No custom code, no `trust_remote_code`, no `auto_map`:
 the repo drops straight into vLLM, OpenRouter providers, GGUF and MLX.
+Source code and technical report: [GitHub: mrAndreyIsachenko/tenet-lab](https://github.com/mrAndreyIsachenko/tenet-lab) | Interactive audit: [FP8 & Abliteration Inspector Space](https://huggingface.co/spaces/mr-andrey-isachenko/fp8-abliteration-inspector).
 
 ## Lancet surgery engine
 

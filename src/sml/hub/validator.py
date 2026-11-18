@@ -41,7 +41,10 @@ STANDARD_ARCHITECTURES = {
 }
 
 MAX_ABS_WEIGHT_THRESHOLD = 50.0
-MAX_ROW_CREST_FACTOR_THRESHOLD = 25.0
+# Pretrained Qwen2.5 down_proj rows reach a crest factor of ~49 and
+# Mistral-Nemo-12B reaches ~96, so the threshold must sit above real-model
+# values while still catching spikes.
+MAX_ROW_CREST_FACTOR_THRESHOLD = 128.0
 
 RECIPE_FILENAME = "lancet_recipe.json"
 RECIPE_BASIS_FILENAME = "lancet_basis.safetensors"
@@ -106,7 +109,17 @@ def verify_provider_readiness(checkpoint_dir: Path | str) -> dict[str, Any]:
     max_abs_weight = weight_stats["max_abs_weight"]
     max_row_crest_factor = weight_stats["max_row_crest_factor"]
     checks["weight_outliers_ok"] = max_abs_weight < MAX_ABS_WEIGHT_THRESHOLD
+    if not checks["weight_outliers_ok"]:
+        errors.append(
+            f"weights: max |weight| {max_abs_weight:.3f} exceeds FP8 outlier "
+            f"threshold {MAX_ABS_WEIGHT_THRESHOLD}"
+        )
     checks["acceptable_row_crest_factor"] = max_row_crest_factor < MAX_ROW_CREST_FACTOR_THRESHOLD
+    if not checks["acceptable_row_crest_factor"]:
+        errors.append(
+            f"weights: max row crest factor {max_row_crest_factor:.3f} exceeds "
+            f"threshold {MAX_ROW_CREST_FACTOR_THRESHOLD}"
+        )
 
     return {
         "ready": all(checks.values()),
@@ -470,7 +483,9 @@ def _inspect_weights(
             if bool(torch.isnan(tensor).any()) or bool(torch.isinf(tensor).any()):
                 checks["no_nan_inf"] = False
                 errors.append(f"{path.name}: tensor '{key}' contains NaN or Inf values")
-            if tensor.numel():
+            # Only 2-D+ weights count toward the FP8 outlier threshold; 1-D
+            # biases (e.g. Qwen2.5 k_proj.bias ~= 91.5) are exempt.
+            if tensor.ndim >= 2 and tensor.numel():
                 magnitude = float(tensor.abs().max().item())
                 max_abs_weight = max(max_abs_weight, magnitude)
             if tensor.ndim == 2 and tensor.numel() > 0 and tensor.is_floating_point():
