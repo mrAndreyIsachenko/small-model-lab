@@ -6,6 +6,20 @@
 [![Python 3.12](https://img.shields.io/badge/Python-3.12-3776AB.svg)](pyproject.toml)
 [![CI](https://github.com/mrAndreyIsachenko/tenet-lab/actions/workflows/ci.yml/badge.svg)](https://github.com/mrAndreyIsachenko/tenet-lab/actions/workflows/ci.yml)
 [![Hypotheses H1–H12](https://img.shields.io/badge/Hypotheses_H1--H12-12%2F12_Verified-success.svg)](reports/sprint1/summary.md)
+[![Hugging Face Space](https://img.shields.io/badge/HF_Space-FP8_Abliteration_Inspector-yellow.svg)](https://huggingface.co/spaces/mr-andrey-isachenko/fp8-abliteration-inspector)
+[![Hugging Face Models](https://img.shields.io/badge/HF_Family-Tenet_v1_(3B%2F8B%2F12B)-orange.svg)](https://huggingface.co/mr-andrey-isachenko)
+
+---
+
+## Hugging Face Showcase (`Tenet v1` Family & Inspector Space)
+
+* **Hugging Face Profile & Collections:** [`mr-andrey-isachenko`](https://huggingface.co/mr-andrey-isachenko) (Tenet v1 — Bi-Projected Unslop & FP8-Safe LLM Family)
+* **Interactive Audit Space:** [`mr-andrey-isachenko/fp8-abliteration-inspector`](https://huggingface.co/spaces/mr-andrey-isachenko/fp8-abliteration-inspector)
+* **Released Models & Audit Bundles:**
+  * [`mr-andrey-isachenko/Tenet-12B-Nemo-Unslop-v1`](https://huggingface.co/mr-andrey-isachenko/Tenet-12B-Nemo-Unslop-v1) (`Mistral-Nemo-Instruct-2407`)
+  * [`mr-andrey-isachenko/Tenet-8B-Llama3.1-Unslop-v1`](https://huggingface.co/mr-andrey-isachenko/Tenet-8B-Llama3.1-Unslop-v1) (`Llama-3.1-8B-Instruct`)
+  * [`mr-andrey-isachenko/Tenet-3B-Qwen2.5-Unslop-v1`](https://huggingface.co/mr-andrey-isachenko/Tenet-3B-Qwen2.5-Unslop-v1) (`Qwen2.5-3B-Instruct`)
+  * [`mr-andrey-isachenko/Tenet-16K-Nano-Lab-v1`](https://huggingface.co/mr-andrey-isachenko/Tenet-16K-Nano-Lab-v1) (16K-param Nano verification & `H1–H13` artifact repo, renamed from `small-model-lab`)
 
 ---
 
