@@ -490,7 +490,8 @@ def test_verify_provider_readiness_rejects_nan_and_inf_weights(tmp_path: Path) -
 
     assert report["ready"] is False
     assert report["checks"]["no_nan_inf"] is False
-    assert len(report["errors"]) == 2
+    # NaN + Inf errors, plus the Inf magnitude tripping the FP8 outlier check.
+    assert len(report["errors"]) == 3
     assert not any("lora" in error for error in report["errors"])
 
 
@@ -514,8 +515,8 @@ def test_verify_provider_readiness_rejects_extreme_weight_outliers(tmp_path: Pat
 
 def test_verify_provider_readiness_rejects_high_row_crest_factor(tmp_path: Path) -> None:
     """One spiky row entry inflates the crest factor while staying benign in size."""
-    spike = torch.zeros(1, 1024)
-    spike[0, 0] = 10.0  # peak / row RMS = 10 / (10 / sqrt(1024)) ~= 32.0
+    spike = torch.zeros(1, 32768)
+    spike[0, 0] = 10.0  # peak / row RMS = 10 / (10 / sqrt(32768)) ~= 181.0
     checkpoint = _write_checkpoint(tmp_path, weights={"spike.weight": spike})
 
     report = verify_provider_readiness(checkpoint)
