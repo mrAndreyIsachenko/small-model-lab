@@ -1619,7 +1619,14 @@ def export_gguf_recipe(
     uniform_gguf: Path | None = None
     kl_check: Any = None
     if resolved_bin and in_gguf.is_file():
-        subprocess.run(llama_quantize_command, check=True, capture_output=True, text=True)
+        subprocess.run(
+            llama_quantize_command,
+            check=True,
+            capture_output=True,
+            text=True,
+            encoding="utf-8",
+            errors="replace",
+        )
         gguf_built = True
         uniform_gguf = release_dir_path / f"{release_id}-uniform-q4_k_m.gguf"
         subprocess.run(
@@ -1627,6 +1634,8 @@ def export_gguf_recipe(
             check=True,
             capture_output=True,
             text=True,
+            encoding="utf-8",
+            errors="replace",
         )
         if run_kl_check:
             eval_model = _load_release_model_for_eval(release_dir_path)
