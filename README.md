@@ -1,17 +1,17 @@
-# Small Model Lab
+# Tenet Lab (Small Model Lab & Tenet Family)
 
-**Research Question:** *How small and efficient can a language model become while retaining most of the capability required for production data-pipeline incident reasoning — and when does updating weights outperform enriching context?*
+**Research Question:** *How small and efficient can a language model become while retaining most of the capability required for production data-pipeline incident reasoning — and how can bi-projected subspace surgery (`Lancet`) and subspace-safe RL (`Tenet`) eliminate slop and false refusals without reasoning collateral or FP8 degradation?*
 
 [![License: Apache-2.0](https://img.shields.io/badge/License-Apache_2.0-blue.svg)](LICENSE)
 [![Python 3.12](https://img.shields.io/badge/Python-3.12-3776AB.svg)](pyproject.toml)
-[![CI](https://github.com/mrAndreyIsachenko/small-model-lab/actions/workflows/ci.yml/badge.svg)](https://github.com/mrAndreyIsachenko/small-model-lab/actions/workflows/ci.yml)
+[![CI](https://github.com/mrAndreyIsachenko/tenet-lab/actions/workflows/ci.yml/badge.svg)](https://github.com/mrAndreyIsachenko/tenet-lab/actions/workflows/ci.yml)
 [![Hypotheses H1–H12](https://img.shields.io/badge/Hypotheses_H1--H12-12%2F12_Verified-success.svg)](reports/sprint1/summary.md)
 
 ---
 
 ## Overview
 
-**Small Model Lab** is an end-to-end language model systems and applied research project structured into eight tightly coupled sprints:
+**Tenet Lab** (originated as **Small Model Lab**, CLI/package `sml`) is an end-to-end language model systems and applied research project structured into eight tightly coupled sprints:
 
 1. **Sprint 1 — Core Transformer, Custom `@triton.jit` Kernels & GPU Pretraining (`Phase I Lean`):** Modern Llama/Qwen-compatible decoder (`RMSNorm`, `RoPE`, `GQA`, `SwiGLU`, intra-document causal masking, `KV-cache`) + custom `@triton.jit` fused `RMSNorm`, `SwiGLU`, and chunked `CrossEntropy` forward/backward kernels (`src/sml/kernels/`), validated against OpenAI `gpt2` (`124M`) logits (`< 1e-4`), trained with a 32k BPE tokenizer on `FineWeb-Edu` (`4.0B` tokens with Warmup–Stable–Decay and a `1.5B` Chinchilla-optimal cooldown branch).
 2. **Sprint 2 — Trainable Analytical & Incident RL Environment (`StatefulToolEnv`):** `verifiers`-compatible multi-turn environment (`StatefulToolEnv` + `load_environment`) built on `dbt Core + DuckDB + sqlglot` with isolated MCP tools, multi-seed counterfactual fault injection (`product_bug`, `data_pipeline_artifact`, `mix_shift` + confounders), and a Gated Multiplicative `Rubric` (`R_total = R_outcome · R_evidence · R_process`).
