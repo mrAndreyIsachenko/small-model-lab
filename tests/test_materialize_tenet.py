@@ -468,9 +468,7 @@ def _assert_streaming_projection_near_zero(
 
 def test_should_use_streaming_shards_auto_and_override() -> None:
     assert not _should_use_streaming_shards("Qwen/Qwen2.5-3B-Instruct", RELEASE_ID, "llm", None)
-    assert _should_use_streaming_shards(
-        "Qwen/Qwen2.5-32B-Instruct", RELEASE_ID, "llm", None
-    )
+    assert _should_use_streaming_shards("Qwen/Qwen2.5-32B-Instruct", RELEASE_ID, "llm", None)
     assert _should_use_streaming_shards(
         "meta-llama/Llama-3.3-70B-Instruct", RELEASE_ID, "llm", None
     )

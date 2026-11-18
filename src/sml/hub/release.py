@@ -2083,9 +2083,7 @@ def _materialize_streaming_shards(
         tokenizer_config_target = target_dir / "tokenizer_config.json"
         if tokenizer_config_target.is_file():
             try:
-                tokenizer_payload = json.loads(
-                    tokenizer_config_target.read_text(encoding="utf-8")
-                )
+                tokenizer_payload = json.loads(tokenizer_config_target.read_text(encoding="utf-8"))
             except (OSError, json.JSONDecodeError, ValueError):
                 tokenizer_payload = None
             if isinstance(tokenizer_payload, dict):

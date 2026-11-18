@@ -831,7 +831,24 @@ TENET_PROFILES: dict[str, dict[str, Any]] = {
         "hw": "Apple M4 Pro 48GB MPS",
         "num_layers": 36,
         "selected_layers": [
-            21, 19, 15, 22, 25, 20, 23, 24, 8, 14, 7, 12, 13, 9, 6, 5, 10, 26,
+            21,
+            19,
+            15,
+            22,
+            25,
+            20,
+            23,
+            24,
+            8,
+            14,
+            7,
+            12,
+            13,
+            9,
+            6,
+            5,
+            10,
+            26,
         ],
         "naive_kl": 3.7607,
         "lancet_kl": 0.0220,
@@ -855,7 +872,22 @@ TENET_PROFILES: dict[str, dict[str, Any]] = {
         "hw": "NVIDIA H100 80GB",
         "num_layers": 32,
         "selected_layers": [
-            13, 14, 12, 15, 11, 16, 10, 17, 9, 18, 19, 8, 20, 21, 7, 22,
+            13,
+            14,
+            12,
+            15,
+            11,
+            16,
+            10,
+            17,
+            9,
+            18,
+            19,
+            8,
+            20,
+            21,
+            7,
+            22,
         ],
         "naive_kl": 0.1337,
         "lancet_kl": 0.0135,
@@ -879,8 +911,24 @@ TENET_PROFILES: dict[str, dict[str, Any]] = {
         "hw": "NVIDIA H100 80GB",
         "num_layers": 40,
         "selected_layers": [
-            19, 18, 20, 17, 21, 16, 22, 15, 23, 14, 24, 25, 13, 26, 12, 27,
-            28, 11,
+            19,
+            18,
+            20,
+            17,
+            21,
+            16,
+            22,
+            15,
+            23,
+            14,
+            24,
+            25,
+            13,
+            26,
+            12,
+            27,
+            28,
+            11,
         ],
         "naive_kl": 0.2968,
         "lancet_kl": 0.0097,
@@ -1096,15 +1144,12 @@ def _format_profile_table(profile: dict[str, Any]) -> str:
         [
             f"**{profile['id']}** (`{profile['base']}`) — {profile['hw']}",
             "",
-            "| metric | Naive Abliteration | Tenet Lancet (BF16) | "
-            "Tenet Lancet (FP8) |",
+            "| metric | Naive Abliteration | Tenet Lancet (BF16) | Tenet Lancet (FP8) |",
             "|---|---|---|---|",
-            f"| H9 KL collateral drift | {naive_kl:.4f} | {lancet_kl:.4f} | "
-            f"{lancet_kl:.4f} |",
+            f"| H9 KL collateral drift | {naive_kl:.4f} | {lancet_kl:.4f} | {lancet_kl:.4f} |",
             f"| KL collateral reduction | — | {profile['kl_reduction']} | "
             f"{profile['kl_reduction']} |",
-            f"| Refusal & slop suppression | — | {profile['suppression']} | "
-            "100.0% retained |",
+            f"| Refusal & slop suppression | — | {profile['suppression']} | 100.0% retained |",
             f"| SQL anchor ortho error | Unprotected | "
             f"{profile['sql_ortho']} | {profile['sql_ortho']} |",
             f"| LoRA adapter re-leakage (H10) | {profile['lora_releak_naive']} "
@@ -1113,8 +1158,7 @@ def _format_profile_table(profile: dict[str, Any]) -> str:
             f"| FP8 subspace re-leakage (H11) | {profile['fp8_releak_naive']} "
             f"| — | {profile['fp8_releak_tenet']} |",
             f"| FP8 retention | — | — | {profile['fp8_retention']} |",
-            f"| Max row crest-factor (< 25.0) | Unbounded | {crest:.2f} | "
-            f"{crest:.2f} |",
+            f"| Max row crest-factor (< 25.0) | Unbounded | {crest:.2f} | {crest:.2f} |",
             f"| H12 multi-adapter merge gain | Baseline (0.00) | "
             f"{profile['h12_gain']} | {profile['h12_gain']} |",
             f"| Surgical layers ({profile['num_layers']} total) | — | "
@@ -1145,20 +1189,17 @@ def render_profile_svg(profile: dict[str, Any]) -> str:
             f"Hardware: {_esc(profile['hw'])} | Target Suppression: "
             f"{_esc(profile['suppression'])} | SQL Anchor Ortho Error: "
             f"{_esc(profile['sql_ortho'])}</text>",
-            '<rect x="24" y="70" width="440" height="196" rx="8" '
-            'fill="#111827" stroke="#334155"/>',
+            '<rect x="24" y="70" width="440" height="196" rx="8" fill="#111827" stroke="#334155"/>',
             '<text x="42" y="96" fill="#cbd5e1" font-size="13" font-weight="600">'
             "H9: KL Collateral Drift on Reasoning &amp; SQL (Lower = Better)"
             "</text>",
             '<text x="42" y="135" fill="#fca5a5" font-size="12.5">'
             f"Naive Abliteration ({naive_kl:.4f})</text>",
-            '<rect x="42" y="143" height="22" rx="4" fill="#ef4444" '
-            f'width="{naive_bar:.1f}"/>',
+            f'<rect x="42" y="143" height="22" rx="4" fill="#ef4444" width="{naive_bar:.1f}"/>',
             '<text x="42" y="195" fill="#6ee7b7" font-size="12.5">'
             f"Tenet Lancet Bi-Projected ({lancet_kl:.4f} | "
             f"-{_esc(profile['kl_reduction'])} damage)</text>",
-            '<rect x="42" y="203" height="22" rx="4" fill="#10b981" '
-            f'width="{lancet_bar:.1f}"/>',
+            f'<rect x="42" y="203" height="22" rx="4" fill="#10b981" width="{lancet_bar:.1f}"/>',
             '<rect x="492" y="70" width="444" height="196" rx="8" '
             'fill="#111827" stroke="#334155"/>',
             '<text x="510" y="96" fill="#cbd5e1" font-size="13" font-weight="600">'
@@ -1401,9 +1442,7 @@ def _format_checks_summary(r: dict[str, Any]) -> str:
 
 def _profile_by_id(profile_id: str) -> dict[str, Any] | None:
     """Look up a TENET_PROFILES entry by its HF model id."""
-    return next(
-        (p for p in TENET_PROFILES.values() if p["id"] == profile_id), None
-    )
+    return next((p for p in TENET_PROFILES.values() if p["id"] == profile_id), None)
 
 
 def _profile_base_model(profile_id: str) -> str:
@@ -1431,8 +1470,7 @@ def build_demo():
             "| Top-3 SCR layers | 21 / 15 / 19 | 21 / 15 / 19 |",
             f"| IFEval strict | {naive['ifeval_strict']} | {tenet['ifeval_strict']} |",
             f"| GSM8K / MATH-500 | {naive['gsm8k_math_acc']} | {tenet['gsm8k_math_acc']} |",
-            f"| SQL-Incident Eval | {naive['sql_incident_acc']} | "
-            f"{tenet['sql_incident_acc']} |",
+            f"| SQL-Incident Eval | {naive['sql_incident_acc']} | {tenet['sql_incident_acc']} |",
             f"| Direct-Compliance | {naive['direct_compliance_rate']} | "
             f"{tenet['direct_compliance_rate']} |",
         ]
@@ -1503,9 +1541,7 @@ def build_demo():
                     value=TENET_PROFILES["3b"]["id"],
                     label="Tenet model profile (pre-fills the base model id)",
                 )
-                model_id_in = gr.Textbox(
-                    label="Base model id", value=TENET_PROFILES["3b"]["base"]
-                )
+                model_id_in = gr.Textbox(label="Base model id", value=TENET_PROFILES["3b"]["base"])
                 bundle_in = gr.Textbox(
                     label="Lancet bundle directory (optional)",
                     placeholder="dir containing lancet_recipe.json + lancet_basis.safetensors",
