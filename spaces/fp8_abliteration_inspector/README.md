@@ -11,7 +11,7 @@ short_description: Audit abliterated & Tenet LLMs for FP8 re-leakage & crest
 
 # 🔬 FP8 & Abliteration Brain-Damage Inspector
 
-Interactive Hugging Face Space & CLI toolkit by **Small Model Lab** that audits **abliterated checkpoints**, **LoRA merges**, and **Lancet recipe bundles** (`ADR-005` / `ADR-006` / `ADR-007`) for **vLLM / OpenRouter FP8 (E4M3) deployment survival** — without loading multi-GB checkpoints into server RAM.
+Interactive Hugging Face Space & CLI toolkit by **Tenet Lab (Small Model Lab)** that audits **abliterated checkpoints**, **LoRA merges**, and **Lancet recipe bundles** (`ADR-005` / `ADR-006` / `ADR-007`) for **vLLM / OpenRouter FP8 (E4M3) deployment survival** — without loading multi-GB checkpoints into server RAM.
 
 ## Features
 

@@ -60,8 +60,8 @@ class GatewayConfig:
     timeout_seconds: int = 120
     max_body_bytes: int = 131072
     max_message_chars: int = 60000
-    app_title: str = "Small Model Lab"
-    app_referer: str = "https://github.com/mrAndreyIsachenko/small-model-lab"
+    app_title: str = "Tenet Lab (SML)"
+    app_referer: str = "https://github.com/mrAndreyIsachenko/tenet-lab"
     task_id: str | None = None
 
     @classmethod

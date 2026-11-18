@@ -3,9 +3,9 @@ requires = ["hatchling>=1.25.0"]
 build-backend = "hatchling.build"
 
 [project]
-name = "small-model-lab"
+name = "tenet-lab"
 version = "0.1.0"
-description = "End-to-end LLM systems & applied research lab: Transformer pretraining from scratch, executable data incident benchmarks, distillation, and production GPU inference."
+description = "Tenet Lab (Small Model Lab & Tenet family): end-to-end LLM systems & applied research lab — Transformer pretraining, Lancet subspace surgery, Unslop GRPO, and FP8 survival."
 readme = "README.md"
 license = { file = "LICENSE" }
 authors = [
@@ -37,8 +37,8 @@ telemetry = [
 ]
 
 [project.urls]
-Homepage = "https://github.com/mrAndreyIsachenko/small-model-lab"
-Repository = "https://github.com/mrAndreyIsachenko/small-model-lab"
+Homepage = "https://github.com/mrAndreyIsachenko/tenet-lab"
+Repository = "https://github.com/mrAndreyIsachenko/tenet-lab"
 
 [project.scripts]
 sml = "sml.cli:main"
