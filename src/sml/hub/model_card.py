@@ -73,27 +73,11 @@ def generate_tenet_model_card(
     """
     _validate_model_id(model_id)
 
-    h9_bf16 = _benchmark_cell(metrics, "h9_bf16", "lancet_kl_collateral")
-    h9_fp8 = _benchmark_cell(
-        metrics,
-        "h9_fp8",
-        "slop_and_refusal_rate",
-        "target_suppression_ratio",
-        "fp8_subspace_releakage_lancet",
+    benchmarks_block = (
+        _detailed_benchmark_tables(metrics)
+        if _use_detailed_benchmark_tables(metrics)
+        else _legacy_benchmark_tables(metrics)
     )
-    h9_naive = _benchmark_cell(metrics, "h9_naive", "naive_kl_collateral")
-    h10_bf16 = _benchmark_cell(
-        metrics, "h10_bf16", "h10_post_surgery_gain", "post_merge_suppression_retention"
-    )
-    h10_fp8 = _benchmark_cell(
-        metrics, "h10_fp8", "post_merge_suppression_retention", "fp8_retention_ratio"
-    )
-    h10_naive = _benchmark_cell(
-        metrics, "h10_naive", "h10_gated_vs_naive_gain", "unprojected_lora_releakage"
-    )
-    h11_bf16 = _benchmark_cell(metrics, "h11_bf16", "fp8_retention_ratio")
-    h11_fp8 = _benchmark_cell(metrics, "h11_fp8", "h11_fp8_kl_reduction_ratio")
-    h11_naive = _benchmark_cell(metrics, "h11_naive", "fp8_subspace_releakage_naive")
     max_row_crest_factor = _metric(metrics, "max_row_crest_factor")
     max_abs_weight = _optional_metric_line(metrics, "max_abs_weight", "Max absolute weight")
     why_tenet = _why_tenet_table(metrics)
@@ -101,6 +85,7 @@ def generate_tenet_model_card(
     pareto_asset = _pareto_asset_section(metrics, include_pareto_asset)
     side_by_side = _side_by_side_section()
     quickstart = _quickstart_section(model_id)
+    community_gguf = _community_gguf_section(model_id)
 
     tags = "\n".join(f"- {tag}" for tag in _TAGS)
     recipe_details = _recipe_reconstruction_details(recipe_metadata)
@@ -157,48 +142,11 @@ The model is not intended or tuned for offensive cyber operations,
 malware generation, or unlawful content of any kind; such uses are
 explicitly out of scope and unsupported by this release.
 
-## Benchmarks
-
-Benchmarks are reported for the BF16 surgery output, the shipped FP8
-(E4M3) export, and a naive-abliteration baseline of the same base model.
-
-### H9 - refusal & slop retention
-
-Lower is better: residual refusal-direction alignment and slop density
-after surgery.
-
-| Variant | H9 |
-| --- | --- |
-| BF16 | {h9_bf16} |
-| FP8 (E4M3) | {h9_fp8} |
-| Naive Abliteration | {h9_naive} |
-
-### H10 - downstream capability retention
-
-Higher is better: held-out reasoning, coding and instruction-following
-accuracy relative to the untouched base model.
-
-| Variant | H10 |
-| --- | --- |
-| BF16 | {h10_bf16} |
-| FP8 (E4M3) | {h10_fp8} |
-| Naive Abliteration | {h10_naive} |
-
-### H11 - FP8 quantization robustness
-
-Higher is better: task accuracy of each variant after FP8 (E4M3)
-quantization, measuring how cleanly the surgery survives deployment
-precision.
-
-| Variant | H11 |
-| --- | --- |
-| BF16 | {h11_bf16} |
-| FP8 (E4M3) | {h11_fp8} |
-| Naive Abliteration | {h11_naive} |
+{benchmarks_block}
 
 Max row crest-factor: {max_row_crest_factor}
 
-{max_abs_weight}{pareto_asset}{why_tenet}{external_benchmarks}{side_by_side}{quickstart}\
+{max_abs_weight}{pareto_asset}{why_tenet}{external_benchmarks}{side_by_side}{quickstart}{community_gguf}\
 ## Deployment & inference
 
 ### vLLM (FP8)
@@ -311,6 +259,282 @@ def _recipe_reconstruction_details(recipe_metadata: dict[str, Any] | None) -> st
     if not lines:
         return ""
     return "\n" + "\n".join(lines)
+
+
+_VARIANT_METRIC_KEYS: tuple[str, ...] = (
+    "h9_bf16",
+    "h9_fp8",
+    "h9_naive",
+    "h10_bf16",
+    "h10_fp8",
+    "h10_naive",
+    "h11_bf16",
+    "h11_fp8",
+    "h11_naive",
+)
+
+_H12_METRIC_KEYS: tuple[str, ...] = (
+    "sql_incident_retention_ratio",
+    "unslop_retention_ratio",
+    "subspace_safe_merge_releakage",
+    "ties_biprojected_vs_naive_merge_gain",
+)
+
+_DETAILED_METRIC_KEYS: tuple[str, ...] = (
+    "lancet_kl_collateral",
+    "naive_kl_collateral",
+    "kl_collateral_reduction_ratio",
+    "h9_kl_reduction_ratio",
+    "target_suppression_ratio",
+    "slop_and_refusal_rate",
+    "h10_gated_vs_naive_gain",
+    "h10_post_surgery_gain",
+    "post_merge_suppression_retention",
+    "fp8_retention_ratio",
+    "h11_fp8_kl_reduction_ratio",
+    "fp8_subspace_releakage_lancet",
+    "fp8_subspace_releakage_naive",
+    "arms",
+) + _H12_METRIC_KEYS
+
+
+def _use_detailed_benchmark_tables(metrics: dict[str, Any]) -> bool:
+    """Decide between the per-variant legacy tables and the detailed tables.
+
+    The legacy ``| Variant | H* |`` tables stay fully backward compatible:
+    they are rendered whenever the explicit ``h9_bf16`` / ``h9_fp8`` /
+    ``h9_naive`` (etc.) variant keys are passed or when ``metrics`` is
+    empty. The detailed ``| Metric | Value | Direction |`` tables are used
+    when real ``final_metrics.json`` keys are present without the explicit
+    variant keys.
+    """
+    if not metrics:
+        return False
+    if any(key in metrics for key in _VARIANT_METRIC_KEYS):
+        return False
+    return any(key in metrics for key in _DETAILED_METRIC_KEYS)
+
+
+def _legacy_benchmark_tables(metrics: dict[str, Any]) -> str:
+    """Render the per-variant BF16 / FP8 / Naive H9-H11 tables."""
+    h9_bf16 = _benchmark_cell(metrics, "h9_bf16", "lancet_kl_collateral")
+    h9_fp8 = _benchmark_cell(
+        metrics,
+        "h9_fp8",
+        "slop_and_refusal_rate",
+        "target_suppression_ratio",
+        "fp8_subspace_releakage_lancet",
+    )
+    h9_naive = _benchmark_cell(metrics, "h9_naive", "naive_kl_collateral")
+    h10_bf16 = _benchmark_cell(
+        metrics, "h10_bf16", "h10_post_surgery_gain", "post_merge_suppression_retention"
+    )
+    h10_fp8 = _benchmark_cell(
+        metrics, "h10_fp8", "post_merge_suppression_retention", "fp8_retention_ratio"
+    )
+    h10_naive = _benchmark_cell(
+        metrics, "h10_naive", "h10_gated_vs_naive_gain", "unprojected_lora_releakage"
+    )
+    h11_bf16 = _benchmark_cell(metrics, "h11_bf16", "fp8_retention_ratio")
+    h11_fp8 = _benchmark_cell(metrics, "h11_fp8", "h11_fp8_kl_reduction_ratio")
+    h11_naive = _benchmark_cell(metrics, "h11_naive", "fp8_subspace_releakage_naive")
+    return f"""## Benchmarks
+
+Benchmarks are reported for the BF16 surgery output, the shipped FP8
+(E4M3) export, and a naive-abliteration baseline of the same base model.
+
+### H9 - refusal & slop retention
+
+Lower is better: residual refusal-direction alignment and slop density
+after surgery.
+
+| Variant | H9 |
+| --- | --- |
+| BF16 | {h9_bf16} |
+| FP8 (E4M3) | {h9_fp8} |
+| Naive Abliteration | {h9_naive} |
+
+### H10 - downstream capability retention
+
+Higher is better: held-out reasoning, coding and instruction-following
+accuracy relative to the untouched base model.
+
+| Variant | H10 |
+| --- | --- |
+| BF16 | {h10_bf16} |
+| FP8 (E4M3) | {h10_fp8} |
+| Naive Abliteration | {h10_naive} |
+
+### H11 - FP8 quantization robustness
+
+Higher is better: task accuracy of each variant after FP8 (E4M3)
+quantization, measuring how cleanly the surgery survives deployment
+precision.
+
+| Variant | H11 |
+| --- | --- |
+| BF16 | {h11_bf16} |
+| FP8 (E4M3) | {h11_fp8} |
+| Naive Abliteration | {h11_naive} |"""
+
+
+def _gated_ifeval_score(metrics: dict[str, Any]) -> Any:
+    """Return the gated GRPO IFEval score from the H10 arms, when available."""
+    arms = metrics.get("arms")
+    if isinstance(arms, dict):
+        gated = arms.get("3_tenet_grpo_gated")
+        if isinstance(gated, dict):
+            value = gated.get("gated_ifeval_score")
+            if value is not None:
+                return value
+    return metrics.get("h10_post_surgery_gain")
+
+
+def _detailed_benchmark_tables(metrics: dict[str, Any]) -> str:
+    """Render the detailed ``| Metric | Value | Direction |`` H9-H12 tables."""
+    value = _gated_ifeval_score(metrics)
+    gated_cell = "n/a" if value is None else _format_value(value)
+    h12_present = any(key in metrics for key in _H12_METRIC_KEYS)
+    lines: list[str] = [
+        "## Benchmarks",
+        "",
+        "Numbers come from the release pipeline's `final_metrics.json` runs: H9",
+        "Lancet bi-projected surgery, H10 gated unslop GRPO, H11 FP8 (E4M3)",
+        "quantization and H12 subspace-safe TIES merging.",
+        "",
+        "### H9 - refusal & slop retention",
+        "",
+        "Lower is better: residual refusal-direction alignment and slop density",
+        "after bi-projected surgery.",
+        "",
+        "| Metric | Value | Direction |",
+        "| --- | --- | --- |",
+        f"| Lancet KL Collateral | {_benchmark_cell(metrics, 'lancet_kl_collateral')} | Lower |",
+        f"| Naive KL Collateral | {_benchmark_cell(metrics, 'naive_kl_collateral')} | Lower |",
+        f"| KL Reduction Ratio | "
+        f"{_benchmark_cell(metrics, 'kl_collateral_reduction_ratio', 'h9_kl_reduction_ratio')} "
+        f"| Higher |",
+        f"| Target Suppression Ratio | {_benchmark_cell(metrics, 'target_suppression_ratio')} "
+        f"| Higher |",
+        "",
+        "### H10 - downstream capability retention",
+        "",
+        "Higher is better: the gated GRPO pass reinforces held-out reasoning,",
+        "coding and instruction-following instead of trading them away for",
+        "de-sloping; the slop & refusal audit itself is lower-is-better.",
+        "",
+        "| Metric | Value | Direction |",
+        "| --- | --- | --- |",
+        f"| Gated GRPO IFEval Score | {gated_cell} | Higher |",
+        f"| Gated vs Naive/Additive Gain | "
+        f"{_benchmark_cell(metrics, 'h10_gated_vs_naive_gain')} | Higher |",
+        f"| Slop & Refusal Rate | {_benchmark_cell(metrics, 'slop_and_refusal_rate')} | Lower |",
+        f"| Post-Merge Suppression Retention | "
+        f"{_benchmark_cell(metrics, 'post_merge_suppression_retention')} | Higher |",
+        "",
+        "### H11 - FP8 quantization robustness",
+        "",
+        "Higher retention and KL reduction are better; subspace re-leakage is",
+        "lower-is-better and shows how cleanly the surgery survives FP8",
+        "(E4M3) deployment precision.",
+        "",
+        "| Metric | Value | Direction |",
+        "| --- | --- | --- |",
+        f"| FP8 Retention Ratio | {_benchmark_cell(metrics, 'fp8_retention_ratio')} | Higher |",
+        f"| FP8 KL Reduction vs Naive | "
+        f"{_benchmark_cell(metrics, 'h11_fp8_kl_reduction_ratio')} | Higher |",
+        f"| FP8 Subspace Re-Leakage Lancet | "
+        f"{_benchmark_cell(metrics, 'fp8_subspace_releakage_lancet')} | Lower |",
+        f"| FP8 Subspace Re-Leakage Naive | "
+        f"{_benchmark_cell(metrics, 'fp8_subspace_releakage_naive')} | Lower |",
+    ]
+    if h12_present:
+        lines.extend(
+            [
+                "",
+                "### H12 - subspace-safe TIES merge",
+                "",
+                "Higher retention and merge gain are better; the subspace-safe",
+                "merge re-leakage is lower-is-better and proves the TIES merge",
+                "stays orthogonal to the tool/SQL anchor subspace.",
+                "",
+                "| Metric | Value | Direction |",
+                "| --- | --- | --- |",
+                f"| SQL-Incident Retention | "
+                f"{_benchmark_cell(metrics, 'sql_incident_retention_ratio')} | Higher |",
+                f"| Unslop Retention | {_benchmark_cell(metrics, 'unslop_retention_ratio')} "
+                f"| Higher |",
+                f"| Subspace-Safe Merge Re-Leakage | "
+                f"{_benchmark_cell(metrics, 'subspace_safe_merge_releakage')} | Lower |",
+                f"| TIES Bi-Projected vs Naive Gain | "
+                f"{_benchmark_cell(metrics, 'ties_biprojected_vs_naive_merge_gain')} "
+                f"| Higher |",
+            ]
+        )
+    return "\n".join(lines)
+
+
+_MRADERMACHER_GGUF_MODELS: tuple[str, ...] = (
+    "Tenet-3B-Qwen2.5-Unslop-v1",
+    "Tenet-8B-Llama3.1-Unslop-v1",
+    "Tenet-12B-Nemo-Unslop-v1",
+)
+
+
+def _community_gguf_section(model_id: str) -> str:
+    """Render the community GGUF / local inference section."""
+    if model_id in _MRADERMACHER_GGUF_MODELS:
+        imatrix_url = f"https://huggingface.co/mradermacher/{model_id}-i1-GGUF"
+        static_url = f"https://huggingface.co/mradermacher/{model_id}-GGUF"
+        return f"""## Community GGUF / Local Inference (llama.cpp, Ollama, LM Studio)
+
+Community quantizations by [mradermacher](https://huggingface.co/mradermacher)
+are available for {model_id}:
+
+- **[mradermacher/{model_id}-i1-GGUF]({imatrix_url})** - recommended
+  importance-matrix (imatrix) quants. Use **i1-Q4_K_M** for the best
+  size/quality trade-off and **i1-Q6_K** for near-BF16 fidelity.
+- **[mradermacher/{model_id}-GGUF]({static_url})** - static quantizations.
+
+### llama.cpp
+
+```bash
+llama-cli -hf mradermacher/{model_id}-i1-GGUF:Q4_K_M -ngl 99 -n 512 \\
+    -p "Return a DuckDB SQL tool call for failed logins by source IP."
+```
+
+### Ollama
+
+```bash
+ollama run hf.co/mradermacher/{model_id}-i1-GGUF:Q6_K
+```
+
+### LM Studio
+
+Search **{model_id}** in LM Studio (or open
+[{imatrix_url}]({imatrix_url})) and pick the **i1-Q4_K_M**
+(laptop-friendly) or **i1-Q6_K** (quality-first) quantization, then chat
+with the default conversation preset.
+
+"""
+    return f"""## Community GGUF / Local Inference (llama.cpp, Ollama, LM Studio)
+
+Community `mradermacher/{model_id}-i1-GGUF` / `mradermacher/{model_id}-GGUF`
+builds are upcoming and tracked. Until they land, quantize locally with the
+CKA-guided recipe shipped in this bundle -
+[`quantize_cka_gguf.sh`](https://github.com/mrAndreyIsachenko/tenet-lab) +
+`cka_quant_recipe.json` - which emits llama.cpp GGUFs in the same
+**i1-Q4_K_M** / **i1-Q6_K** spirit while keeping high-CKA boundary layers
+on `Q8_0`:
+
+```bash
+bash ./quantize_cka_gguf.sh   # reads cka_quant_recipe.json
+```
+
+The recipe keeps the FP8 surgery output stable under 4-6 bit llama.cpp
+quantization without re-leaking refusal or slop behaviour.
+
+"""
 
 
 def _validate_model_id(model_id: str) -> None:
@@ -434,14 +658,20 @@ def _why_tenet_table(metrics: dict[str, Any]) -> str:
 
 _EXTERNAL_BENCHMARK_ROWS: tuple[tuple[str, str], ...] = (
     ("IFEval (strict)", "ifeval_strict"),
+    ("IFEval (inst strict)", "ifeval_inst_strict"),
     ("GSM8K / MATH-500 accuracy", "gsm8k_math_acc"),
+    ("GSM8K CoT (strict)", "gsm8k_cot_strict"),
+    ("GSM8K CoT (flexible)", "gsm8k_cot_flexible"),
     ("SQL-Incident Eval accuracy", "sql_incident_acc"),
+    ("SQL-Incident mean reward", "sql_incident_reward"),
     ("Direct-Compliance rate", "direct_compliance_rate"),
     ("Unslop pass rate", "unslop_pass_rate"),
     ("Slop & Refusal rate", "slop_and_refusal_rate"),
     ("BFCL tool accuracy", "bfcl_tool_acc"),
     ("HumanEval pass@1", "humaneval_pass1"),
 )
+
+_EXTERNAL_SKIP_KEYS: frozenset[str] = frozenset({"elapsed_seconds"})
 
 
 def _format_delta(value: Any) -> str:
@@ -461,10 +691,79 @@ def _format_delta(value: Any) -> str:
     return f"{sign}{magnitude:.2f}"
 
 
+def _signed_delta(minuend: Any, subtrahend: Any) -> Any:
+    """Return ``minuend - subtrahend`` for numeric inputs, else ``None``."""
+    try:
+        return float(minuend) - float(subtrahend)
+    except (TypeError, ValueError):
+        return None
+
+
+def _three_way_comparison_lines(
+    arms: dict[str, Any], deltas_vs_naive: Any
+) -> list[str]:
+    """Render the Base vs Naive Abliteration vs Tenet three-arm table."""
+    base = arms.get("base")
+    naive = arms.get("naive")
+    tenet = arms.get("tenet")
+    for arm in (base, naive, tenet):
+        if not isinstance(arm, dict):
+            return []
+    if not base and not naive and not tenet:
+        return []
+    dv_naive = deltas_vs_naive if isinstance(deltas_vs_naive, dict) else {}
+    known = {key: label for label, key in _EXTERNAL_BENCHMARK_ROWS}
+    keys: list[str] = []
+    for key, _ in _EXTERNAL_BENCHMARK_ROWS:
+        if key in _EXTERNAL_SKIP_KEYS:
+            continue
+        if key == "gsm8k_math_acc" and ("gsm8k_cot_strict" in base or "gsm8k_cot_strict" in tenet):
+            continue
+        if key in base or key in naive or key in tenet:
+            keys.append(key)
+    for key in list(base) + list(naive) + list(tenet):
+        if key in _EXTERNAL_SKIP_KEYS or key in keys:
+            continue
+        if key == "gsm8k_math_acc" and ("gsm8k_cot_strict" in base or "gsm8k_cot_strict" in tenet):
+            continue
+        keys.append(key)
+    lines = [
+        "",
+        "### Base vs Naive Abliteration vs Tenet (Three-Arm External Eval)",
+        "",
+        "| Benchmark | Base | Naive Abliteration | Tenet v1 "
+        "| Δ (Tenet vs Base) | Δ (Tenet vs Naive) |",
+        "| --- | --- | --- | --- | --- | --- |",
+    ]
+    for key in keys:
+        label = known.get(key, str(key).replace("_", " "))
+        base_value = base.get(key)
+        naive_value = naive.get(key)
+        tenet_value = tenet.get(key)
+        lines.append(
+            f"| {label} | "
+            f"{_format_value(base_value) if base_value is not None else '—'} | "
+            f"{_format_value(naive_value) if naive_value is not None else '—'} | "
+            f"{_format_value(tenet_value) if tenet_value is not None else '—'} | "
+            f"{_format_delta(_signed_delta(tenet_value, base_value))} | "
+            f"{_format_delta(dv_naive.get(key, _signed_delta(tenet_value, naive_value)))} |"
+        )
+    return lines
+
+
 def _external_comparison_lines(comparison: Any) -> list[str]:
-    """Render the Before vs After external benchmark table (may be empty)."""
+    """Render the external benchmark comparison table (may be empty).
+
+    When ``comparison['arms']`` carries the ``base`` / ``naive`` / ``tenet``
+    entries a three-way table is rendered instead of the two-way Before vs
+    After table; the two-way table is kept for payloads that only carry
+    ``before`` / ``after`` / ``deltas``.
+    """
     if not isinstance(comparison, dict):
         return []
+    arms = comparison.get("arms")
+    if isinstance(arms, dict) and all(name in arms for name in ("base", "naive", "tenet")):
+        return _three_way_comparison_lines(arms, comparison.get("deltas_vs_naive"))
     before = comparison.get("before")
     after = comparison.get("after")
     if not isinstance(before, dict) or not isinstance(after, dict):
@@ -517,6 +816,22 @@ def _external_benchmarks_section(metrics: dict[str, Any]) -> str:
     external = metrics.get("external_benchmarks")
     if not isinstance(external, dict) or not external:
         return ""
+    comparison = metrics.get("external_benchmarks_comparison")
+    comparison_lines = _external_comparison_lines(comparison)
+    has_three_way = (
+        isinstance(comparison, dict)
+        and isinstance(comparison.get("arms"), dict)
+        and all(name in comparison["arms"] for name in ("base", "naive", "tenet"))
+    )
+    if has_three_way and comparison_lines:
+        # Three-way table already includes Tenet v1 scores alongside Base & Naive.
+        trimmed = comparison_lines[1:] if comparison_lines[0] == "" else comparison_lines
+        return "\n".join(["## External Benchmarks", "", *trimmed]) + "\n\n"
+    flat_external = (
+        external["external_benchmarks"]
+        if isinstance(external.get("external_benchmarks"), dict)
+        else external
+    )
     lines = [
         "## External Benchmarks",
         "",
@@ -524,11 +839,11 @@ def _external_benchmarks_section(metrics: dict[str, Any]) -> str:
         "| --- | --- |",
     ]
     for label, key in _EXTERNAL_BENCHMARK_ROWS:
-        value = external.get(key)
+        value = flat_external.get(key)
         if value is None:
             continue
         lines.append(f"| {label} | {_format_value(value)} |")
-    lines.extend(_external_comparison_lines(metrics.get("external_benchmarks_comparison")))
+    lines.extend(comparison_lines)
     return "\n".join(lines) + "\n\n"
 
 

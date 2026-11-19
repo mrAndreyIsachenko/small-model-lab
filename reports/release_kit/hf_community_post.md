@@ -10,10 +10,16 @@ Naive abliteration loses **~50% of its effect under FP8 (`E4M3`) quantization** 
 - **H11 FP8 (`E4M3`) Survival:** `95.41%–99.36%` retention, `2.70%–18.39%` re-leakage (vs `~50%` naive), `Crest-Factor 6.32–17.27 < 25.0`
 - **H12 TIES + Gram-Schmidt Merge:** `+78.06` to `+79.65 pp` over naive LoRA merge (`97.99%–100%` SQL retention)
 - **H13 Streaming Surgery:** `7.45e-09` max abs diff vs in-memory for 32B/70B shard streaming
+- **External Benchmarks (`lm-eval`, Base vs Naive vs Tenet v1):**
+  - `Tenet-3B-Qwen2.5-Unslop-v1` (`n=40`): `IFEval (strict)` `0.525 -> 0.500 (naive) -> 0.600` (`+10.0 pp` vs naive, `+7.5 pp` vs base); `GSM8K CoT (flex)` `0.525 -> 0.350 (naive) -> 0.450` (`+10.0 pp` vs naive); `Unslop Pass` `1.00 -> 0.96 -> 1.00`
+  - `Tenet-8B-Llama3.1-Unslop-v1` (`n=30`): `GSM8K CoT (strict)` `0.667 -> 0.700` (`+3.3 pp` vs base), `GSM8K CoT (flex)` `0.667 -> 0.733` (`+6.7 pp` vs base); `IFEval (strict)` `0.600` (`0.733` inst); `Unslop Pass` `1.00`
+- **Community GGUF (`mradermacher`, recommended `i1-Q4_K_M` / `i1-Q6_K`):**
+  - [`Tenet-3B-Qwen2.5-Unslop-v1-i1-GGUF`](https://huggingface.co/mradermacher/Tenet-3B-Qwen2.5-Unslop-v1-i1-GGUF) | [`Tenet-8B-Llama3.1-Unslop-v1-i1-GGUF`](https://huggingface.co/mradermacher/Tenet-8B-Llama3.1-Unslop-v1-i1-GGUF) | [`Tenet-12B-Nemo-Unslop-v1-i1-GGUF`](https://huggingface.co/mradermacher/Tenet-12B-Nemo-Unslop-v1-i1-GGUF)
 
 - **Interactive Space:** https://huggingface.co/spaces/mr-andrey-isachenko/fp8-abliteration-inspector
-- **HF Family & Collection:** https://huggingface.co/mr-andrey-isachenko
+- **HF Collection:** https://huggingface.co/collections/mr-andrey-isachenko/tenet-v1-bi-projected-unslop-and-fp8-safe-llm-family-6afed2048ba13a74fb7e0fac
 - **Models:**
+  - `mr-andrey-isachenko/Tenet-32B-Qwen2.5-Unslop-v1` (H13 streaming shard surgery)
   - `mr-andrey-isachenko/Tenet-12B-Nemo-Unslop-v1`
   - `mr-andrey-isachenko/Tenet-8B-Llama3.1-Unslop-v1`
   - `mr-andrey-isachenko/Tenet-3B-Qwen2.5-Unslop-v1`
@@ -22,41 +28,39 @@ Naive abliteration loses **~50% of its effect under FP8 (`E4M3`) quantization** 
 
 ---
 
-## X / Twitter Thread (6 Posts)
+## X / Twitter Thread (5 Posts, Indie-Lab Style, <= 250 chars each)
 
-**1/6**
-Naive abliterated LLMs silently break under vLLM FP8 (`E4M3`) quantization:
-- Up to `3.76` KL collateral damage on reasoning/tool-use
-- **~50% subspace re-leakage** (`0.500`) after E4M3 3-bit mantissa rounding
-- `0.80–1.13` re-leakage if you run RL or merge a LoRA afterward
+**1/5** (attach `reports/release_kit/tenet_v1_x_card.png`)
+Most abliterated LLMs lose ~50% of their effect the moment you quantize them to vLLM FP8.
 
-We fixed all 3 with **Lancet + Tenet v1** (`3B`, `8B`, `12B`). 🧵👇
+We're open-sourcing Tenet v1 (3B, 8B, 12B, 32B) + Lancet — norm-preserving weight surgery built to survive FP8 & LoRA merges:
+• 50% → 2.7% FP8 re-leakage
+• Up to 99.4% lower reasoning KL
 
-**2/6**
-Why does naive abliteration ($W' = W - \hat{r}\hat{r}^\top W$) break?
-1) Refusal/slop directions collide with reasoning & SQL/tool subspaces.
-2) Without per-row $L_2$-norm restoration, FP8 E4M3 rounding re-induces the ablated direction (~50% re-leakage across 3B, 8B, and 12B!).
+🧵👇
 
-**3/6**
-Our pipeline (`H9`–`H13`):
-- **H9 Lancet:** Dual-Anchor Modified Gram-Schmidt (`ortho err <= 1e-7`) + SCR layer selection + row-norm restoration (`89.89%–99.41%` KL reduction, `96.9%–99.3%` suppression)
-- **H10 Tenet GRPO:** Gated Multiplicative Rubric + orthogonal LoRA merge $(I - U U^\top)\Delta W$ (`1.0` suppression retained)
+**2/5**
+Why does standard abliteration (W' = W - r r^T W) break in production?
 
-**4/6**
-Production **H11 FP8 (`E4M3`)** & **H12 Merge** numbers:
-- `Tenet-3B-Qwen2.5`: `95.41%` FP8 retention, re-leakage `0.5003 → 0.0270`, Crest `17.27 < 25`
-- `Tenet-8B-Llama3.1`: `99.36%` FP8 retention, re-leakage `0.5000 → 0.0278`, Crest `6.32 < 25`
-- `Tenet-12B-Nemo`: `96.78%` FP8 retention, re-leakage `0.4996 → 0.1839`, Crest `10.65 < 25`
-- **H12 TIES + GS Merge:** `+78.1` to `+79.7 pp` over naive merge
+1) Refusal/slop vectors collide with reasoning & SQL/tool-use subspaces (spiking KL up to 3.76).
+2) Without per-row L2-norm restoration, 3-bit FP8 (E4M3) mantissa rounding re-induces ~50% of the ablated direction.
 
-**5/6**
-Want to audit your own abliterated checkpoint or LoRA merge without downloading 20GB+ weights?
-Try our zero-upload static HF Space **FP8 & Abliteration Brain-Damage Inspector**:
-- 7/7 FP8 provider readiness checks + `Row Crest-Factor < 25.0`
-- CKA-guided `llama-quantize --tensor-type` generator (`~5.28 bpw`)
-🔗 https://huggingface.co/spaces/mr-andrey-isachenko/fp8-abliteration-inspector
+**3/5**
+How Lancet + Tenet fixes it:
+• Dual-Anchor Gram-Schmidt protects reasoning & tool-use (89.9%–99.4% lower KL, 96.9%–99.3% suppression)
+• Per-row L2-norm restoration + Crest < 25 gives 95.4%–99.4% FP8 retention
+• Orthogonal LoRA/GRPO merge keeps 100% suppression
 
-**6/6**
-Everything is Apache-2.0 open-source with machine-verified JSON manifests (`H1–H13`):
-- Models & Space: https://huggingface.co/mr-andrey-isachenko
-- Code & Technical Report: https://github.com/mrAndreyIsachenko/tenet-lab
+**4/5**
+Want to check if your own checkpoint or LoRA merge survives FP8 or GGUF?
+
+Try our zero-upload browser tool — FP8 & Abliteration Inspector:
+• 8/8 vLLM/OpenRouter FP8 readiness + Row Crest-Factor < 25
+• CKA-guided llama-quantize flag generator (~5.28 bpw)
+https://huggingface.co/spaces/mr-andrey-isachenko/fp8-abliteration-inspector
+
+**5/5**
+All code, streaming 32B/70B shard surgery (7.45e-9 diff), and checkpoints (Qwen2.5 3B & 32B, Llama-3.1 8B, Mistral-Nemo 12B) are out under Apache-2.0:
+
+• HF Collection: https://huggingface.co/collections/mr-andrey-isachenko/tenet-v1-bi-projected-unslop-and-fp8-safe-llm-family-6afed2048ba13a74fb7e0fac
+• GitHub: https://github.com/mrAndreyIsachenko/tenet-lab

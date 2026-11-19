@@ -92,6 +92,7 @@ def test_all_experiment_specs_load_and_compute_budget() -> None:
             "H11",
             "H12",
             "H13",
+            "H14",
         }
         assert spec.train.grad_accum_steps >= 1
 

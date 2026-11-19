@@ -888,7 +888,67 @@ _WRONG_CATEGORY: dict[str, str] = {
 }
 
 
-def _run_sql_incident_eval(stage: str, seed: int) -> dict[str, Any]:
+_AGENT_REPLY_INSTRUCTION = (
+    'Reply with a single JSON object {"tool": "...", "arguments": {...}} that picks one '
+    "of the available tools and its arguments. Output only the JSON object: no prose, "
+    "no markdown fences."
+)
+
+
+def _run_agent_episode(
+    env: Any,
+    scenario: Any,
+    answer_fn: Callable[[str], str],
+) -> dict[str, Any]:
+    """Run a real multi-turn agent loop: prompt model, parse JSON tool call, step env."""
+    from sml.envs.tool_env import format_tool_observation, parse_tool_call
+
+    state = env.setup_state(scenario)
+    tool_schemas_text = json.dumps(env.tool_schemas(), indent=2)
+    max_steps = int(env.max_steps)
+    transcript: list[str] = []
+
+    for _step in range(max_steps):
+        if state["done"] or state["steps_taken"] >= max_steps:
+            break
+        sections = [
+            "You are an incident response agent investigating a data-quality incident "
+            "in a DuckDB warehouse.",
+            "Incident description:",
+            scenario.question,
+            "",
+            "Available tool schemas:",
+            tool_schemas_text,
+            "",
+        ]
+        if transcript:
+            sections.append("Previous tool outputs:")
+            sections.extend(transcript)
+        else:
+            sections.append("No previous tool outputs yet.")
+        sections.append(_AGENT_REPLY_INSTRUCTION)
+
+        response = answer_fn("\n".join(sections))
+        parsed = parse_tool_call(response)
+        if parsed is None:
+            transcript.append(
+                f"INVALID REPLY (expected a JSON tool call object): {str(response)[:500]}"
+            )
+            continue
+
+        tool_name, arguments = parsed
+        observation = env.step(tool_name, arguments, state)
+        transcript.append(format_tool_observation(tool_name, observation, state))
+        if state["done"]:
+            break
+    return state
+
+
+def _run_sql_incident_eval(
+    stage: str,
+    seed: int,
+    answer_fn: Callable[[str], str] | None = None,
+) -> dict[str, Any]:
     from sml.envs import load_environment, run_oracle_episode, validate_readonly_sql
 
     env = load_environment(split="val", count=6, base_seed=int(seed))
@@ -896,7 +956,10 @@ def _run_sql_incident_eval(stage: str, seed: int) -> dict[str, Any]:
     rewards: list[float] = []
     correct_count = 0
     for scenario in env.scenarios:
-        if stage == "before":
+        if answer_fn is not None:
+            # Real multi-turn agent loop driven by the provided responder.
+            state = _run_agent_episode(env, scenario, answer_fn)
+        elif stage == "before":
             # Naive/base policy: destructive probe attempt, then a guess without evidence.
             state = env.setup_state(scenario)
             env.step("query_warehouse", {"sql": "DROP TABLE mart_appointments"}, state)
@@ -1008,8 +1071,9 @@ def evaluate_external_benchmarks(
 
     Benchmarks: IFEval strict subset (format adherence + slop-free preambles),
     GSM8K/MATH-500 subset (exact numeric answers), the SQL incident eval
-    (``StatefulToolEnv`` oracle trajectories under a read-only SQL guard), and the
-    direct-compliance/unslop audit over ``TENET_UNSLOP_SCENARIOS``.
+    (deterministic ``StatefulToolEnv`` oracle/naive trajectories under a read-only
+    SQL guard, or a real multi-turn agent loop when a responder is supplied), and
+    the direct-compliance/unslop audit over ``TENET_UNSLOP_SCENARIOS``.
 
     When both ``responder`` and ``gateway_client`` are ``None``, a deterministic
     stage-aware reference responder is used ('before' simulates naive slop/drift,
@@ -1019,12 +1083,14 @@ def evaluate_external_benchmarks(
     if stage not in ("before", "after"):
         raise ValueError(f"Unknown stage: {stage!r}. Expected 'before' or 'after'.")
 
+    deterministic = responder is None and gateway_client is None
     answer_fn = _resolve_answer_fn(stage, responder, gateway_client)
     ifeval = _run_ifeval_subset(answer_fn)
     math_eval = _run_gsm8k_math_subset(answer_fn)
-    sql_eval = _run_sql_incident_eval(stage, seed)
+    sql_eval = _run_sql_incident_eval(
+        stage, seed, answer_fn=None if deterministic else answer_fn
+    )
     unslop = _run_unslop_audit(answer_fn)
-    deterministic = responder is None and gateway_client is None
 
     return {
         "stage": stage,
@@ -1094,3 +1160,121 @@ def run_before_after_external_eval(
         "external_benchmarks": after,
         "verified": bool(gated_monotonic and total_gain > 0.0),
     }
+
+
+# ---------------------------------------------------------------------------
+# lm-evaluation-harness suite + HF chat responder (real-model external evals)
+# ---------------------------------------------------------------------------
+
+
+def run_lm_eval_suite(
+    model: Any,
+    tokenizer: Any = None,
+    *,
+    tasks: tuple[str, ...] = ("ifeval", "gsm8k_cot"),
+    limit: int | None = 50,
+    batch_size: int | str = 4,
+    device: str = "mps",
+) -> dict[str, float]:
+    """Run lm-evaluation-harness tasks on an HF model and extract headline metrics.
+
+    Returns the subset of ``ifeval_strict``, ``ifeval_inst_strict``,
+    ``gsm8k_cot_strict``, and ``gsm8k_cot_flexible`` produced by the requested
+    tasks.
+    """
+    from lm_eval import simple_evaluate
+    from lm_eval.models.huggingface import HFLM
+
+    lm = HFLM(pretrained=model, tokenizer=tokenizer, batch_size=batch_size, device=device)
+    results = simple_evaluate(
+        model=lm,
+        tasks=list(tasks),
+        limit=limit,
+        apply_chat_template=True,
+        fewshot_as_multiturn=True,
+        log_samples=False,
+    )
+
+    extraction: dict[str, tuple[str, str, str]] = {
+        "ifeval_strict": ("ifeval", "prompt_level_strict_acc", "none"),
+        "ifeval_inst_strict": ("ifeval", "inst_level_strict_acc", "none"),
+        "gsm8k_cot_strict": ("gsm8k_cot", "exact_match", "strict-match"),
+        "gsm8k_cot_flexible": ("gsm8k_cot", "exact_match", "flexible-extract"),
+    }
+    task_results = results.get("results", {})
+    metrics: dict[str, float] = {}
+    for metric_key, (task_name, metric, filter_key) in extraction.items():
+        value = task_results.get(task_name, {}).get(f"{metric},{filter_key}")
+        if value is None:
+            continue
+        try:
+            metrics[metric_key] = float(value)
+        except (TypeError, ValueError):
+            continue
+    return metrics
+
+
+@torch.no_grad()
+def build_hf_chat_responder(
+    model: Any,
+    tokenizer: Any,
+    *,
+    max_new_tokens: int = 512,
+) -> Callable[[str], str]:
+    """Build a ``Callable[[str], str]`` that greedy-decodes an HF chat model.
+
+    The responder applies ``tokenizer.apply_chat_template`` to a single user turn,
+    runs ``model.generate`` greedily (``do_sample=False``), and decodes only the
+    newly generated tokens.
+    """
+    model.eval()
+
+    def _resolve_device() -> Any:
+        device = getattr(model, "device", None)
+        if device is None:
+            params_fn = getattr(model, "parameters", None)
+            if callable(params_fn):
+                first = next(iter(params_fn()), None)
+                if first is not None:
+                    device = first.device
+        return device
+
+    def respond(prompt: str) -> str:
+        messages = [{"role": "user", "content": prompt}]
+        prompt_ids = tokenizer.apply_chat_template(
+            messages, tokenize=True, add_generation_prompt=True
+        )
+        if hasattr(prompt_ids, "tolist"):
+            prompt_ids = prompt_ids.tolist()
+        prompt_ids = list(prompt_ids)
+        if prompt_ids and isinstance(prompt_ids[0], (list, tuple)):
+            prompt_ids = list(prompt_ids[0])
+        prompt_ids = [int(token) for token in prompt_ids]
+
+        input_ids = torch.tensor([prompt_ids], dtype=torch.long)
+        device = _resolve_device()
+        if device is not None:
+            input_ids = input_ids.to(device)
+
+        gen_kwargs: dict[str, Any] = {"max_new_tokens": max_new_tokens, "do_sample": False}
+        pad_token_id = getattr(tokenizer, "pad_token_id", None)
+        if pad_token_id is None:
+            pad_token_id = getattr(tokenizer, "eos_token_id", None)
+        if pad_token_id is not None:
+            gen_kwargs["pad_token_id"] = pad_token_id
+
+        output = model.generate(
+            input_ids=input_ids,
+            attention_mask=torch.ones_like(input_ids),
+            **gen_kwargs,
+        )
+        if hasattr(output, "sequences"):
+            sequences = output.sequences
+        elif isinstance(output, (tuple, list)):
+            sequences = output[0]
+        else:
+            sequences = output
+        new_token_ids = sequences[0][len(prompt_ids):]
+        return tokenizer.decode(new_token_ids, skip_special_tokens=True)
+
+    return respond

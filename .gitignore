@@ -27,7 +27,9 @@ htmlcov/
 *.pt
 *.pth
 *.safetensors
+*.gguf
 *.parquet
+results/*/models/
 .hf_cache/
 wandb/
 

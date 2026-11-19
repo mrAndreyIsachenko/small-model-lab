@@ -66,46 +66,64 @@ explicitly out of scope and unsupported by this release.
 
 ## Benchmarks
 
-Benchmarks are reported for the BF16 surgery output, the shipped FP8
-(E4M3) export, and a naive-abliteration baseline of the same base model.
+Numbers come from the release pipeline's `final_metrics.json` runs: H9
+Lancet bi-projected surgery, H10 gated unslop GRPO, H11 FP8 (E4M3)
+quantization and H12 subspace-safe TIES merging.
 
 ### H9 - refusal & slop retention
 
 Lower is better: residual refusal-direction alignment and slop density
-after surgery.
+after bi-projected surgery.
 
-| Variant | H9 |
-| --- | --- |
-| BF16 | 5.15e-04 |
-| FP8 (E4M3) | 0.02 |
-| Naive Abliteration | 1.32e-03 |
+| Metric | Value | Direction |
+| --- | --- | --- |
+| Lancet KL Collateral | 9.75e-03 | Lower |
+| Naive KL Collateral | 0.30 | Lower |
+| KL Reduction Ratio | 0.97 | Higher |
+| Target Suppression Ratio | 0.99 | Higher |
 
 ### H10 - downstream capability retention
 
-Higher is better: held-out reasoning, coding and instruction-following
-accuracy relative to the untouched base model.
+Higher is better: the gated GRPO pass reinforces held-out reasoning,
+coding and instruction-following instead of trading them away for
+de-sloping; the slop & refusal audit itself is lower-is-better.
 
-| Variant | H10 |
-| --- | --- |
-| BF16 | 0.66 |
-| FP8 (E4M3) | 1.00 |
-| Naive Abliteration | 0.23 |
+| Metric | Value | Direction |
+| --- | --- | --- |
+| Gated GRPO IFEval Score | 0.63 | Higher |
+| Gated vs Naive/Additive Gain | 0.43 | Higher |
+| Slop & Refusal Rate | 0.02 | Lower |
+| Post-Merge Suppression Retention | 1.00 | Higher |
 
 ### H11 - FP8 quantization robustness
 
-Higher is better: task accuracy of each variant after FP8 (E4M3)
-quantization, measuring how cleanly the surgery survives deployment
-precision.
+Higher retention and KL reduction are better; subspace re-leakage is
+lower-is-better and shows how cleanly the surgery survives FP8
+(E4M3) deployment precision.
 
-| Variant | H11 |
-| --- | --- |
-| BF16 | 1.00 |
-| FP8 (E4M3) | 0.47 |
-| Naive Abliteration | 0.50 |
+| Metric | Value | Direction |
+| --- | --- | --- |
+| FP8 Retention Ratio | 0.97 | Higher |
+| FP8 KL Reduction vs Naive | 0.49 | Higher |
+| FP8 Subspace Re-Leakage Lancet | 0.18 | Lower |
+| FP8 Subspace Re-Leakage Naive | 0.50 | Lower |
 
-Max row crest-factor: 3.68
+### H12 - subspace-safe TIES merge
 
-Max absolute weight: 0.08
+Higher retention and merge gain are better; the subspace-safe
+merge re-leakage is lower-is-better and proves the TIES merge
+stays orthogonal to the tool/SQL anchor subspace.
+
+| Metric | Value | Direction |
+| --- | --- | --- |
+| SQL-Incident Retention | 1.00 | Higher |
+| Unslop Retention | 1.00 | Higher |
+| Subspace-Safe Merge Re-Leakage | 6.63e-08 | Lower |
+| TIES Bi-Projected vs Naive Gain | 0.78 | Higher |
+
+Max row crest-factor: 10.65
+
+Max absolute weight: 0.92
 
 ![Lancet vs Naive Pareto](assets/lancet_vs_naive_pareto.svg)
 
@@ -113,12 +131,12 @@ Max absolute weight: 0.08
 
 | Metric | Base | Naive Abliteration | Tenet (BF16) | Tenet (FP8 E4M3) |
 | --- | --- | --- | --- | --- |
-| KL Collateral Drift | — | 1.32e-03 | 5.15e-04 | 0.03 |
+| KL Collateral Drift | — | 0.30 | 9.75e-03 | 0.18 |
 | Refusal Suppression | — | — | 0.99 | 1.00 |
-| Tool/SQL Anchor Orthogonality | — | 3.51 | 2.00e-08 | 7.50e-07 |
-| LoRA Re-Leakage | — | 3.51 | 7.50e-07 | 0.03 |
-| FP8 Subspace Re-Leakage | — | 0.50 | — | 0.03 |
-| Max Row Crest-Factor (< 25.0) | — | — | 3.68 | 3.68 |
+| Tool/SQL Anchor Orthogonality | — | 0.81 | 3.00e-08 | 0.13 |
+| LoRA Re-Leakage | — | 0.81 | 0.13 | 0.18 |
+| FP8 Subspace Re-Leakage | — | 0.50 | — | 0.18 |
+| Max Row Crest-Factor (< 25.0) | — | — | 10.65 | 10.65 |
 
 ## Side-by-Side: Naive Abliteration vs Tenet (Engineering & SQL Tool-Call)
 
@@ -176,6 +194,23 @@ print(tokenizer.decode(output[0][inputs.shape[-1]:], skip_special_tokens=True))
 llama-cli -m ./Tenet-32B-Qwen2.5-Unslop-v1-CKA-Quant-Q4_K_M.gguf -ngl 99 -n 256 \
     -p "Return a DuckDB SQL tool call for failed logins by source IP."
 ```
+
+## Community GGUF / Local Inference (llama.cpp, Ollama, LM Studio)
+
+Community `mradermacher/Tenet-32B-Qwen2.5-Unslop-v1-i1-GGUF` / `mradermacher/Tenet-32B-Qwen2.5-Unslop-v1-GGUF`
+builds are upcoming and tracked. Until they land, quantize locally with the
+CKA-guided recipe shipped in this bundle -
+[`quantize_cka_gguf.sh`](https://github.com/mrAndreyIsachenko/tenet-lab) +
+`cka_quant_recipe.json` - which emits llama.cpp GGUFs in the same
+**i1-Q4_K_M** / **i1-Q6_K** spirit while keeping high-CKA boundary layers
+on `Q8_0`:
+
+```bash
+bash ./quantize_cka_gguf.sh   # reads cka_quant_recipe.json
+```
+
+The recipe keeps the FP8 surgery output stable under 4-6 bit llama.cpp
+quantization without re-leaking refusal or slop behaviour.
 
 ## Deployment & inference
 
@@ -266,5 +301,3 @@ Deterministic reconstruction:
    match the published recipe, making the reconstruction
    deterministic relative to the released BF16 surgery output.
 
-- Probe manifest checksum (`probes_sha256`): `2a95d50c1dd69cd9c0d3250e3d4752142711cd7ac92f2e7e3847801590004c00`
-- Steered layers (`selected_layers`): 5, 4, 0

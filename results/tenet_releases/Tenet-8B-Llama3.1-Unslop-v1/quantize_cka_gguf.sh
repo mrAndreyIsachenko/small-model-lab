@@ -7,13 +7,15 @@
 # boundary_layers: 0, 31
 #
 # Usage:
-#   LLAMA_QUANTIZE_BIN=/path/to/llama-quantize ./quantize_cka_gguf.sh
+#   LLAMA_QUANTIZE_BIN=/path/to/llama-quantize ./quantize_cka_gguf.sh [--imatrix <path>]
 #
 # Environment overrides:
 #   LLAMA_QUANTIZE_BIN  llama-quantize binary (default: llama-quantize)
 #   CONVERT_HF_TO_GGUF  HF->GGUF converter (default: convert_hf_to_gguf.py)
 #   INPUT_GGUF          f16 input (default: $SCRIPT_DIR/Tenet-8B-Llama3.1-Unslop-v1-f16.gguf)
 #   OUTPUT_GGUF         output file (default: $SCRIPT_DIR/Tenet-8B-Llama3.1-Unslop-v1-cka-q4_k_m.gguf)
+#   IMATRIX_PATH        importance matrix GGUF for llama-quantize
+#                       (--imatrix <path> overrides this)
 
 set -euo pipefail
 
@@ -23,6 +25,43 @@ CONVERT_HF_TO_GGUF="${CONVERT_HF_TO_GGUF:-convert_hf_to_gguf.py}"
 INPUT_GGUF="${INPUT_GGUF:-$SCRIPT_DIR/Tenet-8B-Llama3.1-Unslop-v1-f16.gguf}"
 OUTPUT_GGUF="${OUTPUT_GGUF:-$SCRIPT_DIR/Tenet-8B-Llama3.1-Unslop-v1-cka-q4_k_m.gguf}"
 DEFAULT_QUANT="${DEFAULT_QUANT:-Q4_K_M}"
+IMATRIX_PATH="${IMATRIX_PATH:-}"
+IMATRIX_ARGS=()
+
+# Command-line arguments; --imatrix overrides the IMATRIX_PATH env var.
+while [[ $# -gt 0 ]]; do
+  case "$1" in
+    --imatrix)
+      if [[ $# -lt 2 ]]; then
+        echo "error: --imatrix requires a path argument" >&2
+        exit 1
+      fi
+      IMATRIX_PATH="$2"
+      shift 2
+      ;;
+    --imatrix=*)
+      IMATRIX_PATH="${1#--imatrix=}"
+      shift
+      ;;
+    -h|--help)
+      echo "Usage: $(basename "$0") [--imatrix <path>]"
+      echo "  --imatrix <path>  importance matrix GGUF for llama-quantize"
+      exit 0
+      ;;
+    *)
+      echo "error: unknown argument: $1 (try --help)" >&2
+      exit 1
+      ;;
+  esac
+done
+
+if [[ -n "$IMATRIX_PATH" ]]; then
+  if [[ ! -f "$IMATRIX_PATH" ]]; then
+    echo "error: IMATRIX_PATH not found at $IMATRIX_PATH" >&2
+    exit 1
+  fi
+  IMATRIX_ARGS=(--imatrix "$IMATRIX_PATH")
+fi
 
 # Optional auto-conversion: build the f16 GGUF from the HF checkpoint
 # shipped next to this script when INPUT_GGUF is missing.
@@ -38,9 +77,14 @@ if [[ ! -f "$INPUT_GGUF" ]]; then
   fi
 fi
 
-echo "Quantizing $INPUT_GGUF -> $OUTPUT_GGUF (default: $DEFAULT_QUANT)"
+if [[ -n "$IMATRIX_PATH" ]]; then
+  echo "Quantizing $INPUT_GGUF -> $OUTPUT_GGUF (default: $DEFAULT_QUANT, imatrix: $IMATRIX_PATH)"
+else
+  echo "Quantizing $INPUT_GGUF -> $OUTPUT_GGUF (default: $DEFAULT_QUANT)"
+fi
 
 "$LLAMA_QUANTIZE_BIN" \
+  ${IMATRIX_ARGS[@]+"${IMATRIX_ARGS[@]}"} \
   --tensor-type \
   blk.0.attn_output.weight=q8_0 \
   --tensor-type \

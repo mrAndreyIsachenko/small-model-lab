@@ -149,6 +149,60 @@ def test_render_modelfile_and_quantize_script(tmp_path: Path):
     assert syntax.returncode == 0, syntax.stderr
     assert "--tensor-type" in script
     assert "Q4_K_M" in script
+    assert "--imatrix" in script
+
+    # Fake llama-quantize: append every argument it receives to a log file.
+    stub_path = tmp_path / "fake_llama_quantize.sh"
+    stub_path.write_text(
+        "#!/usr/bin/env bash\n"
+        'for arg in "$@"; do\n'
+        "  printf '%s\\n' \"$arg\" >> \"$QUANTIZE_STUB_LOG\"\n"
+        "done\n",
+        encoding="utf-8",
+    )
+    stub_path.chmod(stub_path.stat().st_mode | stat.S_IXUSR)
+
+    input_gguf = tmp_path / "fake-input-f16.gguf"
+    input_gguf.write_bytes(b"fake f16 gguf")
+    imatrix = tmp_path / "fake-imatrix.gguf"
+    imatrix.write_bytes(b"fake imatrix")
+    base_env = {
+        **os.environ,
+        "LLAMA_QUANTIZE_BIN": str(stub_path),
+        "INPUT_GGUF": str(input_gguf),
+        "OUTPUT_GGUF": str(tmp_path / "fake-output-q4_k_m.gguf"),
+    }
+
+    def _run_quantize_script(log_name: str, *cli_args: str) -> tuple[list[str], str]:
+        env = {**base_env, "QUANTIZE_STUB_LOG": str(tmp_path / log_name)}
+        run = subprocess.run(
+            ["bash", str(script_path), *cli_args],
+            capture_output=True,
+            text=True,
+            env=env,
+            check=False,
+        )
+        assert run.returncode == 0, run.stderr
+        logged = (tmp_path / log_name).read_text(encoding="utf-8").splitlines()
+        return logged, run.stdout
+
+    # Without --imatrix: no imatrix args reach llama-quantize.
+    args_no_imatrix, stdout = _run_quantize_script("stub_args_no_imatrix.log")
+    assert args_no_imatrix[0] == "--tensor-type"
+    assert "--imatrix" not in args_no_imatrix
+    assert "" not in args_no_imatrix  # empty IMATRIX_ARGS must expand to nothing
+    assert str(input_gguf) in args_no_imatrix
+    assert args_no_imatrix[-1] == "Q4_K_M"
+    assert "Quantizing" in stdout
+
+    # With --imatrix: it is passed first, ahead of the --tensor-type flags.
+    args_with_imatrix, stdout = _run_quantize_script(
+        "stub_args_with_imatrix.log", "--imatrix", str(imatrix)
+    )
+    assert args_with_imatrix[:3] == ["--imatrix", str(imatrix), "--tensor-type"]
+    assert str(input_gguf) in args_with_imatrix
+    assert args_with_imatrix[-1] == "Q4_K_M"
+    assert f"imatrix: {imatrix}" in stdout
 
 
 def test_build_tenet_release_bundle_writes_gguf_files(tmp_path: Path):

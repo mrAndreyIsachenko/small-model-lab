@@ -55,12 +55,32 @@ All numbers below come directly from `results/h{9..13}*/final_metrics.json` and 
 | **`Tenet-8B-Llama3.1-Unslop-v1`** (`Llama-3.1-8B-Instruct`, H100) | `99.30%` | `89.89%` (`0.1337 → 0.0135`) | `0.0410` (`0.8114`) | `0.5000 → 0.0278` | `99.36%` | `6.3244` | `+79.65 pp` (`SQL 0.9799`) |
 | **`Tenet-12B-Nemo-Unslop-v1`** (`Mistral-Nemo-12B`, H100) | `99.14%` | `96.72%` (`0.2968 → 0.0097`) | `0.0239` (`0.6272`) | `0.4996 → 0.1839` | `96.78%` | `10.6508` | `+78.06 pp` (`SQL 1.0000`) |
 
+### External Benchmarks (`lm-eval`: Base vs Naive Abliteration vs Tenet v1)
+
+| Model | Benchmark | Base | Naive Abliteration | Tenet v1 | Δ vs Naive |
+| :--- | :--- | ---: | ---: | ---: | ---: |
+| `Tenet-3B` (`n=40`) | `IFEval (prompt strict)` | `0.525` | `0.500` | **`0.600`** | **`+10.0 pp`** |
+| `Tenet-3B` (`n=40`) | `IFEval (inst strict)` | `0.619` | `0.524` | **`0.667`** | **`+14.3 pp`** |
+| `Tenet-3B` (`n=40`) | `GSM8K CoT (flexible)` | `0.525` | `0.350` | **`0.450`** | **`+10.0 pp`** |
+| `Tenet-3B` (`n=12`) | `Unslop Pass Rate` | `1.000` | `0.958` | **`1.000`** | **`+4.2 pp`** |
+| `Tenet-8B` (`n=30`) | `GSM8K CoT (strict / flex)` | `0.667 / 0.667` | `0.767 / 0.833` | **`0.700 / 0.733`** | `+3.3 / +6.7 pp vs Base` |
+| `Tenet-8B` (`n=30`) | `IFEval (prompt / inst strict)` | `0.633 / 0.756` | `0.667 / 0.778` | **`0.600 / 0.733`** | `-` |
+
+### Community GGUF (`mradermacher`, >1,500 downloads)
+
+For local `llama.cpp`, Ollama, or LM Studio inference, grab the imatrix **`i1-Q4_K_M`** or **`i1-Q6_K`** builds:
+* **3B:** [`mradermacher/Tenet-3B-Qwen2.5-Unslop-v1-i1-GGUF`](https://huggingface.co/mradermacher/Tenet-3B-Qwen2.5-Unslop-v1-i1-GGUF) ([static GGUF](https://huggingface.co/mradermacher/Tenet-3B-Qwen2.5-Unslop-v1-GGUF))
+* **8B:** [`mradermacher/Tenet-8B-Llama3.1-Unslop-v1-i1-GGUF`](https://huggingface.co/mradermacher/Tenet-8B-Llama3.1-Unslop-v1-i1-GGUF) ([static GGUF](https://huggingface.co/mradermacher/Tenet-8B-Llama3.1-Unslop-v1-GGUF))
+* **12B:** [`mradermacher/Tenet-12B-Nemo-Unslop-v1-i1-GGUF`](https://huggingface.co/mradermacher/Tenet-12B-Nemo-Unslop-v1-i1-GGUF) ([static GGUF](https://huggingface.co/mradermacher/Tenet-12B-Nemo-Unslop-v1-i1-GGUF))
+* **32B:** [`mr-andrey-isachenko/Tenet-32B-Qwen2.5-Unslop-v1`](https://huggingface.co/mr-andrey-isachenko/Tenet-32B-Qwen2.5-Unslop-v1) (ships `quantize_cka_gguf.sh` + `cka_quant_recipe.json`; community `i1-GGUF` tracked)
+
 ---
 
 ## 4. Try It / Inspect Your Own Checkpoints
 
 * **Interactive Space (Zero-Upload Browser Audit):** [FP8 & Abliteration Brain-Damage Inspector](https://huggingface.co/spaces/mr-andrey-isachenko/fp8-abliteration-inspector) — drop in any HF repo ID or local `safetensors` + `lancet_recipe.json` to check `Row Crest-Factor < 25.0`, FP8 survival, and generate CKA-safe `llama-quantize --tensor-type` flags (`~5.28 bpw` default).
-* **Hugging Face Family:**
+* **Hugging Face Collection:** [Tenet v1 — Bi-Projected Unslop & FP8-Safe LLM Family](https://huggingface.co/collections/mr-andrey-isachenko/tenet-v1-bi-projected-unslop-and-fp8-safe-llm-family-6afed2048ba13a74fb7e0fac)
+  * [`mr-andrey-isachenko/Tenet-32B-Qwen2.5-Unslop-v1`](https://huggingface.co/mr-andrey-isachenko/Tenet-32B-Qwen2.5-Unslop-v1) (H13 streaming shard surgery)
   * [`mr-andrey-isachenko/Tenet-12B-Nemo-Unslop-v1`](https://huggingface.co/mr-andrey-isachenko/Tenet-12B-Nemo-Unslop-v1)
   * [`mr-andrey-isachenko/Tenet-8B-Llama3.1-Unslop-v1`](https://huggingface.co/mr-andrey-isachenko/Tenet-8B-Llama3.1-Unslop-v1)
   * [`mr-andrey-isachenko/Tenet-3B-Qwen2.5-Unslop-v1`](https://huggingface.co/mr-andrey-isachenko/Tenet-3B-Qwen2.5-Unslop-v1)

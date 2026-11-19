@@ -535,13 +535,15 @@ def render_quantize_cka_gguf_script(
         f"# boundary_layers: {_fmt_layers('boundary_layers')}",
         "#",
         "# Usage:",
-        "#   LLAMA_QUANTIZE_BIN=/path/to/llama-quantize ./quantize_cka_gguf.sh",
+        "#   LLAMA_QUANTIZE_BIN=/path/to/llama-quantize ./quantize_cka_gguf.sh [--imatrix <path>]",
         "#",
         "# Environment overrides:",
         "#   LLAMA_QUANTIZE_BIN  llama-quantize binary (default: llama-quantize)",
         "#   CONVERT_HF_TO_GGUF  HF->GGUF converter (default: convert_hf_to_gguf.py)",
         f"#   INPUT_GGUF          f16 input (default: $SCRIPT_DIR/{input_name})",
         f"#   OUTPUT_GGUF         output file (default: $SCRIPT_DIR/{output_name})",
+        "#   IMATRIX_PATH        importance matrix GGUF for llama-quantize",
+        "#                       (--imatrix <path> overrides this)",
         "",
         "set -euo pipefail",
         "",
@@ -551,6 +553,43 @@ def render_quantize_cka_gguf_script(
         f'INPUT_GGUF="${{INPUT_GGUF:-$SCRIPT_DIR/{input_name}}}"',
         f'OUTPUT_GGUF="${{OUTPUT_GGUF:-$SCRIPT_DIR/{output_name}}}"',
         f'DEFAULT_QUANT="${{DEFAULT_QUANT:-{default_quant}}}"',
+        'IMATRIX_PATH="${IMATRIX_PATH:-}"',
+        "IMATRIX_ARGS=()",
+        "",
+        "# Command-line arguments; --imatrix overrides the IMATRIX_PATH env var.",
+        'while [[ $# -gt 0 ]]; do',
+        '  case "$1" in',
+        "    --imatrix)",
+        "      if [[ $# -lt 2 ]]; then",
+        '        echo "error: --imatrix requires a path argument" >&2',
+        "        exit 1",
+        "      fi",
+        '      IMATRIX_PATH="$2"',
+        "      shift 2",
+        "      ;;",
+        "    --imatrix=*)",
+        '      IMATRIX_PATH="${1#--imatrix=}"',
+        "      shift",
+        "      ;;",
+        "    -h|--help)",
+        '      echo "Usage: $(basename "$0") [--imatrix <path>]"',
+        '      echo "  --imatrix <path>  importance matrix GGUF for llama-quantize"',
+        "      exit 0",
+        "      ;;",
+        "    *)",
+        '      echo "error: unknown argument: $1 (try --help)" >&2',
+        "      exit 1",
+        "      ;;",
+        "  esac",
+        "done",
+        "",
+        'if [[ -n "$IMATRIX_PATH" ]]; then',
+        '  if [[ ! -f "$IMATRIX_PATH" ]]; then',
+        '    echo "error: IMATRIX_PATH not found at $IMATRIX_PATH" >&2',
+        "    exit 1",
+        "  fi",
+        '  IMATRIX_ARGS=(--imatrix "$IMATRIX_PATH")',
+        "fi",
         "",
         "# Optional auto-conversion: build the f16 GGUF from the HF checkpoint",
         "# shipped next to this script when INPUT_GGUF is missing.",
@@ -566,11 +605,17 @@ def render_quantize_cka_gguf_script(
         "  fi",
         "fi",
         "",
-        'echo "Quantizing $INPUT_GGUF -> $OUTPUT_GGUF (default: $DEFAULT_QUANT)"',
+        'if [[ -n "$IMATRIX_PATH" ]]; then',
+        '  echo "Quantizing $INPUT_GGUF -> $OUTPUT_GGUF '
+        '(default: $DEFAULT_QUANT, imatrix: $IMATRIX_PATH)"',
+        "else",
+        '  echo "Quantizing $INPUT_GGUF -> $OUTPUT_GGUF (default: $DEFAULT_QUANT)"',
+        "fi",
         "",
     ]
 
     quantize_cmd: list[str] = ['"$LLAMA_QUANTIZE_BIN"']
+    quantize_cmd.append('${IMATRIX_ARGS[@]+"${IMATRIX_ARGS[@]}"}')
     quantize_cmd.extend(tensor_type_args)
     quantize_cmd.extend(['"$INPUT_GGUF"', '"$OUTPUT_GGUF"', '"$DEFAULT_QUANT"'])
     lines.append(" \\\n  ".join(quantize_cmd))
@@ -727,7 +772,19 @@ def build_tenet_release_bundle(
     external_benchmarks = _load_external_benchmarks(release_dir, results_root)
     vllm_smoke = _load_vllm_fp8_smoke(release_dir, results_root)
 
-    card_metrics = {**h9_res, **h10_res, **manifest_h11}
+    # H12 (subspace-safe TIES merge) metrics are merged into the card metrics
+    # when a prior h12_* run exists under ``results_root``. The merge order
+    # plus the explicit re-assert below keep the H10 slop & refusal audit as
+    # the authoritative ``slop_and_refusal_rate`` (H12 re-uses that key with
+    # its own scope and must not overwrite it).
+    h12_res: dict[str, Any] = {}
+    if results_root is not None:
+        h12_res, _h12_source = _load_stage_metrics(
+            Path(results_root), "h12", model_name, release_id=release_id
+        )
+    card_metrics = {**h9_res, **h12_res, **h10_res, **manifest_h11}
+    if "slop_and_refusal_rate" in h10_res:
+        card_metrics["slop_and_refusal_rate"] = h10_res["slop_and_refusal_rate"]
     if external_benchmarks:
         card_metrics["external_benchmarks"] = external_benchmarks
         comparison = _extract_external_benchmarks_comparison(external_benchmarks)
@@ -744,6 +801,14 @@ def build_tenet_release_bundle(
     readme_path.write_text(readme, encoding="utf-8")
     artifacts["readme"] = str(readme_path)
 
+    flat_external = (
+        external_benchmarks.get("external_benchmarks")
+        if isinstance(external_benchmarks, dict)
+        and isinstance(external_benchmarks.get("external_benchmarks"), dict)
+        else external_benchmarks
+    )
+    if isinstance(flat_external, dict):
+        flat_external = {k: v for k, v in flat_external.items() if k != "elapsed_seconds"}
     hf_repo_id = f"{hf_namespace}/{release_id}"
     onboarding_manifest = build_openrouter_onboarding_manifest(
         hf_repo_id=hf_repo_id,
@@ -751,7 +816,7 @@ def build_tenet_release_bundle(
         h9_metrics=h9_res,
         h10_metrics=h10_res,
         h11_metrics=manifest_h11,
-        external_benchmarks=external_benchmarks,
+        external_benchmarks=flat_external,
         vllm_smoke=vllm_smoke,
     )
     onboarding_json_path = release_dir / "openrouter_onboarding.json"
@@ -867,16 +932,26 @@ def _load_external_benchmarks(
 ) -> dict[str, Any] | None:
     """Load optional external benchmark scores for a release bundle.
 
-    Prefers ``release_dir / 'external_benchmarks.json'`` and falls back to
-    the latest ``*.json`` inside ``results_root / 'external_evals'`` when a
-    results root is supplied. Returns ``None`` when nothing is found.
+    Prefers ``release_dir / 'external_benchmarks.json'``, then the per-run
+    ``results_root / 'external_evals' / '<release_name>.json'`` payload, and
+    falls back to the latest ``*.json`` inside ``results_root /
+    'external_evals'`` when a results root is supplied. Returns ``None``
+    when nothing is found.
     """
+    release_name = Path(release_dir).name
     candidates: list[Path] = [Path(release_dir) / "external_benchmarks.json"]
+    if results_root is not None:
+        candidates.append(Path(results_root) / "external_evals" / f"{release_name}.json")
+    direct = _load_optional_json(*candidates)
+    if direct is not None:
+        return direct
     if results_root is not None:
         latest = _latest_json_in_dir(Path(results_root) / "external_evals")
         if latest is not None:
-            candidates.append(latest)
-    return _load_optional_json(*candidates)
+            data = _read_json_if_present(latest)
+            if data and data.get("model_id") in (None, release_name):
+                return data
+    return None
 
 
 def _load_vllm_fp8_smoke(
@@ -901,8 +976,12 @@ def _extract_external_benchmarks_comparison(
 
     ``external_benchmarks.json`` may carry ``before`` / ``after`` /
     ``deltas`` blocks, either at the top level or nested under
-    ``external_benchmarks_comparison``. When found they are returned as a
-    canonical ``external_benchmarks_comparison`` dict, else ``None``.
+    ``external_benchmarks_comparison``. Three-arm payloads may also carry
+    ``arms`` (a dict with ``base`` / ``naive`` / ``tenet`` entries) and
+    ``deltas_vs_naive``; those are included in the returned comparison
+    dict alongside ``before`` / ``after`` / ``deltas``. When any of these
+    blocks is found a canonical ``external_benchmarks_comparison`` dict is
+    returned, else ``None``.
     """
     if not isinstance(external_benchmarks, dict):
         return None
@@ -911,15 +990,23 @@ def _extract_external_benchmarks_comparison(
     if isinstance(nested, dict):
         sources.append(nested)
     for source in sources:
+        comparison: dict[str, Any] = {}
         before = source.get("before")
         after = source.get("after")
-        if not isinstance(before, dict) or not isinstance(after, dict):
-            continue
-        comparison: dict[str, Any] = {"before": before, "after": after}
+        if isinstance(before, dict) and isinstance(after, dict):
+            comparison["before"] = before
+            comparison["after"] = after
         deltas = source.get("deltas")
         if isinstance(deltas, dict):
             comparison["deltas"] = deltas
-        return comparison
+        arms = source.get("arms")
+        if isinstance(arms, dict) and all(name in arms for name in ("base", "naive", "tenet")):
+            comparison["arms"] = arms
+        deltas_vs_naive = source.get("deltas_vs_naive")
+        if isinstance(deltas_vs_naive, dict):
+            comparison["deltas_vs_naive"] = deltas_vs_naive
+        if comparison:
+            return comparison
     return None
 
 
@@ -1297,7 +1384,13 @@ def export_hub_bundle_from_results(
     manifest_h11.setdefault("max_abs_weight", provider_readiness.get("max_abs_weight"))
     manifest_h11.setdefault("max_row_crest_factor", provider_readiness.get("max_row_crest_factor"))
 
-    card_metrics = {**h9_res, **h10_res, **manifest_h11}
+    # Merge H12 (subspace-safe TIES merge) metrics into the card metrics.
+    # ``h12_res`` is spread before ``h10_res`` and the H10 audit value is
+    # re-asserted below, so H12 cannot overwrite the release-blocking
+    # ``slop_and_refusal_rate`` measured by H10.
+    card_metrics = {**h9_res, **h12_res, **h10_res, **manifest_h11}
+    if "slop_and_refusal_rate" in h10_res:
+        card_metrics["slop_and_refusal_rate"] = h10_res["slop_and_refusal_rate"]
     external_benchmarks = _load_external_benchmarks(release_dir, results_root_path)
     vllm_smoke = _load_vllm_fp8_smoke(release_dir, results_root_path)
     if external_benchmarks:
@@ -1333,6 +1426,14 @@ def export_hub_bundle_from_results(
     readme_path = release_dir / "README.md"
     readme_path.write_text(readme, encoding="utf-8")
 
+    flat_external = (
+        external_benchmarks.get("external_benchmarks")
+        if isinstance(external_benchmarks, dict)
+        and isinstance(external_benchmarks.get("external_benchmarks"), dict)
+        else external_benchmarks
+    )
+    if isinstance(flat_external, dict):
+        flat_external = {k: v for k, v in flat_external.items() if k != "elapsed_seconds"}
     hf_repo_id = f"{hf_namespace}/{release_id}"
     onboarding_manifest = build_openrouter_onboarding_manifest(
         hf_repo_id=hf_repo_id,
@@ -1340,7 +1441,7 @@ def export_hub_bundle_from_results(
         h9_metrics=h9_res,
         h10_metrics=h10_res,
         h11_metrics=manifest_h11,
-        external_benchmarks=external_benchmarks,
+        external_benchmarks=flat_external,
         vllm_smoke=vllm_smoke,
     )
     onboarding_json_path = release_dir / "openrouter_onboarding.json"
