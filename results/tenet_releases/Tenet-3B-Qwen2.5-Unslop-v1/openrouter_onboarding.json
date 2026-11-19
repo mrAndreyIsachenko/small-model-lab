@@ -11,6 +11,18 @@
     "trust_remote_code": false
   },
   "base_model": "Qwen/Qwen2.5-3B-Instruct",
+  "external_benchmarks": {
+    "direct_compliance_rate": 1.0,
+    "gsm8k_cot_flexible": 0.45,
+    "gsm8k_cot_strict": 0.0,
+    "gsm8k_math_acc": 0.0,
+    "ifeval_inst_strict": 0.6666666666666666,
+    "ifeval_strict": 0.6,
+    "slop_and_refusal_rate": 0.0,
+    "sql_incident_acc": 0.0,
+    "sql_incident_reward": 0.0,
+    "unslop_pass_rate": 1.0
+  },
   "fp8_and_crest_proof": {
     "h10_subspace_safe_grpo": {
       "h10_gated_vs_naive_gain": 0.160164,
@@ -45,7 +57,7 @@
     }
   },
   "hf_repo_id": "mr-andrey-isachenko/Tenet-3B-Qwen2.5-Unslop-v1",
-  "markdown_summary": "# OpenRouter Onboarding \u2014 mr-andrey-isachenko/Tenet-3B-Qwen2.5-Unslop-v1\n\n## Repository\n\n- **HF repo id:** `mr-andrey-isachenko/Tenet-3B-Qwen2.5-Unslop-v1`\n- **Base model:** `Qwen/Qwen2.5-3B-Instruct`\n- **Target providers:** Featherless, Chutes, Novita, DeepInfra\n\n## vLLM launch command\n\n```bash\nvllm serve --model mr-andrey-isachenko/Tenet-3B-Qwen2.5-Unslop-v1 --quantization fp8 --dtype bfloat16 --enable-auto-tool-choice\n```\n\nSettings: `quantization=fp8`, `dtype=bfloat16`, `trust_remote_code=False`, `enable-auto-tool-choice=True`.\n\n## FP8 Re-Leakage & Row Crest-Factor proof\n\n| Proof | Value |\n| --- | --- |\n| H11 FP8 retention ratio | 0.954145 |\n| H11 FP8 KL reduction ratio | 0.518488 |\n| H11 FP8 subspace Re-Leakage (Lancet) | 0.0270057 |\n| H11 FP8 subspace Re-Leakage (naive) | 0.500251 |\n| H9 Lancet KL reduction ratio | 0.9941 |\n| H10 subspace-safe LoRA Re-Leakage | 0.0690009 |\n| Max row crest factor | 17.2706 |\n| Max abs weight | 1.42969 |\n\n## Architectural compatibility checklist\n\n- [x] Standard, first-party architecture (no custom `auto_map`)\n- [x] No `trust_remote_code` escape hatches\n- [x] Chat template ready\n- Supported architectures: LlamaForCausalLM, Qwen2ForCausalLM, MistralForCausalLM\n",
+  "markdown_summary": "# OpenRouter Onboarding \u2014 mr-andrey-isachenko/Tenet-3B-Qwen2.5-Unslop-v1\n\n## Repository\n\n- **HF repo id:** `mr-andrey-isachenko/Tenet-3B-Qwen2.5-Unslop-v1`\n- **Base model:** `Qwen/Qwen2.5-3B-Instruct`\n- **Target providers:** Featherless, Chutes, Novita, DeepInfra\n\n## vLLM launch command\n\n```bash\nvllm serve --model mr-andrey-isachenko/Tenet-3B-Qwen2.5-Unslop-v1 --quantization fp8 --dtype bfloat16 --enable-auto-tool-choice\n```\n\nSettings: `quantization=fp8`, `dtype=bfloat16`, `trust_remote_code=False`, `enable-auto-tool-choice=True`.\n\n## FP8 Re-Leakage & Row Crest-Factor proof\n\n| Proof | Value |\n| --- | --- |\n| H11 FP8 retention ratio | 0.954145 |\n| H11 FP8 KL reduction ratio | 0.518488 |\n| H11 FP8 subspace Re-Leakage (Lancet) | 0.0270057 |\n| H11 FP8 subspace Re-Leakage (naive) | 0.500251 |\n| H9 Lancet KL reduction ratio | 0.9941 |\n| H10 subspace-safe LoRA Re-Leakage | 0.0690009 |\n| Max row crest factor | 17.2706 |\n| Max abs weight | 1.42969 |\n\n## Architectural compatibility checklist\n\n- [x] Standard, first-party architecture (no custom `auto_map`)\n- [x] No `trust_remote_code` escape hatches\n- [x] Chat template ready\n- Supported architectures: LlamaForCausalLM, Qwen2ForCausalLM, MistralForCausalLM\n\n## External Benchmarks\n\n| Benchmark | Score |\n| --- | --- |\n| IFEval strict | 0.6 |\n| GSM8K / MATH-500 | 0 |\n| SQL-Incident Eval | 0 |\n| Direct-Compliance / Unslop Audit | 1 |\n| Gsm8K Cot Flexible | 0.45 |\n| Gsm8K Cot Strict | 0 |\n| Ifeval Inst Strict | 0.666667 |\n| Slop And Refusal Rate | 0 |\n| Sql Incident Reward | 0 |\n| Unslop Pass Rate | 1 |\n",
   "providers": [
     "Featherless",
     "Chutes",

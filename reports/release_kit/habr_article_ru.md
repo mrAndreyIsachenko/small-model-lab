@@ -64,14 +64,21 @@ $$\Delta W_{\text{safe}} = (I - U_{\text{ablate}} U_{\text{ablate}}^\top) \Delta
 ### `H13`: Потоковая хирургия `32B/70B` по шардам (`Streaming Shard Surgery`)
 Чтобы не упираться в RAM при работе с `Qwen/Qwen2.5-32B-Instruct` и `Llama-3.3-70B-Instruct`, `H13` обрабатывает `.safetensors` построчно/пошардово (`< 16 GB` RAM, `< 15 GB` диск). Математическая эквивалентность потоковой хирургии и потокового мерджа подтверждена на 3-шардовой верификации (`streaming_surgery_max_abs_diff = 7.45e-09`, `streaming_merge_max_abs_diff = 0.0`, `Crest = 1.1926`).
 
+### Внешние бенчмарки (`lm-eval`: Base vs Наивная абляция vs Tenet v1)
+
+Поверх внутренних метрик `H9–H13` мы прогнали честное трёхстороннее сравнение через `lm-evaluation-harness` (`IFEval`, `GSM8K CoT`) и `Unslop Audit`:
+* **`Tenet-3B-Qwen2.5-Unslop-v1`** (`n=40`): `IFEval (prompt strict)` `0.525 (Base) → 0.500 (Naive) → 0.600 (Tenet v1)` (**+10.0 pp** к наивной абляции, **+7.5 pp** к Base); `IFEval (inst strict)` `0.619 → 0.524 → 0.667` (**+14.3 pp** к Naive); `GSM8K CoT (flexible)` `0.525 → 0.350 → 0.450` (**+10.0 pp** к Naive); `Unslop Pass Rate` `1.000 → 0.958 → 1.000`.
+* **`Tenet-8B-Llama3.1-Unslop-v1`** (`n=30`): `GSM8K CoT (strict / flexible)` `0.667 / 0.667 (Base) → 0.700 / 0.733 (Tenet v1)` (**+3.3 / +6.7 pp** к Base); `IFEval (prompt / inst strict)` `0.600 / 0.733`; `Unslop Pass Rate` `1.000`.
+
 ---
 
 ## 4. Ссылки и инструменты
 
 * **Интерактивный Space (аудит без загрузки весов на сервер):** [FP8 & Abliteration Brain-Damage Inspector](https://huggingface.co/spaces/mr-andrey-isachenko/fp8-abliteration-inspector) — проверяет `Crest-Factor < 25.0`, FP8 re-leakage и генерирует команды `llama-quantize --tensor-type` (CKA-guided `~5.28 bpw`).
-* **Профиль и модели на Hugging Face:** [`mr-andrey-isachenko`](https://huggingface.co/mr-andrey-isachenko)
-  * [`Tenet-12B-Nemo-Unslop-v1`](https://huggingface.co/mr-andrey-isachenko/Tenet-12B-Nemo-Unslop-v1)
-  * [`Tenet-8B-Llama3.1-Unslop-v1`](https://huggingface.co/mr-andrey-isachenko/Tenet-8B-Llama3.1-Unslop-v1)
-  * [`Tenet-3B-Qwen2.5-Unslop-v1`](https://huggingface.co/mr-andrey-isachenko/Tenet-3B-Qwen2.5-Unslop-v1)
+* **Коллекция на Hugging Face:** [Tenet v1 — Bi-Projected Unslop & FP8-Safe LLM Family](https://huggingface.co/collections/mr-andrey-isachenko/tenet-v1-bi-projected-unslop-and-fp8-safe-llm-family-6afed2048ba13a74fb7e0fac)
+  * [`Tenet-32B-Qwen2.5-Unslop-v1`](https://huggingface.co/mr-andrey-isachenko/Tenet-32B-Qwen2.5-Unslop-v1) (потоковая хирургия `H13`, рецепт `quantize_cka_gguf.sh`)
+  * [`Tenet-12B-Nemo-Unslop-v1`](https://huggingface.co/mr-andrey-isachenko/Tenet-12B-Nemo-Unslop-v1) | GGUF: [`mradermacher/Tenet-12B-Nemo-Unslop-v1-i1-GGUF`](https://huggingface.co/mradermacher/Tenet-12B-Nemo-Unslop-v1-i1-GGUF) (`i1-Q4_K_M` / `i1-Q6_K`)
+  * [`Tenet-8B-Llama3.1-Unslop-v1`](https://huggingface.co/mr-andrey-isachenko/Tenet-8B-Llama3.1-Unslop-v1) | GGUF: [`mradermacher/Tenet-8B-Llama3.1-Unslop-v1-i1-GGUF`](https://huggingface.co/mradermacher/Tenet-8B-Llama3.1-Unslop-v1-i1-GGUF) (`i1-Q4_K_M` / `i1-Q6_K`)
+  * [`Tenet-3B-Qwen2.5-Unslop-v1`](https://huggingface.co/mr-andrey-isachenko/Tenet-3B-Qwen2.5-Unslop-v1) | GGUF: [`mradermacher/Tenet-3B-Qwen2.5-Unslop-v1-i1-GGUF`](https://huggingface.co/mradermacher/Tenet-3B-Qwen2.5-Unslop-v1-i1-GGUF) (`i1-Q4_K_M` / `i1-Q6_K`)
   * [`Tenet-16K-Nano-Lab-v1`](https://huggingface.co/mr-andrey-isachenko/Tenet-16K-Nano-Lab-v1)
 * **GitHub-репозиторий и технический отчёт:** [`mrAndreyIsachenko/tenet-lab`](https://github.com/mrAndreyIsachenko/tenet-lab) (Apache-2.0, политика Zero Placeholder Numbers).

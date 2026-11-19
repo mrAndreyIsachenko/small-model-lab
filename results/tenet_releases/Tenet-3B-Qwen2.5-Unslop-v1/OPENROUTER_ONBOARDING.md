@@ -33,3 +33,18 @@ Settings: `quantization=fp8`, `dtype=bfloat16`, `trust_remote_code=False`, `enab
 - [x] No `trust_remote_code` escape hatches
 - [x] Chat template ready
 - Supported architectures: LlamaForCausalLM, Qwen2ForCausalLM, MistralForCausalLM
+
+## External Benchmarks
+
+| Benchmark | Score |
+| --- | --- |
+| IFEval strict | 0.6 |
+| GSM8K / MATH-500 | 0 |
+| SQL-Incident Eval | 0 |
+| Direct-Compliance / Unslop Audit | 1 |
+| Gsm8K Cot Flexible | 0.45 |
+| Gsm8K Cot Strict | 0 |
+| Ifeval Inst Strict | 0.666667 |
+| Slop And Refusal Rate | 0 |
+| Sql Incident Reward | 0 |
+| Unslop Pass Rate | 1 |

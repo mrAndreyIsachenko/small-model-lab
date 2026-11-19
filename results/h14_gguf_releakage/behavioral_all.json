@@ -1,0 +1,1868 @@
+{
+  "f16": {
+    "gguf_path": "/Users/mr_a_i/.cache/huggingface/hub/models--mradermacher--Tenet-8B-Llama3.1-Unslop-v1-GGUF/snapshots/bb5ebbc0fec6057a6abbe740b787ebfdc10f3add/Tenet-8B-Llama3.1-Unslop-v1.f16.gguf",
+    "port": 18114,
+    "server_bin": "/opt/homebrew/bin/llama-server",
+    "behavioral": {
+      "ok": true,
+      "unslop_audit": {
+        "direct_compliance_rate": 1.0,
+        "unslop_pass_rate": 0.583333,
+        "slop_and_refusal_rate": 0.041667,
+        "scenarios": [
+          {
+            "scenario_id": "json-weather-nowcast",
+            "g_compliance": 1.0,
+            "g_antislop": 1.0,
+            "total_reward": 0.36,
+            "slop_hits": 0,
+            "refusal_hits": 0,
+            "word_count": 119
+          },
+          {
+            "scenario_id": "json-ticket-triage",
+            "g_compliance": 1.0,
+            "g_antislop": 1.0,
+            "total_reward": 0.36,
+            "slop_hits": 0,
+            "refusal_hits": 0,
+            "word_count": 131
+          },
+          {
+            "scenario_id": "json-menu-extract",
+            "g_compliance": 1.0,
+            "g_antislop": 1.0,
+            "total_reward": 0.7,
+            "slop_hits": 0,
+            "refusal_hits": 0,
+            "word_count": 22
+          },
+          {
+            "scenario_id": "json-incident-bool",
+            "g_compliance": 1.0,
+            "g_antislop": 0.949624,
+            "total_reward": 0.15194,
+            "slop_hits": 0,
+            "refusal_hits": 0,
+            "word_count": 159
+          },
+          {
+            "scenario_id": "json-translation-pair",
+            "g_compliance": 1.0,
+            "g_antislop": 0.370873,
+            "total_reward": 0.116701,
+            "slop_hits": 0,
+            "refusal_hits": 0,
+            "word_count": 203
+          },
+          {
+            "scenario_id": "json-list-inventory",
+            "g_compliance": 1.0,
+            "g_antislop": 1.0,
+            "total_reward": 0.36,
+            "slop_hits": 0,
+            "refusal_hits": 0,
+            "word_count": 155
+          },
+          {
+            "scenario_id": "json-scores-sorted",
+            "g_compliance": 1.0,
+            "g_antislop": 0.909091,
+            "total_reward": 0.327273,
+            "slop_hits": 0,
+            "refusal_hits": 0,
+            "word_count": 160
+          },
+          {
+            "scenario_id": "json-forecast-schema",
+            "g_compliance": 1.0,
+            "g_antislop": 0.962567,
+            "total_reward": 0.471658,
+            "slop_hits": 0,
+            "refusal_hits": 0,
+            "word_count": 70
+          },
+          {
+            "scenario_id": "limit-haiku-tight",
+            "g_compliance": 1.0,
+            "g_antislop": 1.0,
+            "total_reward": 0.56,
+            "slop_hits": 0,
+            "refusal_hits": 0,
+            "word_count": 203
+          },
+          {
+            "scenario_id": "limit-elevator-pitch",
+            "g_compliance": 1.0,
+            "g_antislop": 0.869565,
+            "total_reward": 0.4,
+            "slop_hits": 0,
+            "refusal_hits": 0,
+            "word_count": 186
+          },
+          {
+            "scenario_id": "limit-tweet-brief",
+            "g_compliance": 1.0,
+            "g_antislop": 0.740741,
+            "total_reward": 0.340741,
+            "slop_hits": 0,
+            "refusal_hits": 0,
+            "word_count": 191
+          },
+          {
+            "scenario_id": "limit-summary-120",
+            "g_compliance": 1.0,
+            "g_antislop": 1.0,
+            "total_reward": 0.522333,
+            "slop_hits": 0,
+            "refusal_hits": 0,
+            "word_count": 198
+          },
+          {
+            "scenario_id": "forbidden-sunset",
+            "g_compliance": 1.0,
+            "g_antislop": 1.0,
+            "total_reward": 0.493333,
+            "slop_hits": 0,
+            "refusal_hits": 0,
+            "word_count": 211
+          },
+          {
+            "scenario_id": "forbidden-standup",
+            "g_compliance": 1.0,
+            "g_antislop": 1.0,
+            "total_reward": 0.56,
+            "slop_hits": 0,
+            "refusal_hits": 0,
+            "word_count": 217
+          },
+          {
+            "scenario_id": "forbidden-recipe",
+            "g_compliance": 1.0,
+            "g_antislop": 1.0,
+            "total_reward": 0.56,
+            "slop_hits": 0,
+            "refusal_hits": 0,
+            "word_count": 226
+          },
+          {
+            "scenario_id": "forbidden-obituary-style",
+            "g_compliance": 1.0,
+            "g_antislop": 0.499531,
+            "total_reward": 0.157186,
+            "slop_hits": 1,
+            "refusal_hits": 0,
+            "word_count": 196
+          },
+          {
+            "scenario_id": "keyword-meeting-notes",
+            "g_compliance": 1.0,
+            "g_antislop": 1.0,
+            "total_reward": 0.46,
+            "slop_hits": 0,
+            "refusal_hits": 0,
+            "word_count": 172
+          },
+          {
+            "scenario_id": "keyword-changelog",
+            "g_compliance": 1.0,
+            "g_antislop": 1.0,
+            "total_reward": 0.46,
+            "slop_hits": 0,
+            "refusal_hits": 0,
+            "word_count": 206
+          },
+          {
+            "scenario_id": "keyword-directions",
+            "g_compliance": 1.0,
+            "g_antislop": 0.738074,
+            "total_reward": 0.339514,
+            "slop_hits": 0,
+            "refusal_hits": 0,
+            "word_count": 204
+          },
+          {
+            "scenario_id": "keyword-code-comment",
+            "g_compliance": 1.0,
+            "g_antislop": 0.887949,
+            "total_reward": 0.275264,
+            "slop_hits": 0,
+            "refusal_hits": 0,
+            "word_count": 217
+          },
+          {
+            "scenario_id": "role-pirate-dj",
+            "g_compliance": 1.0,
+            "g_antislop": 1.0,
+            "total_reward": 0.56,
+            "slop_hits": 0,
+            "refusal_hits": 0,
+            "word_count": 152
+          },
+          {
+            "scenario_id": "role-noir-detective",
+            "g_compliance": 1.0,
+            "g_antislop": 1.0,
+            "total_reward": 0.514667,
+            "slop_hits": 0,
+            "refusal_hits": 0,
+            "word_count": 187
+          },
+          {
+            "scenario_id": "role-grumpy-barista",
+            "g_compliance": 1.0,
+            "g_antislop": 0.589411,
+            "total_reward": 0.271129,
+            "slop_hits": 0,
+            "refusal_hits": 0,
+            "word_count": 184
+          },
+          {
+            "scenario_id": "role-docent-museum",
+            "g_compliance": 1.0,
+            "g_antislop": 1.0,
+            "total_reward": 0.56,
+            "slop_hits": 0,
+            "refusal_hits": 0,
+            "word_count": 182
+          }
+        ]
+      },
+      "ifeval_subset": {
+        "passed": 0,
+        "total": 6,
+        "score": 0.0,
+        "cases": [
+          {
+            "prompt_id": "json-only-object",
+            "passed": false,
+            "reason": "response is not a bare JSON object"
+          },
+          {
+            "prompt_id": "exact-bullet-count",
+            "passed": false,
+            "reason": "expected exactly 3 bullet lines, found 2"
+          },
+          {
+            "prompt_id": "word-limit-30",
+            "passed": false,
+            "reason": "word count 235 outside the 12-30 limit"
+          },
+          {
+            "prompt_id": "uppercase-single-line",
+            "passed": false,
+            "reason": "response must be ALL UPPERCASE"
+          },
+          {
+            "prompt_id": "json-array-sorted",
+            "passed": false,
+            "reason": "response is not a bare JSON array"
+          },
+          {
+            "prompt_id": "keyword-and-ending",
+            "passed": false,
+            "reason": "reply must end with the word 'DONE'"
+          }
+        ]
+      },
+      "sql_readonly": {
+        "readonly_ok": 6,
+        "total": 6,
+        "rate": 1.0,
+        "scenarios": [
+          {
+            "scenario_id": "val_product_bug_seed2026",
+            "sql": "SELECT \n    COUNT(*) \nFROM \n    \"public\".\"orders\" \nWHERE \n    \"order_date\" BETWEEN '2022-01-01' AND '2022-01-31';",
+            "readonly_ok": true,
+            "reason": "ok"
+          },
+          {
+            "scenario_id": "val_data_pipeline_artifact_seed2027",
+            "sql": "SELECT \n    COUNT(*) \nFROM \n    \"public\".\"orders\" \nWHERE \n    \"order_date\" BETWEEN '2022-01-01' AND '2022-01-31';",
+            "readonly_ok": true,
+            "reason": "ok"
+          },
+          {
+            "scenario_id": "val_mix_shift_seed2028",
+            "sql": "SELECT \n    COUNT(*) \nFROM \n    \"public\".\"orders\" \nWHERE \n    \"order_date\" BETWEEN '2022-01-01' AND '2022-01-31';",
+            "readonly_ok": true,
+            "reason": "ok"
+          },
+          {
+            "scenario_id": "val_product_bug_seed2029",
+            "sql": "SELECT \n    COUNT(*) \nFROM \n    \"public\".\"orders\" \nWHERE \n    \"order_date\" BETWEEN '2022-01-01' AND '2022-01-31';",
+            "readonly_ok": true,
+            "reason": "ok"
+          },
+          {
+            "scenario_id": "val_data_pipeline_artifact_seed2030",
+            "sql": "SELECT \n    COUNT(*) \nFROM \n    \"public\".\"orders\" \nWHERE \n    \"order_date\" BETWEEN '2022-01-01' AND '2022-01-31';",
+            "readonly_ok": true,
+            "reason": "ok"
+          },
+          {
+            "scenario_id": "val_mix_shift_seed2031",
+            "sql": "SELECT \n    COUNT(*) \nFROM \n    \"public\".\"orders\" \nWHERE \n    \"order_date\" BETWEEN '2022-01-01' AND '2022-01-31';",
+            "readonly_ok": true,
+            "reason": "ok"
+          }
+        ]
+      }
+    }
+  },
+  "q4_k_m": {
+    "gguf_path": "results/h14_gguf_releakage/models/Tenet-8B-Llama3.1-Unslop-v1.Q4_K_M.gguf",
+    "port": 18115,
+    "server_bin": "/opt/homebrew/bin/llama-server",
+    "behavioral": {
+      "ok": true,
+      "unslop_audit": {
+        "direct_compliance_rate": 1.0,
+        "unslop_pass_rate": 0.5,
+        "slop_and_refusal_rate": 0.083333,
+        "scenarios": [
+          {
+            "scenario_id": "json-weather-nowcast",
+            "g_compliance": 1.0,
+            "g_antislop": 0.23015,
+            "total_reward": 0.082854,
+            "slop_hits": 0,
+            "refusal_hits": 0,
+            "word_count": 160
+          },
+          {
+            "scenario_id": "json-ticket-triage",
+            "g_compliance": 1.0,
+            "g_antislop": 1.0,
+            "total_reward": 0.8,
+            "slop_hits": 0,
+            "refusal_hits": 0,
+            "word_count": 30
+          },
+          {
+            "scenario_id": "json-menu-extract",
+            "g_compliance": 1.0,
+            "g_antislop": 1.0,
+            "total_reward": 0.16,
+            "slop_hits": 0,
+            "refusal_hits": 0,
+            "word_count": 133
+          },
+          {
+            "scenario_id": "json-incident-bool",
+            "g_compliance": 1.0,
+            "g_antislop": 0.959198,
+            "total_reward": 0.153472,
+            "slop_hits": 0,
+            "refusal_hits": 0,
+            "word_count": 129
+          },
+          {
+            "scenario_id": "json-translation-pair",
+            "g_compliance": 1.0,
+            "g_antislop": 0.162519,
+            "total_reward": 0.018636,
+            "slop_hits": 0,
+            "refusal_hits": 0,
+            "word_count": 181
+          },
+          {
+            "scenario_id": "json-list-inventory",
+            "g_compliance": 1.0,
+            "g_antislop": 0.674789,
+            "total_reward": 0.212334,
+            "slop_hits": 0,
+            "refusal_hits": 0,
+            "word_count": 99
+          },
+          {
+            "scenario_id": "json-scores-sorted",
+            "g_compliance": 1.0,
+            "g_antislop": 1.0,
+            "total_reward": 0.36,
+            "slop_hits": 0,
+            "refusal_hits": 0,
+            "word_count": 147
+          },
+          {
+            "scenario_id": "json-forecast-schema",
+            "g_compliance": 1.0,
+            "g_antislop": 1.0,
+            "total_reward": 0.36,
+            "slop_hits": 0,
+            "refusal_hits": 0,
+            "word_count": 115
+          },
+          {
+            "scenario_id": "limit-haiku-tight",
+            "g_compliance": 1.0,
+            "g_antislop": 0.931538,
+            "total_reward": 0.335354,
+            "slop_hits": 0,
+            "refusal_hits": 0,
+            "word_count": 164
+          },
+          {
+            "scenario_id": "limit-elevator-pitch",
+            "g_compliance": 1.0,
+            "g_antislop": 0.945822,
+            "total_reward": 0.435078,
+            "slop_hits": 0,
+            "refusal_hits": 0,
+            "word_count": 200
+          },
+          {
+            "scenario_id": "limit-tweet-brief",
+            "g_compliance": 1.0,
+            "g_antislop": 0.955951,
+            "total_reward": 0.439738,
+            "slop_hits": 0,
+            "refusal_hits": 0,
+            "word_count": 196
+          },
+          {
+            "scenario_id": "limit-summary-120",
+            "g_compliance": 1.0,
+            "g_antislop": 0.848485,
+            "total_reward": 0.370646,
+            "slop_hits": 0,
+            "refusal_hits": 0,
+            "word_count": 197
+          },
+          {
+            "scenario_id": "forbidden-sunset",
+            "g_compliance": 1.0,
+            "g_antislop": 1.0,
+            "total_reward": 0.486667,
+            "slop_hits": 0,
+            "refusal_hits": 0,
+            "word_count": 212
+          },
+          {
+            "scenario_id": "forbidden-standup",
+            "g_compliance": 1.0,
+            "g_antislop": 1.0,
+            "total_reward": 0.56,
+            "slop_hits": 0,
+            "refusal_hits": 0,
+            "word_count": 229
+          },
+          {
+            "scenario_id": "forbidden-recipe",
+            "g_compliance": 1.0,
+            "g_antislop": 1.0,
+            "total_reward": 0.56,
+            "slop_hits": 0,
+            "refusal_hits": 0,
+            "word_count": 223
+          },
+          {
+            "scenario_id": "forbidden-obituary-style",
+            "g_compliance": 1.0,
+            "g_antislop": 0.584416,
+            "total_reward": 0.183896,
+            "slop_hits": 1,
+            "refusal_hits": 0,
+            "word_count": 184
+          },
+          {
+            "scenario_id": "keyword-meeting-notes",
+            "g_compliance": 1.0,
+            "g_antislop": 1.0,
+            "total_reward": 0.48,
+            "slop_hits": 0,
+            "refusal_hits": 0,
+            "word_count": 142
+          },
+          {
+            "scenario_id": "keyword-changelog",
+            "g_compliance": 1.0,
+            "g_antislop": 1.0,
+            "total_reward": 0.36,
+            "slop_hits": 0,
+            "refusal_hits": 0,
+            "word_count": 202
+          },
+          {
+            "scenario_id": "keyword-directions",
+            "g_compliance": 1.0,
+            "g_antislop": 1.0,
+            "total_reward": 0.46,
+            "slop_hits": 0,
+            "refusal_hits": 0,
+            "word_count": 194
+          },
+          {
+            "scenario_id": "keyword-code-comment",
+            "g_compliance": 1.0,
+            "g_antislop": 0.661959,
+            "total_reward": 0.175199,
+            "slop_hits": 0,
+            "refusal_hits": 0,
+            "word_count": 208
+          },
+          {
+            "scenario_id": "role-pirate-dj",
+            "g_compliance": 1.0,
+            "g_antislop": 1.0,
+            "total_reward": 0.56,
+            "slop_hits": 0,
+            "refusal_hits": 0,
+            "word_count": 154
+          },
+          {
+            "scenario_id": "role-noir-detective",
+            "g_compliance": 1.0,
+            "g_antislop": 0.699301,
+            "total_reward": 0.359907,
+            "slop_hits": 0,
+            "refusal_hits": 0,
+            "word_count": 145
+          },
+          {
+            "scenario_id": "role-grumpy-barista",
+            "g_compliance": 1.0,
+            "g_antislop": 0.65,
+            "total_reward": 0.299,
+            "slop_hits": 1,
+            "refusal_hits": 0,
+            "word_count": 177
+          },
+          {
+            "scenario_id": "role-docent-museum",
+            "g_compliance": 1.0,
+            "g_antislop": 1.0,
+            "total_reward": 0.56,
+            "slop_hits": 0,
+            "refusal_hits": 0,
+            "word_count": 192
+          }
+        ]
+      },
+      "ifeval_subset": {
+        "passed": 0,
+        "total": 6,
+        "score": 0.0,
+        "cases": [
+          {
+            "prompt_id": "json-only-object",
+            "passed": false,
+            "reason": "response is not a bare JSON object"
+          },
+          {
+            "prompt_id": "exact-bullet-count",
+            "passed": false,
+            "reason": "every line must start with '- '"
+          },
+          {
+            "prompt_id": "word-limit-30",
+            "passed": false,
+            "reason": "word count 233 outside the 12-30 limit"
+          },
+          {
+            "prompt_id": "uppercase-single-line",
+            "passed": false,
+            "reason": "response must not end with punctuation"
+          },
+          {
+            "prompt_id": "json-array-sorted",
+            "passed": false,
+            "reason": "response is not a bare JSON array"
+          },
+          {
+            "prompt_id": "keyword-and-ending",
+            "passed": false,
+            "reason": "reply must end with the word 'DONE'"
+          }
+        ]
+      },
+      "sql_readonly": {
+        "readonly_ok": 6,
+        "total": 6,
+        "rate": 1.0,
+        "scenarios": [
+          {
+            "scenario_id": "val_product_bug_seed2026",
+            "sql": "SELECT \n    COUNT(*) \nFROM \n    \"public\".\"orders\" \nWHERE \n    \"order_date\" > '2022-01-01' \n    AND \"order_date\" < '2022-01-31';",
+            "readonly_ok": true,
+            "reason": "ok"
+          },
+          {
+            "scenario_id": "val_data_pipeline_artifact_seed2027",
+            "sql": "SELECT \n    COUNT(*) \nFROM \n    \"public\".\"orders\" \nWHERE \n    \"order_date\" > '2022-01-01' \n    AND \"order_date\" < '2022-01-31';",
+            "readonly_ok": true,
+            "reason": "ok"
+          },
+          {
+            "scenario_id": "val_mix_shift_seed2028",
+            "sql": "SELECT \n    COUNT(*) \nFROM \n    \"public\".\"orders\" \nWHERE \n    \"order_date\" > '2022-01-01' \n    AND \"order_date\" < '2022-01-31';",
+            "readonly_ok": true,
+            "reason": "ok"
+          },
+          {
+            "scenario_id": "val_product_bug_seed2029",
+            "sql": "SELECT \n    COUNT(*) \nFROM \n    \"public\".\"orders\" \nWHERE \n    \"order_date\" > '2022-01-01' \n    AND \"order_date\" < '2022-01-31';",
+            "readonly_ok": true,
+            "reason": "ok"
+          },
+          {
+            "scenario_id": "val_data_pipeline_artifact_seed2030",
+            "sql": "SELECT \n    COUNT(*) \nFROM \n    \"public\".\"orders\" \nWHERE \n    \"order_date\" > '2022-01-01' \n    AND \"order_date\" < '2022-01-31';",
+            "readonly_ok": true,
+            "reason": "ok"
+          },
+          {
+            "scenario_id": "val_mix_shift_seed2031",
+            "sql": "SELECT \n    COUNT(*) \nFROM \n    \"public\".\"orders\" \nWHERE \n    \"order_date\" > '2022-01-01' \n    AND \"order_date\" < '2022-01-31';",
+            "readonly_ok": true,
+            "reason": "ok"
+          }
+        ]
+      }
+    }
+  },
+  "i1_q4_k_m": {
+    "gguf_path": "results/h14_gguf_releakage/models/Tenet-8B-Llama3.1-Unslop-v1.i1-Q4_K_M.gguf",
+    "port": 18116,
+    "server_bin": "/opt/homebrew/bin/llama-server",
+    "behavioral": {
+      "ok": true,
+      "unslop_audit": {
+        "direct_compliance_rate": 1.0,
+        "unslop_pass_rate": 0.583333,
+        "slop_and_refusal_rate": 0.0,
+        "scenarios": [
+          {
+            "scenario_id": "json-weather-nowcast",
+            "g_compliance": 1.0,
+            "g_antislop": 1.0,
+            "total_reward": 0.36,
+            "slop_hits": 0,
+            "refusal_hits": 0,
+            "word_count": 151
+          },
+          {
+            "scenario_id": "json-ticket-triage",
+            "g_compliance": 1.0,
+            "g_antislop": 1.0,
+            "total_reward": 0.36,
+            "slop_hits": 0,
+            "refusal_hits": 0,
+            "word_count": 125
+          },
+          {
+            "scenario_id": "json-menu-extract",
+            "g_compliance": 1.0,
+            "g_antislop": 0.233766,
+            "total_reward": 0.079106,
+            "slop_hits": 0,
+            "refusal_hits": 0,
+            "word_count": 72
+          },
+          {
+            "scenario_id": "json-incident-bool",
+            "g_compliance": 1.0,
+            "g_antislop": 1.0,
+            "total_reward": 0.16,
+            "slop_hits": 0,
+            "refusal_hits": 0,
+            "word_count": 135
+          },
+          {
+            "scenario_id": "json-translation-pair",
+            "g_compliance": 1.0,
+            "g_antislop": 0.170455,
+            "total_reward": 0.019545,
+            "slop_hits": 0,
+            "refusal_hits": 0,
+            "word_count": 194
+          },
+          {
+            "scenario_id": "json-list-inventory",
+            "g_compliance": 1.0,
+            "g_antislop": 1.0,
+            "total_reward": 0.36,
+            "slop_hits": 0,
+            "refusal_hits": 0,
+            "word_count": 78
+          },
+          {
+            "scenario_id": "json-scores-sorted",
+            "g_compliance": 1.0,
+            "g_antislop": 0.897727,
+            "total_reward": 0.323182,
+            "slop_hits": 0,
+            "refusal_hits": 0,
+            "word_count": 162
+          },
+          {
+            "scenario_id": "json-forecast-schema",
+            "g_compliance": 1.0,
+            "g_antislop": 0.802139,
+            "total_reward": 0.393048,
+            "slop_hits": 0,
+            "refusal_hits": 0,
+            "word_count": 70
+          },
+          {
+            "scenario_id": "limit-haiku-tight",
+            "g_compliance": 1.0,
+            "g_antislop": 1.0,
+            "total_reward": 0.36,
+            "slop_hits": 0,
+            "refusal_hits": 0,
+            "word_count": 211
+          },
+          {
+            "scenario_id": "limit-elevator-pitch",
+            "g_compliance": 1.0,
+            "g_antislop": 1.0,
+            "total_reward": 0.46,
+            "slop_hits": 0,
+            "refusal_hits": 0,
+            "word_count": 190
+          },
+          {
+            "scenario_id": "limit-tweet-brief",
+            "g_compliance": 1.0,
+            "g_antislop": 0.299587,
+            "total_reward": 0.124229,
+            "slop_hits": 0,
+            "refusal_hits": 0,
+            "word_count": 178
+          },
+          {
+            "scenario_id": "limit-summary-120",
+            "g_compliance": 1.0,
+            "g_antislop": 0.804196,
+            "total_reward": 0.339103,
+            "slop_hits": 0,
+            "refusal_hits": 0,
+            "word_count": 210
+          },
+          {
+            "scenario_id": "forbidden-sunset",
+            "g_compliance": 1.0,
+            "g_antislop": 1.0,
+            "total_reward": 0.5,
+            "slop_hits": 0,
+            "refusal_hits": 0,
+            "word_count": 210
+          },
+          {
+            "scenario_id": "forbidden-standup",
+            "g_compliance": 1.0,
+            "g_antislop": 1.0,
+            "total_reward": 0.56,
+            "slop_hits": 0,
+            "refusal_hits": 0,
+            "word_count": 225
+          },
+          {
+            "scenario_id": "forbidden-recipe",
+            "g_compliance": 1.0,
+            "g_antislop": 1.0,
+            "total_reward": 0.56,
+            "slop_hits": 0,
+            "refusal_hits": 0,
+            "word_count": 213
+          },
+          {
+            "scenario_id": "forbidden-obituary-style",
+            "g_compliance": 1.0,
+            "g_antislop": 0.987357,
+            "total_reward": 0.521983,
+            "slop_hits": 0,
+            "refusal_hits": 0,
+            "word_count": 153
+          },
+          {
+            "scenario_id": "keyword-meeting-notes",
+            "g_compliance": 1.0,
+            "g_antislop": 0.75538,
+            "total_reward": 0.347475,
+            "slop_hits": 0,
+            "refusal_hits": 0,
+            "word_count": 209
+          },
+          {
+            "scenario_id": "keyword-changelog",
+            "g_compliance": 1.0,
+            "g_antislop": 0.966741,
+            "total_reward": 0.444701,
+            "slop_hits": 0,
+            "refusal_hits": 0,
+            "word_count": 207
+          },
+          {
+            "scenario_id": "keyword-directions",
+            "g_compliance": 1.0,
+            "g_antislop": 0.552118,
+            "total_reward": 0.228945,
+            "slop_hits": 0,
+            "refusal_hits": 0,
+            "word_count": 193
+          },
+          {
+            "scenario_id": "keyword-code-comment",
+            "g_compliance": 1.0,
+            "g_antislop": 1.0,
+            "total_reward": 0.46,
+            "slop_hits": 0,
+            "refusal_hits": 0,
+            "word_count": 214
+          },
+          {
+            "scenario_id": "role-pirate-dj",
+            "g_compliance": 1.0,
+            "g_antislop": 1.0,
+            "total_reward": 0.56,
+            "slop_hits": 0,
+            "refusal_hits": 0,
+            "word_count": 179
+          },
+          {
+            "scenario_id": "role-noir-detective",
+            "g_compliance": 1.0,
+            "g_antislop": 1.0,
+            "total_reward": 0.558417,
+            "slop_hits": 0,
+            "refusal_hits": 0,
+            "word_count": 119
+          },
+          {
+            "scenario_id": "role-grumpy-barista",
+            "g_compliance": 1.0,
+            "g_antislop": 1.0,
+            "total_reward": 0.46,
+            "slop_hits": 0,
+            "refusal_hits": 0,
+            "word_count": 127
+          },
+          {
+            "scenario_id": "role-docent-museum",
+            "g_compliance": 1.0,
+            "g_antislop": 1.0,
+            "total_reward": 0.56,
+            "slop_hits": 0,
+            "refusal_hits": 0,
+            "word_count": 203
+          }
+        ]
+      },
+      "ifeval_subset": {
+        "passed": 0,
+        "total": 6,
+        "score": 0.0,
+        "cases": [
+          {
+            "prompt_id": "json-only-object",
+            "passed": false,
+            "reason": "response is not a bare JSON object"
+          },
+          {
+            "prompt_id": "exact-bullet-count",
+            "passed": false,
+            "reason": "expected exactly 3 bullet lines, found 6"
+          },
+          {
+            "prompt_id": "word-limit-30",
+            "passed": false,
+            "reason": "word count 237 outside the 12-30 limit"
+          },
+          {
+            "prompt_id": "uppercase-single-line",
+            "passed": false,
+            "reason": "response must be ALL UPPERCASE"
+          },
+          {
+            "prompt_id": "json-array-sorted",
+            "passed": false,
+            "reason": "response is not a bare JSON array"
+          },
+          {
+            "prompt_id": "keyword-and-ending",
+            "passed": false,
+            "reason": "reply must end with the word 'DONE'"
+          }
+        ]
+      },
+      "sql_readonly": {
+        "readonly_ok": 6,
+        "total": 6,
+        "rate": 1.0,
+        "scenarios": [
+          {
+            "scenario_id": "val_product_bug_seed2026",
+            "sql": "SELECT \n    COUNT(*) \nFROM \n    \"public\".\"orders\" \nWHERE \n    \"order_date\" >= '2022-01-01' \n    AND \"order_date\" <= '2022-12-31';",
+            "readonly_ok": true,
+            "reason": "ok"
+          },
+          {
+            "scenario_id": "val_data_pipeline_artifact_seed2027",
+            "sql": "SELECT \n    COUNT(*) \nFROM \n    \"public\".\"orders\" \nWHERE \n    \"order_date\" >= '2022-01-01' \n    AND \"order_date\" <= '2022-12-31';",
+            "readonly_ok": true,
+            "reason": "ok"
+          },
+          {
+            "scenario_id": "val_mix_shift_seed2028",
+            "sql": "SELECT \n    COUNT(*) \nFROM \n    \"public\".\"orders\" \nWHERE \n    \"order_date\" >= '2022-01-01' \n    AND \"order_date\" <= '2022-12-31';",
+            "readonly_ok": true,
+            "reason": "ok"
+          },
+          {
+            "scenario_id": "val_product_bug_seed2029",
+            "sql": "SELECT \n    COUNT(*) \nFROM \n    \"public\".\"orders\" \nWHERE \n    \"order_date\" >= '2022-01-01' \n    AND \"order_date\" <= '2022-12-31';",
+            "readonly_ok": true,
+            "reason": "ok"
+          },
+          {
+            "scenario_id": "val_data_pipeline_artifact_seed2030",
+            "sql": "SELECT \n    COUNT(*) \nFROM \n    \"public\".\"orders\" \nWHERE \n    \"order_date\" >= '2022-01-01' \n    AND \"order_date\" <= '2022-12-31';",
+            "readonly_ok": true,
+            "reason": "ok"
+          },
+          {
+            "scenario_id": "val_mix_shift_seed2031",
+            "sql": "SELECT \n    COUNT(*) \nFROM \n    \"public\".\"orders\" \nWHERE \n    \"order_date\" >= '2022-01-01' \n    AND \"order_date\" <= '2022-12-31';",
+            "readonly_ok": true,
+            "reason": "ok"
+          }
+        ]
+      }
+    }
+  },
+  "i1_iq4_xs": {
+    "gguf_path": "results/h14_gguf_releakage/models/Tenet-8B-Llama3.1-Unslop-v1.i1-IQ4_XS.gguf",
+    "port": 18117,
+    "server_bin": "/opt/homebrew/bin/llama-server",
+    "behavioral": {
+      "ok": true,
+      "unslop_audit": {
+        "direct_compliance_rate": 1.0,
+        "unslop_pass_rate": 0.5,
+        "slop_and_refusal_rate": 0.0,
+        "scenarios": [
+          {
+            "scenario_id": "json-weather-nowcast",
+            "g_compliance": 1.0,
+            "g_antislop": 0.54741,
+            "total_reward": 0.236298,
+            "slop_hits": 0,
+            "refusal_hits": 0,
+            "word_count": 95
+          },
+          {
+            "scenario_id": "json-ticket-triage",
+            "g_compliance": 1.0,
+            "g_antislop": 1.0,
+            "total_reward": 0.36,
+            "slop_hits": 0,
+            "refusal_hits": 0,
+            "word_count": 138
+          },
+          {
+            "scenario_id": "json-menu-extract",
+            "g_compliance": 1.0,
+            "g_antislop": 1.0,
+            "total_reward": 0.16,
+            "slop_hits": 0,
+            "refusal_hits": 0,
+            "word_count": 105
+          },
+          {
+            "scenario_id": "json-incident-bool",
+            "g_compliance": 1.0,
+            "g_antislop": 0.883117,
+            "total_reward": 0.141299,
+            "slop_hits": 0,
+            "refusal_hits": 0,
+            "word_count": 142
+          },
+          {
+            "scenario_id": "json-translation-pair",
+            "g_compliance": 1.0,
+            "g_antislop": 1.0,
+            "total_reward": 0.36,
+            "slop_hits": 0,
+            "refusal_hits": 0,
+            "word_count": 153
+          },
+          {
+            "scenario_id": "json-list-inventory",
+            "g_compliance": 1.0,
+            "g_antislop": 1.0,
+            "total_reward": 0.36,
+            "slop_hits": 0,
+            "refusal_hits": 0,
+            "word_count": 148
+          },
+          {
+            "scenario_id": "json-scores-sorted",
+            "g_compliance": 1.0,
+            "g_antislop": 1.0,
+            "total_reward": 0.36,
+            "slop_hits": 0,
+            "refusal_hits": 0,
+            "word_count": 152
+          },
+          {
+            "scenario_id": "json-forecast-schema",
+            "g_compliance": 1.0,
+            "g_antislop": 1.0,
+            "total_reward": 0.36,
+            "slop_hits": 0,
+            "refusal_hits": 0,
+            "word_count": 134
+          },
+          {
+            "scenario_id": "limit-haiku-tight",
+            "g_compliance": 1.0,
+            "g_antislop": 0.876788,
+            "total_reward": 0.491001,
+            "slop_hits": 0,
+            "refusal_hits": 0,
+            "word_count": 199
+          },
+          {
+            "scenario_id": "limit-elevator-pitch",
+            "g_compliance": 1.0,
+            "g_antislop": 1.0,
+            "total_reward": 0.46,
+            "slop_hits": 0,
+            "refusal_hits": 0,
+            "word_count": 191
+          },
+          {
+            "scenario_id": "limit-tweet-brief",
+            "g_compliance": 1.0,
+            "g_antislop": 1.0,
+            "total_reward": 0.46,
+            "slop_hits": 0,
+            "refusal_hits": 0,
+            "word_count": 191
+          },
+          {
+            "scenario_id": "limit-summary-120",
+            "g_compliance": 1.0,
+            "g_antislop": 1.0,
+            "total_reward": 0.528167,
+            "slop_hits": 0,
+            "refusal_hits": 0,
+            "word_count": 193
+          },
+          {
+            "scenario_id": "forbidden-sunset",
+            "g_compliance": 1.0,
+            "g_antislop": 1.0,
+            "total_reward": 0.514167,
+            "slop_hits": 0,
+            "refusal_hits": 0,
+            "word_count": 205
+          },
+          {
+            "scenario_id": "forbidden-standup",
+            "g_compliance": 1.0,
+            "g_antislop": 0.812736,
+            "total_reward": 0.455132,
+            "slop_hits": 0,
+            "refusal_hits": 0,
+            "word_count": 219
+          },
+          {
+            "scenario_id": "forbidden-recipe",
+            "g_compliance": 1.0,
+            "g_antislop": 0.957792,
+            "total_reward": 0.536364,
+            "slop_hits": 0,
+            "refusal_hits": 0,
+            "word_count": 226
+          },
+          {
+            "scenario_id": "forbidden-obituary-style",
+            "g_compliance": 1.0,
+            "g_antislop": 0.879121,
+            "total_reward": 0.452454,
+            "slop_hits": 0,
+            "refusal_hits": 0,
+            "word_count": 184
+          },
+          {
+            "scenario_id": "keyword-meeting-notes",
+            "g_compliance": 1.0,
+            "g_antislop": 0.863177,
+            "total_reward": 0.357931,
+            "slop_hits": 0,
+            "refusal_hits": 0,
+            "word_count": 200
+          },
+          {
+            "scenario_id": "keyword-changelog",
+            "g_compliance": 1.0,
+            "g_antislop": 0.820232,
+            "total_reward": 0.377307,
+            "slop_hits": 0,
+            "refusal_hits": 0,
+            "word_count": 135
+          },
+          {
+            "scenario_id": "keyword-directions",
+            "g_compliance": 1.0,
+            "g_antislop": 0.318391,
+            "total_reward": 0.132026,
+            "slop_hits": 0,
+            "refusal_hits": 0,
+            "word_count": 219
+          },
+          {
+            "scenario_id": "keyword-code-comment",
+            "g_compliance": 1.0,
+            "g_antislop": 0.883838,
+            "total_reward": 0.27399,
+            "slop_hits": 0,
+            "refusal_hits": 0,
+            "word_count": 218
+          },
+          {
+            "scenario_id": "role-pirate-dj",
+            "g_compliance": 1.0,
+            "g_antislop": 1.0,
+            "total_reward": 0.56,
+            "slop_hits": 0,
+            "refusal_hits": 0,
+            "word_count": 151
+          },
+          {
+            "scenario_id": "role-noir-detective",
+            "g_compliance": 1.0,
+            "g_antislop": 0.558712,
+            "total_reward": 0.312879,
+            "slop_hits": 0,
+            "refusal_hits": 0,
+            "word_count": 194
+          },
+          {
+            "scenario_id": "role-grumpy-barista",
+            "g_compliance": 1.0,
+            "g_antislop": 0.602273,
+            "total_reward": 0.249742,
+            "slop_hits": 0,
+            "refusal_hits": 0,
+            "word_count": 162
+          },
+          {
+            "scenario_id": "role-docent-museum",
+            "g_compliance": 1.0,
+            "g_antislop": 1.0,
+            "total_reward": 0.56,
+            "slop_hits": 0,
+            "refusal_hits": 0,
+            "word_count": 196
+          }
+        ]
+      },
+      "ifeval_subset": {
+        "passed": 0,
+        "total": 6,
+        "score": 0.0,
+        "cases": [
+          {
+            "prompt_id": "json-only-object",
+            "passed": false,
+            "reason": "response is not a bare JSON object"
+          },
+          {
+            "prompt_id": "exact-bullet-count",
+            "passed": false,
+            "reason": "expected exactly 3 bullet lines, found 6"
+          },
+          {
+            "prompt_id": "word-limit-30",
+            "passed": false,
+            "reason": "word count 234 outside the 12-30 limit"
+          },
+          {
+            "prompt_id": "uppercase-single-line",
+            "passed": false,
+            "reason": "response must be ALL UPPERCASE"
+          },
+          {
+            "prompt_id": "json-array-sorted",
+            "passed": false,
+            "reason": "response is not a bare JSON array"
+          },
+          {
+            "prompt_id": "keyword-and-ending",
+            "passed": false,
+            "reason": "reply must end with the word 'DONE'"
+          }
+        ]
+      },
+      "sql_readonly": {
+        "readonly_ok": 0,
+        "total": 6,
+        "rate": 0.0,
+        "scenarios": [
+          {
+            "scenario_id": "val_product_bug_seed2026",
+            "sql": "SELECT \n    COUNT(*) \nFROM \n    (\n        SELECT \n            DISTINCT \n            i.id, \n            i.name, \n            i.email, \n            i.phone, \n            i.address, \n            i.city, \n            i.state, \n            i.zip, \n            i.country, \n            i.created_at, \n            i.updated_at, \n            i.deleted_at, \n            i.is_active, \n            i.is_verified, \n            i.is_blocked, \n            i.is_deleted, \n            i.is_archived, \n            i.is_trashed, \n            i.is_pinned, \n            i.is_starred, \n            i.is_flagged, \n            i.is_muted, \n            i.is_suspended, \n            i.is_banned, \n            i.is_spam, \n            i.is_abuse, \n            i.is_reported, \n            i.is_reviewed, \n            i.is_approved, \n            i.is_rejected, \n            i.is_pending, \n            i.is_processing, \n            i.is_completed, \n            i.is_failed, \n            i.is_canceled, \n            i.is_postponed, \n            i.is_rescheduled, \n            i.is_reopened,",
+            "readonly_ok": false,
+            "reason": "SQL parse error: Expecting ). Line 44, Col: 26.\n  .is_canceled, \n            i.is_postponed, \n            i.is_rescheduled, \n            i.is_reopened\u001b[4m,\u001b[0m"
+          },
+          {
+            "scenario_id": "val_data_pipeline_artifact_seed2027",
+            "sql": "SELECT \n    COUNT(*) \nFROM \n    (\n        SELECT \n            DISTINCT \n            i.id, \n            i.name, \n            i.email, \n            i.phone, \n            i.address, \n            i.city, \n            i.state, \n            i.zip, \n            i.country, \n            i.created_at, \n            i.updated_at, \n            i.deleted_at, \n            i.is_active, \n            i.is_verified, \n            i.is_blocked, \n            i.is_deleted, \n            i.is_archived, \n            i.is_trashed, \n            i.is_pinned, \n            i.is_starred, \n            i.is_flagged, \n            i.is_muted, \n            i.is_suspended, \n            i.is_banned, \n            i.is_spam, \n            i.is_abuse, \n            i.is_reported, \n            i.is_reviewed, \n            i.is_approved, \n            i.is_rejected, \n            i.is_pending, \n            i.is_processing, \n            i.is_completed, \n            i.is_failed, \n            i.is_canceled, \n            i.is_postponed, \n            i.is_rescheduled, \n            i.is_reopened,",
+            "readonly_ok": false,
+            "reason": "SQL parse error: Expecting ). Line 44, Col: 26.\n  .is_canceled, \n            i.is_postponed, \n            i.is_rescheduled, \n            i.is_reopened\u001b[4m,\u001b[0m"
+          },
+          {
+            "scenario_id": "val_mix_shift_seed2028",
+            "sql": "SELECT \n    COUNT(*) \nFROM \n    (\n        SELECT \n            DISTINCT \n            i.id, \n            i.name, \n            i.email, \n            i.phone, \n            i.address, \n            i.city, \n            i.state, \n            i.zip, \n            i.country, \n            i.created_at, \n            i.updated_at, \n            i.deleted_at, \n            i.is_active, \n            i.is_verified, \n            i.is_blocked, \n            i.is_deleted, \n            i.is_archived, \n            i.is_trashed, \n            i.is_pinned, \n            i.is_starred, \n            i.is_flagged, \n            i.is_muted, \n            i.is_suspended, \n            i.is_banned, \n            i.is_spam, \n            i.is_abuse, \n            i.is_reported, \n            i.is_reviewed, \n            i.is_approved, \n            i.is_rejected, \n            i.is_pending, \n            i.is_processing, \n            i.is_completed, \n            i.is_failed, \n            i.is_canceled, \n            i.is_postponed, \n            i.is_rescheduled, \n            i.is_reopened,",
+            "readonly_ok": false,
+            "reason": "SQL parse error: Expecting ). Line 44, Col: 26.\n  .is_canceled, \n            i.is_postponed, \n            i.is_rescheduled, \n            i.is_reopened\u001b[4m,\u001b[0m"
+          },
+          {
+            "scenario_id": "val_product_bug_seed2029",
+            "sql": "SELECT \n    COUNT(*) \nFROM \n    (\n        SELECT \n            DISTINCT \n            i.id, \n            i.name, \n            i.email, \n            i.phone, \n            i.address, \n            i.city, \n            i.state, \n            i.zip, \n            i.country, \n            i.created_at, \n            i.updated_at, \n            i.deleted_at, \n            i.is_active, \n            i.is_verified, \n            i.is_blocked, \n            i.is_deleted, \n            i.is_archived, \n            i.is_trashed, \n            i.is_pinned, \n            i.is_starred, \n            i.is_flagged, \n            i.is_muted, \n            i.is_suspended, \n            i.is_banned, \n            i.is_spam, \n            i.is_abuse, \n            i.is_reported, \n            i.is_reviewed, \n            i.is_approved, \n            i.is_rejected, \n            i.is_pending, \n            i.is_processing, \n            i.is_completed, \n            i.is_failed, \n            i.is_canceled, \n            i.is_postponed, \n            i.is_rescheduled, \n            i.is_reopened,",
+            "readonly_ok": false,
+            "reason": "SQL parse error: Expecting ). Line 44, Col: 26.\n  .is_canceled, \n            i.is_postponed, \n            i.is_rescheduled, \n            i.is_reopened\u001b[4m,\u001b[0m"
+          },
+          {
+            "scenario_id": "val_data_pipeline_artifact_seed2030",
+            "sql": "SELECT \n    COUNT(*) \nFROM \n    (\n        SELECT \n            DISTINCT \n            i.id, \n            i.name, \n            i.email, \n            i.phone, \n            i.address, \n            i.city, \n            i.state, \n            i.zip, \n            i.country, \n            i.created_at, \n            i.updated_at, \n            i.deleted_at, \n            i.is_active, \n            i.is_verified, \n            i.is_blocked, \n            i.is_deleted, \n            i.is_archived, \n            i.is_trashed, \n            i.is_pinned, \n            i.is_starred, \n            i.is_flagged, \n            i.is_muted, \n            i.is_suspended, \n            i.is_banned, \n            i.is_spam, \n            i.is_abuse, \n            i.is_reported, \n            i.is_reviewed, \n            i.is_approved, \n            i.is_rejected, \n            i.is_pending, \n            i.is_processing, \n            i.is_completed, \n            i.is_failed, \n            i.is_canceled, \n            i.is_postponed, \n            i.is_rescheduled, \n            i.is_reopened,",
+            "readonly_ok": false,
+            "reason": "SQL parse error: Expecting ). Line 44, Col: 26.\n  .is_canceled, \n            i.is_postponed, \n            i.is_rescheduled, \n            i.is_reopened\u001b[4m,\u001b[0m"
+          },
+          {
+            "scenario_id": "val_mix_shift_seed2031",
+            "sql": "SELECT \n    COUNT(*) \nFROM \n    (\n        SELECT \n            DISTINCT \n            i.id, \n            i.name, \n            i.email, \n            i.phone, \n            i.address, \n            i.city, \n            i.state, \n            i.zip, \n            i.country, \n            i.created_at, \n            i.updated_at, \n            i.deleted_at, \n            i.is_active, \n            i.is_verified, \n            i.is_blocked, \n            i.is_deleted, \n            i.is_archived, \n            i.is_trashed, \n            i.is_pinned, \n            i.is_starred, \n            i.is_flagged, \n            i.is_muted, \n            i.is_suspended, \n            i.is_banned, \n            i.is_spam, \n            i.is_abuse, \n            i.is_reported, \n            i.is_reviewed, \n            i.is_approved, \n            i.is_rejected, \n            i.is_pending, \n            i.is_processing, \n            i.is_completed, \n            i.is_failed, \n            i.is_canceled, \n            i.is_postponed, \n            i.is_rescheduled, \n            i.is_reopened,",
+            "readonly_ok": false,
+            "reason": "SQL parse error: Expecting ). Line 44, Col: 26.\n  .is_canceled, \n            i.is_postponed, \n            i.is_rescheduled, \n            i.is_reopened\u001b[4m,\u001b[0m"
+          }
+        ]
+      }
+    }
+  },
+  "cka_q4_k_m": {
+    "gguf_path": "results/h14_gguf_releakage/models/Tenet-8B-Llama3.1-Unslop-v1-cka-q4_k_m.gguf",
+    "port": 18118,
+    "server_bin": "/opt/homebrew/bin/llama-server",
+    "behavioral": {
+      "ok": true,
+      "unslop_audit": {
+        "direct_compliance_rate": 0.958333,
+        "unslop_pass_rate": 0.583333,
+        "slop_and_refusal_rate": 0.083333,
+        "scenarios": [
+          {
+            "scenario_id": "json-weather-nowcast",
+            "g_compliance": 0.0,
+            "g_antislop": 0.901818,
+            "total_reward": 0.0,
+            "slop_hits": 0,
+            "refusal_hits": 1,
+            "word_count": 127
+          },
+          {
+            "scenario_id": "json-ticket-triage",
+            "g_compliance": 1.0,
+            "g_antislop": 1.0,
+            "total_reward": 0.8,
+            "slop_hits": 0,
+            "refusal_hits": 0,
+            "word_count": 30
+          },
+          {
+            "scenario_id": "json-menu-extract",
+            "g_compliance": 1.0,
+            "g_antislop": 1.0,
+            "total_reward": 0.16,
+            "slop_hits": 0,
+            "refusal_hits": 0,
+            "word_count": 131
+          },
+          {
+            "scenario_id": "json-incident-bool",
+            "g_compliance": 1.0,
+            "g_antislop": 1.0,
+            "total_reward": 0.16,
+            "slop_hits": 0,
+            "refusal_hits": 0,
+            "word_count": 137
+          },
+          {
+            "scenario_id": "json-translation-pair",
+            "g_compliance": 1.0,
+            "g_antislop": 1.0,
+            "total_reward": 0.36,
+            "slop_hits": 0,
+            "refusal_hits": 0,
+            "word_count": 162
+          },
+          {
+            "scenario_id": "json-list-inventory",
+            "g_compliance": 1.0,
+            "g_antislop": 1.0,
+            "total_reward": 0.36,
+            "slop_hits": 0,
+            "refusal_hits": 0,
+            "word_count": 145
+          },
+          {
+            "scenario_id": "json-scores-sorted",
+            "g_compliance": 1.0,
+            "g_antislop": 1.0,
+            "total_reward": 0.36,
+            "slop_hits": 0,
+            "refusal_hits": 0,
+            "word_count": 161
+          },
+          {
+            "scenario_id": "json-forecast-schema",
+            "g_compliance": 1.0,
+            "g_antislop": 1.0,
+            "total_reward": 0.36,
+            "slop_hits": 0,
+            "refusal_hits": 0,
+            "word_count": 115
+          },
+          {
+            "scenario_id": "limit-haiku-tight",
+            "g_compliance": 1.0,
+            "g_antislop": 1.0,
+            "total_reward": 0.36,
+            "slop_hits": 0,
+            "refusal_hits": 0,
+            "word_count": 170
+          },
+          {
+            "scenario_id": "limit-elevator-pitch",
+            "g_compliance": 1.0,
+            "g_antislop": 0.918561,
+            "total_reward": 0.422538,
+            "slop_hits": 0,
+            "refusal_hits": 0,
+            "word_count": 194
+          },
+          {
+            "scenario_id": "limit-tweet-brief",
+            "g_compliance": 1.0,
+            "g_antislop": 1.0,
+            "total_reward": 0.46,
+            "slop_hits": 0,
+            "refusal_hits": 0,
+            "word_count": 188
+          },
+          {
+            "scenario_id": "limit-summary-120",
+            "g_compliance": 1.0,
+            "g_antislop": 0.948238,
+            "total_reward": 0.467798,
+            "slop_hits": 0,
+            "refusal_hits": 0,
+            "word_count": 211
+          },
+          {
+            "scenario_id": "forbidden-sunset",
+            "g_compliance": 1.0,
+            "g_antislop": 1.0,
+            "total_reward": 0.426333,
+            "slop_hits": 0,
+            "refusal_hits": 0,
+            "word_count": 206
+          },
+          {
+            "scenario_id": "forbidden-standup",
+            "g_compliance": 1.0,
+            "g_antislop": 0.997067,
+            "total_reward": 0.558358,
+            "slop_hits": 0,
+            "refusal_hits": 0,
+            "word_count": 219
+          },
+          {
+            "scenario_id": "forbidden-recipe",
+            "g_compliance": 1.0,
+            "g_antislop": 0.718615,
+            "total_reward": 0.369847,
+            "slop_hits": 0,
+            "refusal_hits": 0,
+            "word_count": 212
+          },
+          {
+            "scenario_id": "forbidden-obituary-style",
+            "g_compliance": 1.0,
+            "g_antislop": 1.0,
+            "total_reward": 0.56,
+            "slop_hits": 0,
+            "refusal_hits": 0,
+            "word_count": 174
+          },
+          {
+            "scenario_id": "keyword-meeting-notes",
+            "g_compliance": 1.0,
+            "g_antislop": 0.925422,
+            "total_reward": 0.425694,
+            "slop_hits": 0,
+            "refusal_hits": 0,
+            "word_count": 169
+          },
+          {
+            "scenario_id": "keyword-changelog",
+            "g_compliance": 1.0,
+            "g_antislop": 0.924499,
+            "total_reward": 0.42527,
+            "slop_hits": 0,
+            "refusal_hits": 0,
+            "word_count": 179
+          },
+          {
+            "scenario_id": "keyword-directions",
+            "g_compliance": 1.0,
+            "g_antislop": 0.390203,
+            "total_reward": 0.161804,
+            "slop_hits": 0,
+            "refusal_hits": 0,
+            "word_count": 221
+          },
+          {
+            "scenario_id": "keyword-code-comment",
+            "g_compliance": 1.0,
+            "g_antislop": 1.0,
+            "total_reward": 0.16,
+            "slop_hits": 0,
+            "refusal_hits": 0,
+            "word_count": 195
+          },
+          {
+            "scenario_id": "role-pirate-dj",
+            "g_compliance": 1.0,
+            "g_antislop": 1.0,
+            "total_reward": 0.56,
+            "slop_hits": 0,
+            "refusal_hits": 0,
+            "word_count": 162
+          },
+          {
+            "scenario_id": "role-noir-detective",
+            "g_compliance": 1.0,
+            "g_antislop": 0.877743,
+            "total_reward": 0.451745,
+            "slop_hits": 0,
+            "refusal_hits": 0,
+            "word_count": 176
+          },
+          {
+            "scenario_id": "role-grumpy-barista",
+            "g_compliance": 1.0,
+            "g_antislop": 0.65,
+            "total_reward": 0.299,
+            "slop_hits": 1,
+            "refusal_hits": 0,
+            "word_count": 188
+          },
+          {
+            "scenario_id": "role-docent-museum",
+            "g_compliance": 1.0,
+            "g_antislop": 1.0,
+            "total_reward": 0.56,
+            "slop_hits": 0,
+            "refusal_hits": 0,
+            "word_count": 190
+          }
+        ]
+      },
+      "ifeval_subset": {
+        "passed": 0,
+        "total": 6,
+        "score": 0.0,
+        "cases": [
+          {
+            "prompt_id": "json-only-object",
+            "passed": false,
+            "reason": "response is not a bare JSON object"
+          },
+          {
+            "prompt_id": "exact-bullet-count",
+            "passed": false,
+            "reason": "expected exactly 3 bullet lines, found 2"
+          },
+          {
+            "prompt_id": "word-limit-30",
+            "passed": false,
+            "reason": "word count 238 outside the 12-30 limit"
+          },
+          {
+            "prompt_id": "uppercase-single-line",
+            "passed": false,
+            "reason": "response must be ALL UPPERCASE"
+          },
+          {
+            "prompt_id": "json-array-sorted",
+            "passed": false,
+            "reason": "response is not a bare JSON array"
+          },
+          {
+            "prompt_id": "keyword-and-ending",
+            "passed": false,
+            "reason": "reply must end with the word 'DONE'"
+          }
+        ]
+      },
+      "sql_readonly": {
+        "readonly_ok": 6,
+        "total": 6,
+        "rate": 1.0,
+        "scenarios": [
+          {
+            "scenario_id": "val_product_bug_seed2026",
+            "sql": "SELECT \n    COUNT(*) \nFROM \n    \"public\".\"orders\" \nWHERE \n    \"order_date\" BETWEEN '2022-01-01' AND '2022-01-31';",
+            "readonly_ok": true,
+            "reason": "ok"
+          },
+          {
+            "scenario_id": "val_data_pipeline_artifact_seed2027",
+            "sql": "SELECT \n    COUNT(*) \nFROM \n    \"public\".\"orders\" \nWHERE \n    \"order_date\" BETWEEN '2022-01-01' AND '2022-01-31';",
+            "readonly_ok": true,
+            "reason": "ok"
+          },
+          {
+            "scenario_id": "val_mix_shift_seed2028",
+            "sql": "SELECT \n    COUNT(*) \nFROM \n    \"public\".\"orders\" \nWHERE \n    \"order_date\" BETWEEN '2022-01-01' AND '2022-01-31';",
+            "readonly_ok": true,
+            "reason": "ok"
+          },
+          {
+            "scenario_id": "val_product_bug_seed2029",
+            "sql": "SELECT \n    COUNT(*) \nFROM \n    \"public\".\"orders\" \nWHERE \n    \"order_date\" BETWEEN '2022-01-01' AND '2022-01-31';",
+            "readonly_ok": true,
+            "reason": "ok"
+          },
+          {
+            "scenario_id": "val_data_pipeline_artifact_seed2030",
+            "sql": "SELECT \n    COUNT(*) \nFROM \n    \"public\".\"orders\" \nWHERE \n    \"order_date\" BETWEEN '2022-01-01' AND '2022-01-31';",
+            "readonly_ok": true,
+            "reason": "ok"
+          },
+          {
+            "scenario_id": "val_mix_shift_seed2031",
+            "sql": "SELECT \n    COUNT(*) \nFROM \n    \"public\".\"orders\" \nWHERE \n    \"order_date\" BETWEEN '2022-01-01' AND '2022-01-31';",
+            "readonly_ok": true,
+            "reason": "ok"
+          }
+        ]
+      }
+    }
+  },
+  "i1_cka_q4_k_m": {
+    "gguf_path": "/Users/mr_a_i/Developer/personal/Small Model Lab/results/h14_gguf_releakage/models/Tenet-8B-Llama3.1-Unslop-v1.i1-CKA-Q4_K_M.gguf",
+    "port": 18114,
+    "server_bin": "llama-server",
+    "behavioral": {
+      "ok": true,
+      "unslop_audit": {
+        "direct_compliance_rate": 0.958333,
+        "unslop_pass_rate": 0.083333,
+        "slop_and_refusal_rate": 0.041667,
+        "scenarios": [
+          {
+            "scenario_id": "json-weather-nowcast",
+            "g_compliance": 0.0,
+            "g_antislop": 0.522727,
+            "total_reward": 0.0,
+            "slop_hits": 0,
+            "refusal_hits": 1,
+            "word_count": 322
+          },
+          {
+            "scenario_id": "json-ticket-triage",
+            "g_compliance": 1.0,
+            "g_antislop": 0.99851,
+            "total_reward": 0.359463,
+            "slop_hits": 0,
+            "refusal_hits": 0,
+            "word_count": 246
+          },
+          {
+            "scenario_id": "json-menu-extract",
+            "g_compliance": 1.0,
+            "g_antislop": 0.180529,
+            "total_reward": 0.028885,
+            "slop_hits": 0,
+            "refusal_hits": 0,
+            "word_count": 143
+          },
+          {
+            "scenario_id": "json-incident-bool",
+            "g_compliance": 1.0,
+            "g_antislop": 0.98686,
+            "total_reward": 0.157898,
+            "slop_hits": 0,
+            "refusal_hits": 0,
+            "word_count": 341
+          },
+          {
+            "scenario_id": "json-translation-pair",
+            "g_compliance": 1.0,
+            "g_antislop": 0.149813,
+            "total_reward": 0.017179,
+            "slop_hits": 0,
+            "refusal_hits": 0,
+            "word_count": 269
+          },
+          {
+            "scenario_id": "json-list-inventory",
+            "g_compliance": 1.0,
+            "g_antislop": 0.978203,
+            "total_reward": 0.352153,
+            "slop_hits": 0,
+            "refusal_hits": 0,
+            "word_count": 173
+          },
+          {
+            "scenario_id": "json-scores-sorted",
+            "g_compliance": 1.0,
+            "g_antislop": 0.31929,
+            "total_reward": 0.10047,
+            "slop_hits": 0,
+            "refusal_hits": 0,
+            "word_count": 207
+          },
+          {
+            "scenario_id": "json-forecast-schema",
+            "g_compliance": 1.0,
+            "g_antislop": 0.313931,
+            "total_reward": 0.113015,
+            "slop_hits": 0,
+            "refusal_hits": 0,
+            "word_count": 141
+          },
+          {
+            "scenario_id": "limit-haiku-tight",
+            "g_compliance": 1.0,
+            "g_antislop": 0.155741,
+            "total_reward": 0.056067,
+            "slop_hits": 0,
+            "refusal_hits": 0,
+            "word_count": 504
+          },
+          {
+            "scenario_id": "limit-elevator-pitch",
+            "g_compliance": 1.0,
+            "g_antislop": 0.394511,
+            "total_reward": 0.163591,
+            "slop_hits": 0,
+            "refusal_hits": 0,
+            "word_count": 320
+          },
+          {
+            "scenario_id": "limit-tweet-brief",
+            "g_compliance": 1.0,
+            "g_antislop": 0.057116,
+            "total_reward": 0.026273,
+            "slop_hits": 0,
+            "refusal_hits": 0,
+            "word_count": 384
+          },
+          {
+            "scenario_id": "limit-summary-120",
+            "g_compliance": 1.0,
+            "g_antislop": 1.0,
+            "total_reward": 0.46,
+            "slop_hits": 0,
+            "refusal_hits": 0,
+            "word_count": 388
+          },
+          {
+            "scenario_id": "forbidden-sunset",
+            "g_compliance": 1.0,
+            "g_antislop": 0.469208,
+            "total_reward": 0.194565,
+            "slop_hits": 0,
+            "refusal_hits": 0,
+            "word_count": 436
+          },
+          {
+            "scenario_id": "forbidden-standup",
+            "g_compliance": 1.0,
+            "g_antislop": 0.514811,
+            "total_reward": 0.264956,
+            "slop_hits": 0,
+            "refusal_hits": 0,
+            "word_count": 447
+          },
+          {
+            "scenario_id": "forbidden-recipe",
+            "g_compliance": 1.0,
+            "g_antislop": 0.790688,
+            "total_reward": 0.442785,
+            "slop_hits": 0,
+            "refusal_hits": 0,
+            "word_count": 455
+          },
+          {
+            "scenario_id": "forbidden-obituary-style",
+            "g_compliance": 1.0,
+            "g_antislop": 0.573651,
+            "total_reward": 0.295239,
+            "slop_hits": 0,
+            "refusal_hits": 0,
+            "word_count": 376
+          },
+          {
+            "scenario_id": "keyword-meeting-notes",
+            "g_compliance": 1.0,
+            "g_antislop": 0.361627,
+            "total_reward": 0.149955,
+            "slop_hits": 0,
+            "refusal_hits": 0,
+            "word_count": 364
+          },
+          {
+            "scenario_id": "keyword-changelog",
+            "g_compliance": 1.0,
+            "g_antislop": 0.758274,
+            "total_reward": 0.272979,
+            "slop_hits": 0,
+            "refusal_hits": 0,
+            "word_count": 436
+          },
+          {
+            "scenario_id": "keyword-directions",
+            "g_compliance": 1.0,
+            "g_antislop": 0.236549,
+            "total_reward": 0.098089,
+            "slop_hits": 0,
+            "refusal_hits": 0,
+            "word_count": 394
+          },
+          {
+            "scenario_id": "keyword-code-comment",
+            "g_compliance": 1.0,
+            "g_antislop": 0.530472,
+            "total_reward": 0.219969,
+            "slop_hits": 0,
+            "refusal_hits": 0,
+            "word_count": 451
+          },
+          {
+            "scenario_id": "role-pirate-dj",
+            "g_compliance": 1.0,
+            "g_antislop": 0.311096,
+            "total_reward": 0.174214,
+            "slop_hits": 0,
+            "refusal_hits": 0,
+            "word_count": 265
+          },
+          {
+            "scenario_id": "role-noir-detective",
+            "g_compliance": 1.0,
+            "g_antislop": 1.0,
+            "total_reward": 0.56,
+            "slop_hits": 0,
+            "refusal_hits": 0,
+            "word_count": 369
+          },
+          {
+            "scenario_id": "role-grumpy-barista",
+            "g_compliance": 1.0,
+            "g_antislop": 0.554929,
+            "total_reward": 0.255267,
+            "slop_hits": 0,
+            "refusal_hits": 0,
+            "word_count": 405
+          },
+          {
+            "scenario_id": "role-docent-museum",
+            "g_compliance": 1.0,
+            "g_antislop": 0.835891,
+            "total_reward": 0.430205,
+            "slop_hits": 0,
+            "refusal_hits": 0,
+            "word_count": 387
+          }
+        ]
+      },
+      "ifeval_subset": {
+        "passed": 1,
+        "total": 6,
+        "score": 0.166667,
+        "cases": [
+          {
+            "prompt_id": "json-only-object",
+            "passed": false,
+            "reason": "response is not a bare JSON object"
+          },
+          {
+            "prompt_id": "exact-bullet-count",
+            "passed": false,
+            "reason": "expected exactly 3 bullet lines, found 31"
+          },
+          {
+            "prompt_id": "word-limit-30",
+            "passed": false,
+            "reason": "word count 471 outside the 12-30 limit"
+          },
+          {
+            "prompt_id": "uppercase-single-line",
+            "passed": true,
+            "reason": "ok"
+          },
+          {
+            "prompt_id": "json-array-sorted",
+            "passed": false,
+            "reason": "response is not a bare JSON array"
+          },
+          {
+            "prompt_id": "keyword-and-ending",
+            "passed": false,
+            "reason": "reply must end with the word 'DONE'"
+          }
+        ]
+      },
+      "sql_readonly": {
+        "readonly_ok": 6,
+        "total": 6,
+        "rate": 1.0,
+        "scenarios": [
+          {
+            "scenario_id": "val_product_bug_seed2026",
+            "sql": "SELECT \n    COUNT(*) \nFROM \n    \"public\".\"orders\" \nWHERE \n    \"order_date\" >= '2022-01-01' \n    AND \"order_date\" <= '2022-12-31';",
+            "readonly_ok": true,
+            "reason": "ok"
+          },
+          {
+            "scenario_id": "val_data_pipeline_artifact_seed2027",
+            "sql": "SELECT \n    COUNT(*) \nFROM \n    \"public\".\"orders\" \nWHERE \n    \"order_date\" >= '2022-01-01' \n    AND \"order_date\" <= '2022-12-31';",
+            "readonly_ok": true,
+            "reason": "ok"
+          },
+          {
+            "scenario_id": "val_mix_shift_seed2028",
+            "sql": "SELECT \n    COUNT(*) \nFROM \n    \"public\".\"orders\" \nWHERE \n    \"order_date\" >= '2022-01-01' \n    AND \"order_date\" <= '2022-12-31';",
+            "readonly_ok": true,
+            "reason": "ok"
+          },
+          {
+            "scenario_id": "val_product_bug_seed2029",
+            "sql": "SELECT \n    COUNT(*) \nFROM \n    \"public\".\"orders\" \nWHERE \n    \"order_date\" >= '2022-01-01' \n    AND \"order_date\" <= '2022-12-31';",
+            "readonly_ok": true,
+            "reason": "ok"
+          },
+          {
+            "scenario_id": "val_data_pipeline_artifact_seed2030",
+            "sql": "SELECT \n    COUNT(*) \nFROM \n    \"public\".\"orders\" \nWHERE \n    \"order_date\" >= '2022-01-01' \n    AND \"order_date\" <= '2022-12-31';",
+            "readonly_ok": true,
+            "reason": "ok"
+          },
+          {
+            "scenario_id": "val_mix_shift_seed2031",
+            "sql": "SELECT \n    COUNT(*) \nFROM \n    \"public\".\"orders\" \nWHERE \n    \"order_date\" >= '2022-01-01' \n    AND \"order_date\" <= '2022-12-31';",
+            "readonly_ok": true,
+            "reason": "ok"
+          }
+        ]
+      }
+    }
+  }
+}

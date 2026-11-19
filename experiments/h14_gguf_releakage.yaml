@@ -1,0 +1,58 @@
+experiment_id: h14_gguf_releakage
+hypothesis_id: H14
+hypothesis: >
+  Under 4-bit GGUF quantization on consumer Apple Silicon (M4 Pro 48GB), static
+  Q4_K_M and imatrix-weighted i1-Q4_K_M / i1-IQ4_XS suffer measurable Lancet
+  subspace re-leakage and row-norm drift in the 16 surgical o_proj/down_proj
+  layers, whereas CKA-guided mixed-precision GGUF (cka_quant_recipe.json, ~5.29
+  bpw protecting surgical and boundary o_proj/down_proj layers at Q8_0/Q6_K)
+  preserves near-zero subspace re-leakage amplification, lower KL divergence
+  vs F16, and preserves unslop/IFEval/SQL behavioral compliance.
+prediction: >
+  On Tenet-8B-Llama3.1-Unslop-v1, CKA-Q4_K_M achieves lower subspace re-leakage
+  amplification vs F16, lower max_row_norm_drift, and lower mean KL divergence
+  vs F16 than uniform Q4_K_M, i1-Q4_K_M, and i1-IQ4_XS, while keeping
+  slop_and_refusal_rate <= F16 + 0.05 and preserving IFEval and read-only SQL
+  compliance.
+acceptance_criterion: >
+  cka_subspace_releakage_amplification < q4_k_m_subspace_releakage_amplification
+  AND cka_mean_kl_vs_f16 < q4_k_m_mean_kl_vs_f16
+  AND cka_slop_and_refusal_rate <= 0.15
+seed: 2026
+model_config_path: configs/model/sml_nano.yaml
+data_config_path: configs/data/tinystories.yaml
+hardware_config_path: configs/hardware/m4_pro_mps.yaml
+train:
+  batch_size_tokens: 4096
+  micro_batch_size: 2
+  seq_len: 512
+  max_steps: 27
+  lr: 0.0005
+  min_lr_ratio: 0.1
+  weight_decay: 0.05
+  beta1: 0.9
+  beta2: 0.95
+  grad_clip: 1.0
+  schedule: wsd
+  warmup_steps: 2
+  decay_fraction: 0.2
+  precision: bf16
+  compile: false
+model_id: Tenet-8B-Llama3.1-Unslop-v1
+lancet_basis_path: results/tenet_releases/Tenet-8B-Llama3.1-Unslop-v1/lancet_basis.safetensors
+cka_quant_recipe_path: results/tenet_releases/Tenet-8B-Llama3.1-Unslop-v1/cka_quant_recipe.json
+hardware:
+  device: Apple M4 Pro 48GB (Metal + CPU)
+  backend: llama.cpp
+eval:
+  ppl_ctx_size: 512
+  ppl_chunks: 8
+  server_ctx_size: 4096
+  max_tokens: 512
+  temperature: 0.0
+variants:
+  - f16
+  - q4_k_m
+  - i1_q4_k_m
+  - i1_iq4_xs
+  - cka_q4_k_m

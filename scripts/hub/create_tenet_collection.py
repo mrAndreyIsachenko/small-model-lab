@@ -23,6 +23,12 @@ ITEMS: list[tuple[str, str, str]] = [
         "re-leakage, Row Crest-Factor < 25.0, and CKA-guided GGUF quantization.",
     ),
     (
+        "mr-andrey-isachenko/Tenet-32B-Qwen2.5-Unslop-v1",
+        "model",
+        "32B Qwen2.5-32B-Instruct: H13 streaming shard surgery (max diff 7.45e-09), "
+        "8/8 FP8 provider readiness (Crest 3.68 < 25.0), CKA-guided GGUF recipe.",
+    ),
+    (
         "mr-andrey-isachenko/Tenet-12B-Nemo-Unslop-v1",
         "model",
         "12B Mistral-Nemo-Instruct-2407: 99.14% target suppression, 96.72% H9 KL reduction, "
@@ -33,6 +39,12 @@ ITEMS: list[tuple[str, str, str]] = [
         "model",
         "8B Llama-3.1-8B-Instruct: 99.30% target suppression, 89.89% H9 KL reduction, "
         "0.0410 slop/refusal, 99.36% FP8 retention (Crest 6.32 < 25.0).",
+    ),
+    (
+        "mr-andrey-isachenko/Tenet-8B-Llama3.1-Unslop-v1-CKA-GGUF",
+        "model",
+        "8B CKA-guided mixed-precision GGUF (i1-CKA-Q4_K_M & CKA-Q4_K_M, 5.29 bpw): "
+        "3.012x subspace amp, 1.17% L2 err, PPL 9.0533, Mean KLD 0.01656, 6/6 SQL.",
     ),
     (
         "mr-andrey-isachenko/Tenet-3B-Qwen2.5-Unslop-v1",

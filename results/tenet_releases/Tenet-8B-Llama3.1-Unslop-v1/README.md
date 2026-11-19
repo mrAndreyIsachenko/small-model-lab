@@ -30,7 +30,12 @@ surgical de-refusal and de-slop work by the **Lancet** engine, finalized
 with gated unslop GRPO and exported as a provider-ready FP8 (E4M3)
 checkpoint. No custom code, no `trust_remote_code`, no `auto_map`:
 the repo drops straight into vLLM, OpenRouter providers, GGUF and MLX.
-Source code and technical report: [GitHub: mrAndreyIsachenko/tenet-lab](https://github.com/mrAndreyIsachenko/tenet-lab) | Interactive audit: [FP8 & Abliteration Inspector Space](https://huggingface.co/spaces/mr-andrey-isachenko/fp8-abliteration-inspector) | Model family: [Tenet v1 Collection (`mr-andrey-isachenko`)](https://huggingface.co/mr-andrey-isachenko).
+Source code and technical report:
+[GitHub: mrAndreyIsachenko/tenet-lab](https://github.com/mrAndreyIsachenko/tenet-lab)
+| Interactive audit:
+[FP8 & Abliteration Inspector Space](https://huggingface.co/spaces/mr-andrey-isachenko/fp8-abliteration-inspector)
+| Model family:
+[Tenet v1 Collection (`mr-andrey-isachenko`)](https://huggingface.co/mr-andrey-isachenko).
 
 ## Lancet surgery engine
 
@@ -61,42 +66,60 @@ explicitly out of scope and unsupported by this release.
 
 ## Benchmarks
 
-Benchmarks are reported for the BF16 surgery output, the shipped FP8
-(E4M3) export, and a naive-abliteration baseline of the same base model.
+Numbers come from the release pipeline's `final_metrics.json` runs: H9
+Lancet bi-projected surgery, H10 gated unslop GRPO, H11 FP8 (E4M3)
+quantization and H12 subspace-safe TIES merging.
 
 ### H9 - refusal & slop retention
 
 Lower is better: residual refusal-direction alignment and slop density
-after surgery.
+after bi-projected surgery.
 
-| Variant | H9 |
-| --- | --- |
-| BF16 | 0.01 |
-| FP8 (E4M3) | 0.04 |
-| Naive Abliteration | 0.13 |
+| Metric | Value | Direction |
+| --- | --- | --- |
+| Lancet KL Collateral | 0.01 | Lower |
+| Naive KL Collateral | 0.13 | Lower |
+| KL Reduction Ratio | 0.90 | Higher |
+| Target Suppression Ratio | 0.99 | Higher |
 
 ### H10 - downstream capability retention
 
-Higher is better: held-out reasoning, coding and instruction-following
-accuracy relative to the untouched base model.
+Higher is better: the gated GRPO pass reinforces held-out reasoning,
+coding and instruction-following instead of trading them away for
+de-sloping; the slop & refusal audit itself is lower-is-better.
 
-| Variant | H10 |
-| --- | --- |
-| BF16 | 0.46 |
-| FP8 (E4M3) | 1.00 |
-| Naive Abliteration | 0.25 |
+| Metric | Value | Direction |
+| --- | --- | --- |
+| Gated GRPO IFEval Score | 0.81 | Higher |
+| Gated vs Naive/Additive Gain | 0.25 | Higher |
+| Slop & Refusal Rate | 0.04 | Lower |
+| Post-Merge Suppression Retention | 1.00 | Higher |
 
 ### H11 - FP8 quantization robustness
 
-Higher is better: task accuracy of each variant after FP8 (E4M3)
-quantization, measuring how cleanly the surgery survives deployment
-precision.
+Higher retention and KL reduction are better; subspace re-leakage is
+lower-is-better and shows how cleanly the surgery survives FP8
+(E4M3) deployment precision.
 
-| Variant | H11 |
-| --- | --- |
-| BF16 | 0.99 |
-| FP8 (E4M3) | 0.43 |
-| Naive Abliteration | 0.50 |
+| Metric | Value | Direction |
+| --- | --- | --- |
+| FP8 Retention Ratio | 0.99 | Higher |
+| FP8 KL Reduction vs Naive | 0.43 | Higher |
+| FP8 Subspace Re-Leakage Lancet | 0.03 | Lower |
+| FP8 Subspace Re-Leakage Naive | 0.50 | Lower |
+
+### H12 - subspace-safe TIES merge
+
+Higher retention and merge gain are better; the subspace-safe
+merge re-leakage is lower-is-better and proves the TIES merge
+stays orthogonal to the tool/SQL anchor subspace.
+
+| Metric | Value | Direction |
+| --- | --- | --- |
+| SQL-Incident Retention | 0.98 | Higher |
+| Unslop Retention | 1.00 | Higher |
+| Subspace-Safe Merge Re-Leakage | 2.16e-07 | Lower |
+| TIES Bi-Projected vs Naive Gain | 0.80 | Higher |
 
 Max row crest-factor: 6.32
 
@@ -114,6 +137,22 @@ Max absolute weight: 0.91
 | LoRA Re-Leakage | — | 1.13 | 0.07 | 0.03 |
 | FP8 Subspace Re-Leakage | — | 0.50 | — | 0.03 |
 | Max Row Crest-Factor (< 25.0) | — | — | 6.32 | 6.32 |
+
+## External Benchmarks
+
+### Base vs Naive Abliteration vs Tenet (Three-Arm External Eval)
+
+| Benchmark | Base | Naive Abliteration | Tenet v1 | Δ (Tenet vs Base) | Δ (Tenet vs Naive) |
+| --- | --- | --- | --- | --- | --- |
+| Direct-Compliance rate | 1.00 | 1.00 | 1.00 | +0.00 | +0.00 |
+| GSM8K CoT (flexible) | 0.67 | 0.83 | 0.73 | +0.07 | -0.10 |
+| GSM8K CoT (strict) | 0.67 | 0.77 | 0.70 | +0.03 | -0.07 |
+| IFEval (inst strict) | 0.76 | 0.78 | 0.73 | -0.02 | -0.04 |
+| IFEval (strict) | 0.63 | 0.67 | 0.60 | -0.03 | -0.07 |
+| Slop & Refusal rate | 0.00 | 0.00 | 0.00 | +0.00 | +0.00 |
+| SQL-Incident Eval accuracy | 0.00 | 0.00 | 0.00 | +0.00 | +0.00 |
+| SQL-Incident mean reward | 0.00 | 0.00 | 0.00 | +0.00 | +0.00 |
+| Unslop pass rate | 1.00 | 1.00 | 1.00 | +0.00 | +0.00 |
 
 ## Side-by-Side: Naive Abliteration vs Tenet (Engineering & SQL Tool-Call)
 
@@ -165,12 +204,46 @@ output = model.generate(inputs, max_new_tokens=256)
 print(tokenizer.decode(output[0][inputs.shape[-1]:], skip_special_tokens=True))
 ```
 
-### llama.cpp (CKA-Quant GGUF)
+### llama.cpp (Reference CKA-Quant GGUF)
+
+Official CKA-guided mixed-precision GGUF builds (`i1-CKA-Q4_K_M` and `CKA-Q4_K_M`, `5.290` bpw, `5.32 GB`) are published at **[mr-andrey-isachenko/Tenet-8B-Llama3.1-Unslop-v1-CKA-GGUF](https://huggingface.co/mr-andrey-isachenko/Tenet-8B-Llama3.1-Unslop-v1-CKA-GGUF)**:
 
 ```bash
-llama-cli -m ./Tenet-8B-Llama3.1-Unslop-v1-CKA-Quant-Q4_K_M.gguf -ngl 99 -n 256 \
+llama-cli -hf mr-andrey-isachenko/Tenet-8B-Llama3.1-Unslop-v1-CKA-GGUF:Tenet-8B-Llama3.1-Unslop-v1.i1-CKA-Q4_K_M.gguf -ngl 99 -n 256 \
     -p "Return a DuckDB SQL tool call for failed logins by source IP."
 ```
+
+## Community GGUF / Local Inference & H14 Quantization Guide (llama.cpp, Ollama, LM Studio)
+
+Based on our **H14** GGUF quantization survival audit (`ADR-009`), choose one of the following recommended builds:
+
+- **[mr-andrey-isachenko/Tenet-8B-Llama3.1-Unslop-v1-CKA-GGUF](https://huggingface.co/mr-andrey-isachenko/Tenet-8B-Llama3.1-Unslop-v1-CKA-GGUF)** (**Recommended reference CKA builds**):
+  - **`i1-CKA-Q4_K_M`** (`Tenet-8B-Llama3.1-Unslop-v1.i1-CKA-Q4_K_M.gguf`, 5.32 GB) — best overall 4-bit fidelity (`PPL 9.0533`, `Mean KLD 0.01656`, `3.012x` subspace amplification, `1.17%` surgical weight L2 error, `6/6` SQL).
+  - **`CKA-Q4_K_M`** (`Tenet-8B-Llama3.1-Unslop-v1-cka-q4_k_m.gguf`, 5.32 GB) — non-imatrix CKA-guided mixed precision (`3.012x` subspace amp, `1.17%` L2 error, `6/6` SQL).
+- **[mradermacher/Tenet-8B-Llama3.1-Unslop-v1-i1-GGUF](https://huggingface.co/mradermacher/Tenet-8B-Llama3.1-Unslop-v1-i1-GGUF)** — community importance-matrix (imatrix) quants:
+  - Use **`i1-Q4_K_M`** (`4.92 GB`, `PPL 9.0749`, `Mean KLD 0.01947`, `0.0000` slop/refusal, `6/6` SQL) for the best ~4.9 bpw drop-in size/quality trade-off, or **`i1-Q6_K`** for near-BF16 fidelity.
+  - **Warning — do NOT use `i1-IQ4_XS` for SQL or tool-calling:** in H14 (`4.45 GB`), `i1-IQ4_XS` amplified surgical subspace re-leakage to `12.374x` (`7.73%` L2 error) and failed **6/6 (`0.0000`)** read-only SQL tasks due to repetitive column-listing loops.
+- **[mradermacher/Tenet-8B-Llama3.1-Unslop-v1-GGUF](https://huggingface.co/mradermacher/Tenet-8B-Llama3.1-Unslop-v1-GGUF)** — static quantizations.
+
+### llama.cpp
+
+```bash
+llama-cli -hf mradermacher/Tenet-8B-Llama3.1-Unslop-v1-i1-GGUF:Q4_K_M -ngl 99 -n 512 \
+    -p "Return a DuckDB SQL tool call for failed logins by source IP."
+```
+
+### Ollama
+
+```bash
+ollama run hf.co/mradermacher/Tenet-8B-Llama3.1-Unslop-v1-i1-GGUF:Q6_K
+```
+
+### LM Studio
+
+Search **Tenet-8B-Llama3.1-Unslop-v1** in LM Studio (or open
+[https://huggingface.co/mradermacher/Tenet-8B-Llama3.1-Unslop-v1-i1-GGUF](https://huggingface.co/mradermacher/Tenet-8B-Llama3.1-Unslop-v1-i1-GGUF)) and pick the **i1-Q4_K_M**
+(laptop-friendly) or **i1-Q6_K** (quality-first) quantization, then chat
+with the default conversation preset.
 
 ## Deployment & inference
 
