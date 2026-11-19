@@ -699,9 +699,7 @@ def _signed_delta(minuend: Any, subtrahend: Any) -> Any:
         return None
 
 
-def _three_way_comparison_lines(
-    arms: dict[str, Any], deltas_vs_naive: Any
-) -> list[str]:
+def _three_way_comparison_lines(arms: dict[str, Any], deltas_vs_naive: Any) -> list[str]:
     """Render the Base vs Naive Abliteration vs Tenet three-arm table."""
     base = arms.get("base")
     naive = arms.get("naive")

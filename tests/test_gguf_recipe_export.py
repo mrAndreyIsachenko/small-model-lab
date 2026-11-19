@@ -156,7 +156,7 @@ def test_render_modelfile_and_quantize_script(tmp_path: Path):
     stub_path.write_text(
         "#!/usr/bin/env bash\n"
         'for arg in "$@"; do\n'
-        "  printf '%s\\n' \"$arg\" >> \"$QUANTIZE_STUB_LOG\"\n"
+        '  printf \'%s\\n\' "$arg" >> "$QUANTIZE_STUB_LOG"\n'
         "done\n",
         encoding="utf-8",
     )

@@ -557,7 +557,7 @@ def render_quantize_cka_gguf_script(
         "IMATRIX_ARGS=()",
         "",
         "# Command-line arguments; --imatrix overrides the IMATRIX_PATH env var.",
-        'while [[ $# -gt 0 ]]; do',
+        "while [[ $# -gt 0 ]]; do",
         '  case "$1" in',
         "    --imatrix)",
         "      if [[ $# -lt 2 ]]; then",

@@ -62,9 +62,7 @@ def _dequantize_q8_0(packed: np.ndarray, shape: tuple[int, int]) -> np.ndarray:
 
 def _write_gguf(
     path: Path,
-    tensors: list[
-        tuple[str, np.ndarray, gguf.GGMLQuantizationType | None, tuple[int, int] | None]
-    ],
+    tensors: list[tuple[str, np.ndarray, gguf.GGMLQuantizationType | None, tuple[int, int] | None]],
 ) -> None:
     writer = gguf.GGUFWriter(str(path), arch="llama")
     for name, data, raw_dtype, raw_shape in tensors:

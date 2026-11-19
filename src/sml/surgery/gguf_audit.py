@@ -208,9 +208,7 @@ def audit_gguf_weights(
                 f16_tensor = f16_tensor_map.get(name)
                 if f16_tensor is not None:
                     w_f16 = _dequantize_tensor(f16_tensor)
-                    f16_energy_sq = float(
-                        np.sum((r_l @ w_f16).astype(np.float64) ** 2)
-                    )
+                    f16_energy_sq = float(np.sum((r_l @ w_f16).astype(np.float64) ** 2))
                     f16_sq = float(np.sum(w_f16.astype(np.float64) ** 2))
                     energy_sq_f16 += f16_energy_sq
                     f16_available = True
@@ -250,12 +248,8 @@ def audit_gguf_weights(
             layer["subspace_releakage_amplification_vs_f16"] = float(
                 layer_energy_fro / max(layer_energy_f16, 1e-12)
             )
-            layer["max_row_norm_drift"] = (
-                max(row_drift_values) if row_drift_values else 0.0
-            )
-            all_rel_drift = (
-                np.concatenate(rel_row_drift_rows) if rel_row_drift_rows else None
-            )
+            layer["max_row_norm_drift"] = max(row_drift_values) if row_drift_values else 0.0
+            all_rel_drift = np.concatenate(rel_row_drift_rows) if rel_row_drift_rows else None
             layer["mean_rel_row_norm_drift"] = (
                 float(all_rel_drift.mean()) if all_rel_drift is not None else 0.0
             )
@@ -288,14 +282,10 @@ def audit_gguf_weights(
             default=0.0,
         )
         result["mean_rel_row_norm_drift"] = float(
-            np.mean(
-                [layer.get("mean_rel_row_norm_drift", 0.0) for layer in layers.values()]
-            )
+            np.mean([layer.get("mean_rel_row_norm_drift", 0.0) for layer in layers.values()])
         )
         result["mean_weight_l2_rel_err"] = float(
-            np.mean(
-                [layer.get("mean_weight_l2_rel_err", 0.0) for layer in layers.values()]
-            )
+            np.mean([layer.get("mean_weight_l2_rel_err", 0.0) for layer in layers.values()])
         )
         result["per_layer"] = {
             idx: {
@@ -330,9 +320,7 @@ def _corpus_text() -> str:
 
     sections.append("## Unslop scenarios")
     for spec in TENET_UNSLOP_SCENARIOS:
-        sections.append(
-            f"Scenario: {spec.scenario_id}\n{spec.prompt}\n"
-        )
+        sections.append(f"Scenario: {spec.scenario_id}\n{spec.prompt}\n")
 
     sections.append("## Instruction following (IFEval subset)")
     for case in IFEVAL_CASES:
@@ -340,9 +328,7 @@ def _corpus_text() -> str:
 
     sections.append("## Math word problems (GSM8K subset)")
     for case in GSM8K_MATH_CASES:
-        sections.append(
-            f"Problem: {case.prompt}\nAnswer: {case.answer}\n"
-        )
+        sections.append(f"Problem: {case.prompt}\nAnswer: {case.answer}\n")
 
     sections.append("## Warehouse incident scenarios")
     env = load_environment(split="val", count=6, base_seed=2026)
@@ -350,8 +336,7 @@ def _corpus_text() -> str:
         description = getattr(scenario, "description", None) or ""
         prompt = getattr(scenario, "prompt", None) or ""
         sections.append(
-            f"Scenario: {getattr(scenario, 'scenario_id', '')}\n"
-            f"{description}\n{prompt}\n"
+            f"Scenario: {getattr(scenario, 'scenario_id', '')}\n{description}\n{prompt}\n"
         )
 
     text = "\n".join(sections)
@@ -576,9 +561,7 @@ def run_llama_server_behavioral_eval(
         sql_readonly_ok = 0
         for scenario in sql_env.scenarios:
             scenario_id = str(
-                getattr(scenario, "scenario_id", None)
-                or getattr(scenario, "id", None)
-                or ""
+                getattr(scenario, "scenario_id", None) or getattr(scenario, "id", None) or ""
             )
             query_prompt = (
                 "You are investigating a data warehouse incident. You may run "

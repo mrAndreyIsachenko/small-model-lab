@@ -1087,9 +1087,7 @@ def evaluate_external_benchmarks(
     answer_fn = _resolve_answer_fn(stage, responder, gateway_client)
     ifeval = _run_ifeval_subset(answer_fn)
     math_eval = _run_gsm8k_math_subset(answer_fn)
-    sql_eval = _run_sql_incident_eval(
-        stage, seed, answer_fn=None if deterministic else answer_fn
-    )
+    sql_eval = _run_sql_incident_eval(stage, seed, answer_fn=None if deterministic else answer_fn)
     unslop = _run_unslop_audit(answer_fn)
 
     return {
@@ -1274,7 +1272,7 @@ def build_hf_chat_responder(
             sequences = output[0]
         else:
             sequences = output
-        new_token_ids = sequences[0][len(prompt_ids):]
+        new_token_ids = sequences[0][len(prompt_ids) :]
         return tokenizer.decode(new_token_ids, skip_special_tokens=True)
 
     return respond

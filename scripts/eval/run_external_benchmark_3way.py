@@ -56,9 +56,7 @@ def _free_memory() -> None:
         torch.cuda.empty_cache()
 
 
-def _load_naive_target_dirs(
-    basis_path: Path, num_layers: int
-) -> dict[int, torch.Tensor]:
+def _load_naive_target_dirs(basis_path: Path, num_layers: int) -> dict[int, torch.Tensor]:
     raw = load_file(str(basis_path))
     parsed: dict[int, torch.Tensor] = {}
     for key, tensor in raw.items():
