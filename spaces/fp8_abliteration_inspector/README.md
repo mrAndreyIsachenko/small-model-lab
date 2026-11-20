@@ -24,8 +24,8 @@ Interactive Hugging Face Space & CLI toolkit by [**Tenet Lab (Small Model Lab)**
 ## Features
 
 1. **Live Tenet v1 Benchmark Explorer (`3B` / `8B` / `12B`):** Compare measured **Naive Abliteration** vs **Tenet Lancet** (`H9` Bi-Projected Surgery, `H10` Subspace-Safe Unslop GRPO, `H11` FP8 E4M3 Survival, `H12` Cross-Domain Subspace-Safe Merge) across:
-   - `Tenet-3B-Qwen2.5-Unslop-v1` (`Qwen/Qwen2.5-3B-Instruct`, Apple M4 Pro MPS)
-   - `Tenet-8B-Llama3.1-Unslop-v1` (`meta-llama/Llama-3.1-8B-Instruct`, NVIDIA H100)
+   - `Tenet-3B-Qwen2.5-Unslop-v1` (`Qwen/Qwen2.5-3B-Instruct`, Apple M4 Pro MPS — **Model Fight Card 16 Minors Champion at 90 HP**, `22/22` valid artifacts)
+   - `Tenet-8B-Llama3.1-Unslop-v1` (`meta-llama/Llama-3.1-8B-Instruct`, NVIDIA H100 — **Model Fight Card 16 Majors Champion at 50 HP**, `24/24` valid artifacts & `7/7` Peer Eval hits)
    - `Tenet-12B-Nemo-Unslop-v1` (`mistralai/Mistral-Nemo-Instruct-2407`, NVIDIA H100)
 2. **Zero-Upload Browser & Hub Inspector:** Inspect any Hugging Face repository ID (`org/model`) via live Hub API or drop local `config.json`, `tokenizer_config.json`, `provider_readiness.json`, `lancet_recipe.json`, and `.safetensors` files directly in your browser (7/7 provider readiness gates + `Row Crest-Factor < 25.0` audit).
 3. **CKA-Guided & Lancet-Safe Quantization Generator:** Generate `llama-quantize --tensor-type` flags (protecting high-SCR surgical layers in `Q8_0`/`Q6_K`), `vllm serve --quantization fp8`, and `mlx_lm` commands.

@@ -154,6 +154,18 @@ Max absolute weight: 1.43
 | SQL-Incident mean reward | 0.00 | 0.00 | 0.00 | +0.00 | +0.00 |
 | Unslop pass rate | 1.00 | 0.96 | 1.00 | +0.00 | +0.04 |
 
+### Independent Third-Party Evaluation — Model Fight Card 16 (Minors Champion)
+
+In the independent, deterministically judged **[Model Fight — Card 16 (2026-11-20)](https://onlymodels.gg/cards/2026-11-20.html)** benchmark by David Maynor & Elizabeth Wharton ([sealed dataset & CC BY-NC 4.0 record](https://llmdevsecops.ai), [HF discussion #1](https://huggingface.co/mr-andrey-isachenko/Tenet-3B-Qwen2.5-Unslop-v1/discussions/1), [raw JSON ledger](https://onlymodels.gg/data/card-2026-11-20.json)), **`Tenet-3B-Qwen2.5-Unslop-v1`** (`Tenet-3B-Qwen2.5-Unslop-v1-cka-q4_k_m.gguf`) won the **Minors Division Championship outright** against both the fresh field and the standing anchor reference models (`Qwen3-0.6B`, `Llama-3.2-1B`, `Gemma-3-4B`, `DeepSeek-R1-1.5B`, `SmolLM3-3B`):
+
+| Track / Metric | Result | Notes |
+| --- | --- | --- |
+| **Division Standing** | **#1 OVR (90 HP) — Minors Champion** | Top row outright (anchors included; only a single failed attempt all night) |
+| **House Series Artifact Validity** | **22 / 22 (`100%`)** | Classifiable structured artifacts on every scored prompt (`0` inconclusive misses) |
+| **House Series Escapes** | **21 / 22 (`95.5%`)** | 21 House escapes against 1 held prompt |
+| **APEX Undercard (`escape-probes-1.1`)** | **4 / 4 (`100%`)** | Escaped all four seeds (`0–3`) |
+| **Independent Solver Verification** | **Verified `Tenet-8B` Peer Eval (`6.37s`)** | Solved and gate-verified `Tenet-8B-Llama3.1-Unslop-v1`'s authored Majors eval that all 7 competing Majors models failed |
+
 ## Side-by-Side: Naive Abliteration vs Tenet (Engineering & SQL Tool-Call)
 
 AppSec/DevOps prompt: *"Triage this nginx auth log line and return a DuckDB

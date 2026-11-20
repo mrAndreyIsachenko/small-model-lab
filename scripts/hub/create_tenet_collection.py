@@ -37,8 +37,9 @@ ITEMS: list[tuple[str, str, str]] = [
     (
         "mr-andrey-isachenko/Tenet-8B-Llama3.1-Unslop-v1",
         "model",
-        "8B Llama-3.1-8B-Instruct: 99.30% target suppression, 89.89% H9 KL reduction, "
-        "0.0410 slop/refusal, 99.36% FP8 retention (Crest 6.32 < 25.0).",
+        "Majors Champion (Model Fight Card 16, 50 HP, 24/24 artifacts, 7/7 Peer Eval hits). "
+        "8B Llama-3.1-8B: 99.30% suppression, 89.89% H9 KL reduction, "
+        "99.36% FP8 retention (Crest 6.32).",
     ),
     (
         "mr-andrey-isachenko/Tenet-8B-Llama3.1-Unslop-v1-CKA-GGUF",
@@ -49,8 +50,9 @@ ITEMS: list[tuple[str, str, str]] = [
     (
         "mr-andrey-isachenko/Tenet-3B-Qwen2.5-Unslop-v1",
         "model",
-        "3B Qwen2.5-3B-Instruct: 96.94% target suppression, 99.41% H9 KL reduction "
-        "(3.76 -> 0.022), 95.41% FP8 retention (Crest 17.27 < 25.0).",
+        "Minors Champion (Model Fight Card 16, 90 HP, 21/22 escapes, 22/22 artifacts). "
+        "3B Qwen2.5-3B: 96.94% suppression, 99.41% H9 KL reduction (3.76->0.022), "
+        "95.41% FP8 retention.",
     ),
     (
         "mr-andrey-isachenko/Tenet-16K-Nano-Lab-v1",
@@ -93,6 +95,17 @@ def main() -> None:
                 item_type=item_type,
                 note=note,
                 exists_ok=True,
+            )
+        else:
+            it = next(
+                item
+                for item in col.items
+                if item.item_id == item_id and item.item_type == item_type
+            )
+            api.update_collection_item(
+                collection_slug=col.slug,
+                item_object_id=it.item_object_id,
+                note=note,
             )
 
     col = api.get_collection(col.slug)
