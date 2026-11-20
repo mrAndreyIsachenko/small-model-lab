@@ -36,6 +36,9 @@ from sml.evals.artifact_verifier import (
     TENET_ARENA_HOUSE_SERIES,
     evaluate_arena_house_series,
 )
+from sml.evals.artifact_verifier import (
+    build_tenet_domain_imatrix_corpus as build_tenet_domain_imatrix_corpus,
+)
 from sml.evals.harness import (
     GSM8K_MATH_CASES,
     IFEVAL_CASES,
