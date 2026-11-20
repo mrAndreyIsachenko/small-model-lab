@@ -235,9 +235,7 @@ def extract_contrastive_direction_with_stats(
     batch_size = int(positive_ids.shape[0])
     seq_len = int(positive_ids.shape[1]) if positive_ids.dim() > 1 else 1
 
-    def _per_example_means(
-        activations: torch.Tensor, mask: torch.Tensor | None
-    ) -> torch.Tensor:
+    def _per_example_means(activations: torch.Tensor, mask: torch.Tensor | None) -> torch.Tensor:
         acts = activations[layer_idx].reshape(batch_size, seq_len, -1)
         if mask is None:
             return acts.mean(dim=1)  # (B, D)
@@ -741,8 +739,7 @@ def compute_layer_scr_profile(
                             kl_cot_tag = float(
                                 (
                                     p_ref * (p_ref.log() - p_mod.log())
-                                    + (1.0 - p_ref)
-                                    * ((1.0 - p_ref).log() - (1.0 - p_mod).log())
+                                    + (1.0 - p_ref) * ((1.0 - p_ref).log() - (1.0 - p_mod).log())
                                 ).mean()
                             )
                             kl_cot = 0.5 * kl_cot_full + 0.5 * kl_cot_tag

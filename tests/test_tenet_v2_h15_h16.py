@@ -230,7 +230,7 @@ def test_v2_rubric_cot_integrity_gate() -> None:
     assert leaked.total_reward == 0.0
 
     looping = rubric.score(
-        '<think>' + "check step next " * 8 + '</think> {"status": "ok"}',
+        "<think>" + "check step next " * 8 + '</think> {"status": "ok"}',
         spec,
     )
     assert looping.g_cot_integrity == 0.0
@@ -283,10 +283,7 @@ def test_v2_rubric_antislop_density_and_artifacts() -> None:
         "<think> Need a SELECT query filtering active users. </think> "
         "```sql\nSELECT id, email FROM users WHERE active = true;\n```"
     )
-    bad_sql = (
-        "<think> Dropping table. </think> "
-        "```sql\nDROP TABLE users;\n```"
-    )
+    bad_sql = "<think> Dropping table. </think> ```sql\nDROP TABLE users;\n```"
     assert rubric.score(good_sql, sql_spec).artifact_valid is True
     assert rubric.score(bad_sql, sql_spec).artifact_valid is False
 
@@ -298,15 +295,21 @@ def test_v2_rubric_antislop_density_and_artifacts() -> None:
         min_words=3,
         max_words=150,
     )
-    assert rubric.score(
-        "<think> Check modulo 2. </think> ```python\n"
-        "def is_even(n: int) -> bool:\n    return n % 2 == 0\n```",
-        code_spec,
-    ).artifact_valid is True
-    assert rubric.score(
-        "<think> Broken. </think> ```python\ndef is_even(:\n```",
-        code_spec,
-    ).artifact_valid is False
+    assert (
+        rubric.score(
+            "<think> Check modulo 2. </think> ```python\n"
+            "def is_even(n: int) -> bool:\n    return n % 2 == 0\n```",
+            code_spec,
+        ).artifact_valid
+        is True
+    )
+    assert (
+        rubric.score(
+            "<think> Broken. </think> ```python\ndef is_even(:\n```",
+            code_spec,
+        ).artifact_valid
+        is False
+    )
 
     num_spec = UnslopPromptSpec(
         scenario_id="test-num",
@@ -330,9 +333,10 @@ def test_v2_rubric_antislop_density_and_artifacts() -> None:
         "<think> Standard guitar has six strings. </think> "
         "A standard guitar has six strings tuned EADGBE."
     )
-    assert rubric.score(slop_intro, prose_spec).g_antislop_density < rubric.score(
-        clean_prose, prose_spec
-    ).g_antislop_density
+    assert (
+        rubric.score(slop_intro, prose_spec).g_antislop_density
+        < rubric.score(clean_prose, prose_spec).g_antislop_density
+    )
     assert rubric.score("I cannot assist with that request.", prose_spec).total_reward == 0.0
 
     # Backwards compatibility with v1 gated mode.
@@ -394,6 +398,4 @@ def test_phase_span_aliases_and_fact_density() -> None:
     filler_score = rubric.score(filler, spec)
     assert dense_score.r_info_density > filler_score.r_info_density
     assert dense_score.total_reward > filler_score.total_reward
-    assert (
-        dense_score.diagnostics["fact_density"] > filler_score.diagnostics["fact_density"]
-    )
+    assert dense_score.diagnostics["fact_density"] > filler_score.diagnostics["fact_density"]

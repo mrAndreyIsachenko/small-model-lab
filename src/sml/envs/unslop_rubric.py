@@ -923,9 +923,7 @@ def _v2_artifact_validity(answer_text: str, spec: UnslopPromptSpec) -> tuple[boo
     return bool(valid), 1.0 if valid else 0.0
 
 
-def _v2_antislop_density(
-    answer_text: str, ans_words: list[str]
-) -> tuple[float, int, list[str]]:
+def _v2_antislop_density(answer_text: str, ans_words: list[str]) -> tuple[float, int, list[str]]:
     """Slop score combining an edge-paragraph penalty with per-100-word density."""
     paragraphs = _paragraphs(answer_text)
     edge_texts = paragraphs[:1] + paragraphs[-1:] if paragraphs else []
@@ -1204,9 +1202,7 @@ class TenetUnslopRubric:
             constraint_details["missing_keywords"] = missing_keywords
 
         r_ifeval = (
-            sum(constraint_scores.values()) / len(constraint_scores)
-            if constraint_scores
-            else 1.0
+            sum(constraint_scores.values()) / len(constraint_scores) if constraint_scores else 1.0
         )
 
         # Soft: information density (artifact quality, factual density, trigram variety).

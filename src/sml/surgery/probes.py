@@ -711,9 +711,7 @@ class PhaseSegmenter:
             end_len = len(self.deliberation_end)
             first_close = text.find(self.deliberation_end, first_open_idx)
             second_close = (
-                text.find(self.deliberation_end, first_close + end_len)
-                if first_close != -1
-                else -1
+                text.find(self.deliberation_end, first_close + end_len) if first_close != -1 else -1
             )
             if (
                 second_close != -1

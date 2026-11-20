@@ -239,9 +239,7 @@ def _inject_deliberation_tag_ids(
         content_bytes = max(1, len(text.encode("utf-8")))
         close_idx = text.find(segmenter.deliberation_end)
         boundary_bytes = (
-            close_idx + len(segmenter.deliberation_end)
-            if close_idx != -1
-            else content_bytes // 2
+            close_idx + len(segmenter.deliberation_end) if close_idx != -1 else content_bytes // 2
         )
         k = int(round(boundary_bytes / content_bytes * seq_len))
         k = min(max(k, 1), seq_len - 1)
@@ -602,9 +600,9 @@ def run_h15_cot_tri_anchor_lancet_benchmark(
         r_slop_perp = biproject_direction(r_slop, basis)
 
         layer_tri_error = _orthonormality_error(basis)
-        layer_biproj_error = max(
-            float((r_refusal_perp @ b).abs().item()) for b in basis
-        ) if basis else 0.0
+        layer_biproj_error = (
+            max(float((r_refusal_perp @ b).abs().item()) for b in basis) if basis else 0.0
+        )
         layer_biproj_error = max(
             layer_biproj_error,
             max((float((r_slop_perp @ b).abs().item()) for b in basis), default=0.0),
@@ -612,9 +610,7 @@ def run_h15_cot_tri_anchor_lancet_benchmark(
         per_layer_tri_ortho[str(layer_idx)] = round(layer_tri_error, 8)
         per_layer_biproj_ortho[str(layer_idx)] = round(layer_biproj_error, 8)
         tri_anchor_orthogonality_error = max(tri_anchor_orthogonality_error, layer_tri_error)
-        biprojected_orthogonality_error = max(
-            biprojected_orthogonality_error, layer_biproj_error
-        )
+        biprojected_orthogonality_error = max(biprojected_orthogonality_error, layer_biproj_error)
         target_dirs_per_layer[layer_idx] = [r_refusal_perp, r_slop_perp]
         raw_target_dirs_per_layer[layer_idx] = [r_refusal, r_slop]
 

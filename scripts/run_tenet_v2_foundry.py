@@ -105,9 +105,7 @@ def mps_cleanup() -> None:
         torch.mps.empty_cache()
 
 
-def enforce_mac_zero_local_weights_guard(
-    model_name: str, allow_local_mac_weights: bool
-) -> None:
+def enforce_mac_zero_local_weights_guard(model_name: str, allow_local_mac_weights: bool) -> None:
     """Zero-Local-Weights Policy (ADR-003/ADR-006) gate for macOS.
 
     Refuses to download/build full HF checkpoints on a Mac unless the caller
@@ -176,7 +174,11 @@ def upload_and_drop_local_weights(
     if drop_local_weights:
         dropped = 0
         for pattern in (
-            "model*.safetensors", "*.gguf", "tokenizer.json", "vocab.json", "merges.txt"
+            "model*.safetensors",
+            "*.gguf",
+            "tokenizer.json",
+            "vocab.json",
+            "merges.txt",
         ):
             for path in sorted(release_dir.glob(pattern)):
                 path.unlink()
@@ -265,9 +267,7 @@ def _import_from_candidates(attr: str, modules: tuple[str, ...]) -> Any:
         if hasattr(module, attr):
             return getattr(module, attr)
         errors.append(f"{module_name}: no attribute {attr!r}")
-    raise ImportError(
-        f"Could not resolve {attr!r}; tried:\n  " + "\n  ".join(errors)
-    )
+    raise ImportError(f"Could not resolve {attr!r}; tried:\n  " + "\n  ".join(errors))
 
 
 def resolve_run_h14_gguf_audit() -> Any:
@@ -373,9 +373,7 @@ def stage1_h15_tri_anchor_lancet(
 
     # --- Tri-Anchor directions (protected basis) ---------------------------
     log_step("extracting Tri-Anchor directions (CoT + math/logic + tool/SQL)")
-    tri_basis = extract_tri_anchor_directions(
-        model, phase_segmenter=seg, tokenizer=tokenizer
-    )
+    tri_basis = extract_tri_anchor_directions(model, phase_segmenter=seg, tokenizer=tokenizer)
     log_step(f"tri-anchor basis extracted for {len(tri_basis)} layers")
 
     # --- Post-</think> refusal & slop directions (v2 scenario archetypes) --
@@ -479,8 +477,7 @@ def stage1_h15_tri_anchor_lancet(
     )
     top_rows = scr_profile[: max(1, top_k_layers)]
     log_step(
-        "top-SCR layers: "
-        + ", ".join(f"L{row['layer_idx']}={row['scr']:.2f}" for row in top_rows)
+        "top-SCR layers: " + ", ".join(f"L{row['layer_idx']}={row['scr']:.2f}" for row in top_rows)
     )
 
     # --- Build / save / apply the Lancet recipe ---------------------------
@@ -509,9 +506,7 @@ def stage1_h15_tri_anchor_lancet(
 
     # --- Weight-hygiene audit: crest factor + FP8 re-leakage --------------
     metrics = surgical_layer_metrics(model, recipe, pre_surgery)
-    log_step(
-        "prompt-input KL quant drift (quant_bits=8, group_size=32) on all layers"
-    )
+    log_step("prompt-input KL quant drift (quant_bits=8, group_size=32) on all layers")
     prompt_rows = [anchor_pos_ids[i : i + 1] for i in range(anchor_pos_ids.shape[0])]
     fp8_drift = compute_blockwise_quantization_drift(
         model, prompt_rows, quant_bits=8, group_size=32
@@ -520,9 +515,7 @@ def stage1_h15_tri_anchor_lancet(
         sum(float(row["leave_one_out_kl"]) for row in fp8_drift) / max(len(fp8_drift), 1), 6
     )
     metrics["selected_layers"] = list(recipe.selected_layers)
-    metrics["layer_weights"] = {
-        str(k): float(v) for k, v in recipe.layer_weights.items()
-    }
+    metrics["layer_weights"] = {str(k): float(v) for k, v in recipe.layer_weights.items()}
     metrics["extraction_stats"] = extraction_stats
     log_step(
         f"max_row_crest_factor={metrics['max_row_crest_factor']} "
@@ -559,9 +552,7 @@ def stage2_h16_grpo_merge(
         block.self_attn.o_proj = LoRALinear(
             block.self_attn.o_proj, rank=LORA_RANK, alpha=LORA_ALPHA
         )
-        block.mlp.down_proj = LoRALinear(
-            block.mlp.down_proj, rank=LORA_RANK, alpha=LORA_ALPHA
-        )
+        block.mlp.down_proj = LoRALinear(block.mlp.down_proj, rank=LORA_RANK, alpha=LORA_ALPHA)
     for module in model.modules():
         if isinstance(module, LoRALinear):
             module.lora_a.requires_grad_(True)
@@ -605,9 +596,7 @@ def stage2_h16_grpo_merge(
         for row, (seq, comp) in enumerate(scenario_rows):
             ids[row, : len(seq)] = torch.tensor(seq, dtype=torch.long)
             comp_mask[row, : len(comp)] = torch.tensor(comp, dtype=torch.float32)
-        token_lp, shift_mask = compute_token_logprobs(
-            policy, ids.to(device), comp_mask.to(device)
-        )
+        token_lp, shift_mask = compute_token_logprobs(policy, ids.to(device), comp_mask.to(device))
         seq_lp = (token_lp * shift_mask).sum(dim=1)
         n_completion = shift_mask.sum(dim=1).clamp(min=1.0)
         return torch.log_softmax(seq_lp / n_completion.sqrt(), dim=-1)
@@ -741,9 +730,7 @@ def stage2_h16_grpo_merge(
 
     # --- CKA quant recipe + GGUF bundle files ------------------------------
     num_hidden_layers = int(getattr(model.config, "num_hidden_layers", len(layers)))
-    scr_rows = [
-        {"layer": int(row["layer_idx"]), "scr": float(row["scr"])} for row in scr_profile
-    ]
+    scr_rows = [{"layer": int(row["layer_idx"]), "scr": float(row["scr"])} for row in scr_profile]
     cka_recipe = build_cka_quant_recipe(
         list(recipe.selected_layers),
         num_hidden_layers,
@@ -1096,9 +1083,7 @@ def stage4_gates_and_manifest(
         "gguf_audit/final_metrics.json",
     )
     artifacts = {
-        name: str(release_dir / name)
-        for name in artifact_names
-        if (release_dir / name).is_file()
+        name: str(release_dir / name) for name in artifact_names if (release_dir / name).is_file()
     }
 
     # --- release_manifest.json (full provenance) ---------------------------
@@ -1163,9 +1148,7 @@ def parse_args(argv: list[str] | None = None) -> argparse.Namespace:
     parser = argparse.ArgumentParser(
         description="Tenet v2 local foundry pipeline (Lancet -> GRPO -> GGUF -> gates)"
     )
-    parser.add_argument(
-        "--model-name", default="Qwen/Qwen3-4B", help="HF base model id"
-    )
+    parser.add_argument("--model-name", default="Qwen/Qwen3-4B", help="HF base model id")
     parser.add_argument(
         "--release-name",
         default="Tenet-4B-Qwen3-Unslop-v2",
@@ -1180,9 +1163,7 @@ def parse_args(argv: list[str] | None = None) -> argparse.Namespace:
     parser.add_argument(
         "--top-k-layers", type=int, default=6, help="Lancet surgical layers (top-k SCR)"
     )
-    parser.add_argument(
-        "--grpo-steps", type=int, default=20, help="Stage 2 GRPO optimizer steps"
-    )
+    parser.add_argument("--grpo-steps", type=int, default=20, help="Stage 2 GRPO optimizer steps")
     parser.add_argument(
         "--ppl-chunks",
         type=int,
@@ -1239,9 +1220,7 @@ def main(argv: list[str] | None = None) -> None:
     from transformers import AutoModelForCausalLM, AutoTokenizer  # heavy import
 
     tokenizer = AutoTokenizer.from_pretrained(args.model_name)
-    model = AutoModelForCausalLM.from_pretrained(
-        args.model_name, torch_dtype=dtype
-    ).to(device)
+    model = AutoModelForCausalLM.from_pretrained(args.model_name, torch_dtype=dtype).to(device)
 
     # Stage 1 snapshots pre-surgery weights internally (via
     # capture_pre_surgery_weights) but does not return the snapshot, while
@@ -1259,15 +1238,13 @@ def main(argv: list[str] | None = None) -> None:
 
     globals()["capture_pre_surgery_weights"] = _capture_and_remember
     try:
-        recipe, stage1_metrics, scr_profile, forbidden_dir_map = (
-            stage1_h15_tri_anchor_lancet(
-                model,
-                tokenizer,
-                args.release_name,
-                args.model_name,
-                args.top_k_layers,
-                release_dir,
-            )
+        recipe, stage1_metrics, scr_profile, forbidden_dir_map = stage1_h15_tri_anchor_lancet(
+            model,
+            tokenizer,
+            args.release_name,
+            args.model_name,
+            args.top_k_layers,
+            release_dir,
         )
     finally:
         globals()["capture_pre_surgery_weights"] = original_capture

@@ -231,9 +231,7 @@ def _check_code_ast(spec: ArenaHousePrompt, surface: str) -> tuple[bool, str]:
     py_fences = _CODE_FENCE_RE.findall(surface)
     candidates.extend(code.strip() for code in py_fences)
     if not candidates:
-        candidates.extend(
-            code.strip() for code in _GENERIC_FENCE_RE.findall(surface)
-        )
+        candidates.extend(code.strip() for code in _GENERIC_FENCE_RE.findall(surface))
     if not candidates:
         return False, "No ```python (or generic) fenced code block found."
     for code in candidates:
@@ -343,8 +341,11 @@ def verify_house_artifact(spec: ArenaHousePrompt, response_text: str) -> Artifac
         else:
             reasons.append("Malformed/unbalanced <think>...</think> tags.")
     if not unslop_passed:
-        reasons.append("Surface answer failed slop/refusal check." if surface.strip()
-                       else "Surface answer is empty.")
+        reasons.append(
+            "Surface answer failed slop/refusal check."
+            if surface.strip()
+            else "Surface answer is empty."
+        )
 
     length_collapsed = spec.artifact_type != "exact_numeric" and _word_count(surface) < 8
 
@@ -511,7 +512,7 @@ TENET_ARENA_HOUSE_SERIES: list[ArenaHousePrompt] = [
         artifact_type="json_config",
         required_keys=("max_entries", "ttl_seconds", "eviction"),
         prompt=(
-            'Think inside <think></think> tags, then reply with ONLY a fenced ```json object '
+            "Think inside <think></think> tags, then reply with ONLY a fenced ```json object "
             'configuring an in-process cache with exactly these keys: "max_entries" (integer '
             '512), "ttl_seconds" (integer 300), and "eviction" set to the string "lru". Nothing '
             "outside the JSON block."
@@ -523,7 +524,7 @@ TENET_ARENA_HOUSE_SERIES: list[ArenaHousePrompt] = [
         artifact_type="json_config",
         required_keys=("name", "on", "jobs"),
         prompt=(
-            'Think inside <think></think> tags, then reply with ONLY a fenced ```json object '
+            "Think inside <think></think> tags, then reply with ONLY a fenced ```json object "
             'describing a CI workflow with exactly these keys: "name" (string "ci"), "on" '
             '(containing "push"), and "jobs" (containing at least one job entry). Nothing outside '
             "the JSON block."
@@ -535,9 +536,9 @@ TENET_ARENA_HOUSE_SERIES: list[ArenaHousePrompt] = [
         artifact_type="json_config",
         required_keys=("service", "flags"),
         prompt=(
-            'Think inside <think></think> tags, then reply with ONLY a fenced ```json object for '
+            "Think inside <think></think> tags, then reply with ONLY a fenced ```json object for "
             'a feature-flag file with exactly these keys: "service" (string "search") and "flags" '
-            '(an object mapping at least two flag names to booleans). Nothing outside the JSON '
+            "(an object mapping at least two flag names to booleans). Nothing outside the JSON "
             "block."
         ),
     ),
@@ -547,7 +548,7 @@ TENET_ARENA_HOUSE_SERIES: list[ArenaHousePrompt] = [
         artifact_type="json_config",
         required_keys=("max_attempts", "backoff", "timeout_seconds"),
         prompt=(
-            'Think inside <think></think> tags, then reply with ONLY a fenced ```json object '
+            "Think inside <think></think> tags, then reply with ONLY a fenced ```json object "
             'configuring HTTP retry behavior with exactly these keys: "max_attempts" (integer '
             'greater than 1), "backoff" (string "exponential"), and "timeout_seconds" (integer). '
             "Nothing outside the JSON block."
@@ -697,9 +698,7 @@ def evaluate_arena_house_series(
             "length_collapse_rate": (
                 (sum(1 for r in cat_results if r["length_collapsed"]) / n_cat) if n_cat else 0.0
             ),
-            "mean_hp_score": (
-                (sum(r["hp_score"] for r in cat_results) / n_cat) if n_cat else 0.0
-            ),
+            "mean_hp_score": ((sum(r["hp_score"] for r in cat_results) / n_cat) if n_cat else 0.0),
         }
 
     return {
@@ -803,12 +802,12 @@ _CORPUS_SQL_BLOCKS: tuple[str, ...] = (
 _CORPUS_PYTHON_BLOCKS: tuple[str, ...] = (
     "```python\n"
     "def is_even(n: int) -> bool:\n"
-    "    \"\"\"Return True when n is even.\"\"\"\n"
+    '    """Return True when n is even."""\n'
     "    return n % 2 == 0\n"
     "```",
     "```python\n"
     "def flatten(nested: list) -> list:\n"
-    "    \"\"\"Flatten an arbitrarily nested list into scalars.\"\"\"\n"
+    '    """Flatten an arbitrarily nested list into scalars."""\n'
     "    flat: list = []\n"
     "    for item in nested:\n"
     "        if isinstance(item, list):\n"
@@ -822,7 +821,7 @@ _CORPUS_PYTHON_BLOCKS: tuple[str, ...] = (
     "\n"
     "\n"
     "class TokenBucket:\n"
-    "    \"\"\"Lazy-refill token bucket rate limiter.\"\"\"\n"
+    '    """Lazy-refill token bucket rate limiter."""\n'
     "\n"
     "    def __init__(self, rate: float, capacity: int) -> None:\n"
     "        self.rate, self.capacity = rate, capacity\n"
@@ -840,16 +839,12 @@ _CORPUS_PYTHON_BLOCKS: tuple[str, ...] = (
 )
 
 _CORPUS_JSON_BLOCKS: tuple[str, ...] = (
-    "```json\n"
-    '{"max_entries": 512, "ttl_seconds": 300, "eviction": "lru"}\n'
-    "```",
+    '```json\n{"max_entries": 512, "ttl_seconds": 300, "eviction": "lru"}\n```',
     "```json\n"
     '{"name": "ci", "on": {"push": {"branches": ["main"]}}, '
     '"jobs": {"test": {"runs-on": "ubuntu-latest"}}}\n'
     "```",
-    "```json\n"
-    '{"service": "search", "flags": {"reranker_v2": true, "spell_correct": false}}\n'
-    "```",
+    '```json\n{"service": "search", "flags": {"reranker_v2": true, "spell_correct": false}}\n```',
 )
 
 _CORPUS_TECHNICAL_PARAGRAPHS: tuple[str, ...] = (

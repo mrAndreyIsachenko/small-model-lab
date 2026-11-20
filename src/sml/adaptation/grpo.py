@@ -1765,8 +1765,7 @@ _V2_CLEAN_RESPONSES: dict[str, str] = {
 # distinct so the long CoT keeps its internal n-gram variety (no degenerate
 # repetition gate trips) while wildly exceeding the CoT word budget.
 _V2_OVERTHINKING_SENTENCES: tuple[str, ...] = (
-    "First I restate the request so the goal stays pinned in view while the "
-    "branches multiply.",
+    "First I restate the request so the goal stays pinned in view while the branches multiply.",
     "Then I list every assumption I can find, even the ones that look stable.",
     "I check the obvious interpretation against a second reading of the prompt.",
     "I sketch the naive approach before questioning whether it handles edge cases.",
@@ -2053,15 +2052,11 @@ def run_h16_length_calibrated_grpo_benchmark(
                 weight = float(probs[idx, cand_idx])
                 archetype_prob_sums[cand_idx] += weight
                 sums["v2_score"] += weight * breakdown.total_reward
-                sums["cot_tag_integrity_rate"] += weight * float(
-                    breakdown.g_cot_integrity >= 1.0
-                )
+                sums["cot_tag_integrity_rate"] += weight * float(breakdown.g_cot_integrity >= 1.0)
                 sums["slop_and_refusal_rate"] += weight * float(
                     breakdown.slop_hits > 0 or breakdown.refusal_hits > 0
                 )
-                sums["artifact_completeness_rate"] += weight * float(
-                    bool(breakdown.artifact_valid)
-                )
+                sums["artifact_completeness_rate"] += weight * float(bool(breakdown.artifact_valid))
         arm = {name: round(value / num_scenarios, 6) for name, value in sums.items()}
         arm["archetype_probs"] = [round(p / num_scenarios, 6) for p in archetype_prob_sums]
         return arm

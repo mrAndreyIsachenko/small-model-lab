@@ -124,9 +124,7 @@ def run_peer_eval_gate(
 
         artifact_type = spec.artifact_type if spec is not None else None
         is_exact_numeric = artifact_type == "exact_numeric"
-        if not is_exact_numeric and spec is None and _BARE_NUMERIC_RE.match(
-            surface.strip()
-        ):
+        if not is_exact_numeric and spec is None and _BARE_NUMERIC_RE.match(surface.strip()):
             # No prompt spec to classify against, but a bare numeric surface
             # ("4326", "-12.5", "78%") is an exact-numeric answer, not a
             # length collapse.
