@@ -23,6 +23,12 @@ tags:
 
 # Tenet-8B-Llama3.1-Unslop-v1
 
+[![Model Fight Card 16](https://img.shields.io/badge/Model_Fight_Card_16-Majors_Champion_(%231_OVR_·_50_HP)-f5c542?style=for-the-badge)](https://onlymodels.gg/cards/2026-11-20.html)
+[![House Series Artifacts](https://img.shields.io/badge/House_Artifacts-24%2F24_(100%25)-3fc97f?style=for-the-badge)](https://onlymodels.gg/data/card-2026-11-20.json)
+[![Peer Eval Hits](https://img.shields.io/badge/Peer_Eval-7%2F7_Clean_Hits_Inflicted-60c8eb?style=for-the-badge)](https://huggingface.co/mr-andrey-isachenko/Tenet-8B-Llama3.1-Unslop-v1/discussions/1)
+
+> 🏆 **[Model Fight — Card 16 (2026-11-20) Majors Division Champion](https://onlymodels.gg/cards/2026-11-20.html):** Ranked **#1 overall (`50 HP`)** ahead of all fresh entrants and reference anchors (`Llama-3.1-8B`, `Mistral-7B`, `Gemma-3-12B`, `Qwen3-14B`, `GPT-OSS-20B`) with **`24/24` (`100%`) classifiable House artifacts**, **`20/24` House escapes**, **`4/4` APEX escapes**, and the **only fresh gate-valid authored Peer Eval of the night (`7/7` clean hits inflicted)** — see [Discussion #1](https://huggingface.co/mr-andrey-isachenko/Tenet-8B-Llama3.1-Unslop-v1/discussions/1) & [Benchmark Table](#independent-third-party-evaluation--model-fight-card-16-majors-champion).
+
 ## Model overview
 
 **Tenet-8B-Llama3.1-Unslop-v1** is a Tenet fine-tune of [`meta-llama/Llama-3.1-8B-Instruct`](https://huggingface.co/meta-llama/Llama-3.1-8B-Instruct),

@@ -23,6 +23,12 @@ tags:
 
 # Tenet-3B-Qwen2.5-Unslop-v1
 
+[![Model Fight Card 16](https://img.shields.io/badge/Model_Fight_Card_16-Minors_Champion_(%231_OVR_·_90_HP)-f5c542?style=for-the-badge)](https://onlymodels.gg/cards/2026-11-20.html)
+[![House Series Escapes](https://img.shields.io/badge/House_Escapes-21%2F22_(95.5%25)-3fc97f?style=for-the-badge)](https://onlymodels.gg/data/card-2026-11-20.json)
+[![House Series Artifacts](https://img.shields.io/badge/House_Artifacts-22%2F22_(100%25)-60c8eb?style=for-the-badge)](https://huggingface.co/mr-andrey-isachenko/Tenet-3B-Qwen2.5-Unslop-v1/discussions/1)
+
+> 🏆 **[Model Fight — Card 16 (2026-11-20) Minors Division Champion](https://onlymodels.gg/cards/2026-11-20.html):** Ranked **#1 overall (`90 HP`, only 1 failed attempt all night)** ahead of all fresh entrants and reference anchors (`Qwen3-0.6B`, `Llama-3.2-1B`, `Gemma-3-4B`, `DeepSeek-R1-1.5B`, `SmolLM3-3B`) with **`22/22` (`100%`) classifiable House artifacts**, **`21/22` House escapes**, and **`4/4` APEX escapes** — see [Discussion #1](https://huggingface.co/mr-andrey-isachenko/Tenet-3B-Qwen2.5-Unslop-v1/discussions/1) & [Benchmark Table](#independent-third-party-evaluation--model-fight-card-16-minors-champion).
+
 ## Model overview
 
 **Tenet-3B-Qwen2.5-Unslop-v1** is a Tenet fine-tune of [`Qwen/Qwen2.5-3B-Instruct`](https://huggingface.co/Qwen/Qwen2.5-3B-Instruct),
