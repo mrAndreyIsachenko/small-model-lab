@@ -8,6 +8,7 @@
 [![Hypotheses H1–H12](https://img.shields.io/badge/Hypotheses_H1--H12-12%2F12_Verified-success.svg)](reports/sprint1/summary.md)
 [![Hugging Face Space](https://img.shields.io/badge/HF_Space-FP8_Abliteration_Inspector-yellow.svg)](https://huggingface.co/spaces/mr-andrey-isachenko/fp8-abliteration-inspector)
 [![Hugging Face Models](https://img.shields.io/badge/HF_Family-Tenet_v1_(3B%2F8B%2F12B)-orange.svg)](https://huggingface.co/mr-andrey-isachenko)
+[![Model Fight Card 16](https://img.shields.io/badge/Model_Fight_Card_16-Majors_(8B)_%26_Minors_(3B)_Champions-f5c542.svg)](https://onlymodels.gg/cards/2026-11-20.html)
 
 ---
 
