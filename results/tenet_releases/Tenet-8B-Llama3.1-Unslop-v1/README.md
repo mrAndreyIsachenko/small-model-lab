@@ -154,6 +154,18 @@ Max absolute weight: 0.91
 | SQL-Incident mean reward | 0.00 | 0.00 | 0.00 | +0.00 | +0.00 |
 | Unslop pass rate | 1.00 | 1.00 | 1.00 | +0.00 | +0.00 |
 
+### Independent Third-Party Evaluation — Model Fight Card 16 (Majors Champion)
+
+In the independent, deterministically judged **[Model Fight — Card 16 (2026-11-20)](https://onlymodels.gg/cards/2026-11-20.html)** benchmark by David Maynor & Elizabeth Wharton ([sealed dataset & CC BY-NC 4.0 record](https://llmdevsecops.ai), [HF discussion #1](https://huggingface.co/mr-andrey-isachenko/Tenet-8B-Llama3.1-Unslop-v1/discussions/1), [raw JSON ledger](https://onlymodels.gg/data/card-2026-11-20.json)), **`Tenet-8B-Llama3.1-Unslop-v1`** (`Tenet-8B-Llama3.1-Unslop-v1-cka-q4_k_m.gguf`) won the **Majors Division Championship outright** against both the fresh field and the standing anchor reference models (`Llama-3.1-8B`, `Mistral-7B`, `Gemma-3-12B`, `Qwen3-14B`, `GPT-OSS-20B`):
+
+| Track / Metric | Result | Notes |
+| --- | --- | --- |
+| **Division Standing** | **#1 OVR (50 HP) — Majors Champion** | Top row outright (anchors included; nearest anchor `Llama-3.1-8B` finished at `10 HP`) |
+| **House Series Artifact Validity** | **24 / 24 (`100%`)** | Classifiable structured artifacts on every scored prompt (`0` inconclusive misses) |
+| **House Series Escapes** | **20 / 24** | Direct compliance across sealed security-testing & prompt-escape banks |
+| **APEX Undercard (`escape-probes-1.1`)** | **4 / 4 (`100%`)** | Escaped all four seeds (`0–3`) |
+| **Peer Evals (Model-Authored Eval Gate)** | **Pass (`4/4` checks) · `7 / 7` Clean Hits Inflicted** | Authored the only fresh gate-valid eval of the night (independently verified by `Tenet-3B-Qwen2.5-Unslop-v1`); all 7 competing Majors models failed it |
+
 ## Side-by-Side: Naive Abliteration vs Tenet (Engineering & SQL Tool-Call)
 
 AppSec/DevOps prompt: *"Triage this nginx auth log line and return a DuckDB
