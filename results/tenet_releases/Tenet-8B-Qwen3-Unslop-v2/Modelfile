@@ -1,0 +1,14 @@
+# Ollama Modelfile for Tenet-8B-Qwen3-Unslop-v2
+# CKA-aware mixed-precision GGUF (llama.cpp llama-quantize)
+# estimated_avg_bpw: 5.074
+# default_quant: Q4_K_M
+# q8_0_layers: 0, 9, 17, 18, 20, 35
+# q6_k_layers: 5, 7, 19, 21
+# boundary_layers: 0, 35
+
+FROM ./Tenet-8B-Qwen3-Unslop-v2-cka-q4_k_m.gguf
+
+PARAMETER temperature 0.7
+PARAMETER top_p 0.9
+PARAMETER repeat_penalty 1.1
+PARAMETER num_ctx 8192

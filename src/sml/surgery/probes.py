@@ -19,6 +19,7 @@ without any tokenizer or model download.
 from __future__ import annotations
 
 import zlib
+from dataclasses import dataclass
 from typing import Any
 
 import torch
@@ -499,6 +500,431 @@ TOOL_SQL_ANCHOR_PAIRS: list[tuple[str, str]] = [
         "date is unquoted, and the comma between window fields is missing.",
     ),
 ]
+
+# (valid_closed_think_cot_text, truncated_or_looping_think_text)
+COT_REASONING_ANCHOR_PAIRS: list[tuple[str, str]] = [
+    (
+        "<think> The train leaves 14:05 and the trip takes 2 h 40 min: "
+        "14:05 + 2:00 = 16:05, + 0:40 = 16:45. Wait, the express stops for 12 "
+        "minutes at Marchfield, so redo: 16:45 + 0:12 = 16:57. Verify against "
+        "the timetable row for RE 401: arrival is listed as 16:57, which "
+        "matches my corrected sum. </think> The train arrives at 16:57.",
+        "<think> The train leaves 14:05 and the trip takes 2 h 40 min, so "
+        "arrival is 16:45, and then I should also account for the 12 minute "
+        "stopover at Marchfield which shifts arrival to 16:57, and now let me "
+        "double-check the timetable row for",
+    ),
+    (
+        "<think> Factor x^2 - 5x + 6 as (x - 2)(x - 3), so the roots are 2 "
+        "and 3. Substitute back to verify: 4 - 10 + 6 = 0 and 9 - 15 + 6 = 0, "
+        "both check out. Hmm, the question asks for the sum of the roots, not "
+        "the roots themselves - correcting course: 2 + 3 = 5, which agrees "
+        "with Vieta's formula -b/a = 5. </think> The sum of the roots is 5.",
+        "<think> The sum of the roots is 5. Let me verify: the sum of the "
+        "roots is 5. Verifying again, the sum of the roots is 5. To be sure, "
+        "I will verify once more that the sum of the roots is 5. Verifying "
+        "once more, the sum of the roots is 5. The sum of the roots is",
+    ),
+    (
+        "<think> The endpoint returns 500 only on weekends according to the "
+        "dashboard. Check the deploy log: the rollout landed Friday 23:00. "
+        "Hmm, Friday 23:00 UTC is already Saturday in the log's local time - "
+        "my timezone assumption was wrong, redo with UTC timestamps: failures "
+        "start Saturday 00:14 UTC, matching the rollout. Consistent. </think> "
+        "The errors started with Saturday's rollout; roll it back.",
+        "<think> The endpoint returns 500 only on weekends so I should look "
+        "at the deploy log next and cross reference the rollout time with the",
+    ),
+    (
+        "<think> Step 1: convert 45 mph to m/s: 45 * 0.44704 = 20.117 m/s. "
+        "Step 2: braking distance is v^2 / (2a) = 20.117^2 / (2 * 6) = "
+        "404.7 / 12 = 33.7 m. Sanity check: doubling speed quadruples "
+        "distance, and 90 mph would give ~135 m - plausible. Wait, I used "
+        "deceleration 6 m/s^2 but the problem says 5 - redo: 404.7 / 10 = "
+        "40.5 m. Verify units: (m/s)^2 / (m/s^2) = m. Correct. </think> The "
+        "braking distance is about 40.5 meters.",
+        "<think> Convert 45 mph to m/s: 45 times 0.44704 is 20.117 m/s, and "
+        "braking distance is v squared over two a, so with a of 6 that is "
+        "33.7 m, but the problem might say 5, so let me recompute that",
+    ),
+    (
+        "<think> The base rate is 1 in 1000 and the test is 99 percent "
+        "accurate. First pass: of 100,000 people, 100 are sick and 99 test "
+        "positive; 99,900 are healthy with a 1 percent false rate, giving "
+        "999 false positives. Wait, I dropped true negatives from the count - "
+        "correct: 999 positives total, 99 true, so P(sick | positive) = 99 / "
+        "1098 = 0.09. Cross-check with Bayes: 0.001 * 0.99 / (0.001 * 0.99 + "
+        "0.999 * 0.01) = 0.09. Matches. </think> About 9 percent; most "
+        "positives are false.",
+        "<think> The base rate is 1 in 1000 and the test is 99 percent "
+        "accurate so most positives are true positives, which means the "
+        "probability you are sick given a positive test is 99 percent, let me "
+        "verify that with Bayes rule, Bayes rule says the posterior equals",
+    ),
+    (
+        "<think> The SQL returns duplicate customer rows, so the JOIN on "
+        "orders is multiplying rows. Hypothesis: one customer with three "
+        "orders appears three times. Check the count: SELECT customer_id, "
+        "COUNT(*) FROM orders GROUP BY customer_id - yes, customer 7 has 3 "
+        "rows. Hmm, but I also see NULLs in customer_id, which my join would "
+        "drop - correction: use LEFT JOIN and aggregate orders first in a "
+        "CTE. Re-verify: per-customer totals now match the ledger exactly. "
+        "</think> Aggregate orders in a CTE, then LEFT JOIN customers.",
+        "<think> The SQL returns duplicate customer rows so the join is "
+        "multiplying rows, I should check whether the join on orders is "
+        "multiplying rows, the join on orders is multiplying rows so the fix",
+    ),
+    (
+        "<think> The lockout counter resets every 15 minutes, so after 4 "
+        "failed attempts at 10:00 the user waits until 10:15. Check the "
+        "window logic: attempts at 09:47, 09:58, 10:01, 10:04. Hmm, the first "
+        "two are outside the rolling window - my flat 15-minute read was "
+        "wrong. Redo with the rolling window from 10:04: only 09:50 onward "
+        "counts, so attempts 3 and 4 are in-window; one more attempt locks "
+        "the account. Verify against the audit trail: lockout fired at 10:06 "
+        "after the fifth attempt. Consistent. </think> One more attempt "
+        "triggers the lockout.",
+        "<think> The lockout counter resets every 15 minutes so after 4 "
+        "failed attempts the user waits until 10:15, and the audit trail "
+        "confirms the lockout fired after five attempts which means the",
+    ),
+    (
+        "<think> Balance the combustion of ethanol: C2H5OH + O2 -> CO2 + "
+        "H2O. Carbon: 2 CO2. Hydrogen: 3 H2O. Oxygen: right side has 4 + 3 = "
+        "7 O, left has 1 from ethanol plus 2 per O2, so 3 O2. Verify by "
+        "recount: left O = 1 + 6 = 7, right O = 7. Balanced. Wait - the "
+        "question asks for moles of O2 per mole of ethanol, so the answer is "
+        "the coefficient 3, not the atom count. Double-check the stoichiometry "
+        "with an online-style recompute: 1:3 holds. </think> 3 moles of O2 "
+        "per mole of ethanol.",
+        "<think> Balance the combustion of ethanol so carbon gives 2 CO2 and "
+        "hydrogen gives 3 H2O and then oxygen gives 7 atoms on the right and",
+    ),
+    (
+        "<think> The JSON parse fails on the config file. Step 1: run it "
+        "through a validator - it reports an error at line 12. Step 2: look "
+        "at line 12: a trailing comma after the last array element. Hmm, "
+        "line 12 is fine; the validator counts from zero, so the real "
+        "offender is line 13 - my line indexing was off by one. Correct and "
+        "re-validate: parse succeeds after removing the trailing comma. "
+        "Verify round-trip: json.loads reads the file back identically. "
+        "</think> Remove the trailing comma on the last array element.",
+        "<think> The JSON parse fails on the config file so run it through "
+        "a validator, the validator reports line 12, remove the trailing "
+        "comma on line 12, and then re-run the validator and the validator",
+    ),
+    (
+        "<think> The triangle has sides 3, 4, and x with a right angle "
+        "between the legs. If 3 and 4 are the legs, x = sqrt(9 + 16) = 5. "
+        "Check the converse: 3^2 + 4^2 = 25 = 5^2, so the triple is "
+        "Pythagorean. Hold on - the problem says the hypotenuse is the "
+        "longest side and asks for the area, not x - correcting: area = "
+        "(1/2) * 3 * 4 = 6. Verify with Heron once x is known: s = 6, area "
+        "= sqrt(6*3*2*1) = 6. Consistent. </think> The area is 6.",
+        "<think> The triangle has sides 3 4 and x with a right angle "
+        "between the legs so x equals sqrt of 9 plus 16 which is 5 and the "
+        "converse check gives 25 equals 25 and now I will verify the triple",
+    ),
+]
+
+
+@dataclass
+class PhaseSpan:
+    """Result of segmenting one text into deliberation and answer phases."""
+
+    deliberation_text: str
+    answer_text: str
+    has_deliberation: bool
+    is_balanced: bool
+    open_count: int
+    close_count: int
+    malformed: bool
+
+    @property
+    def deliberation_span(self) -> str:
+        """Alias for :attr:`deliberation_text`."""
+        return self.deliberation_text
+
+    @property
+    def surface_answer_span(self) -> str:
+        """Alias for :attr:`answer_text`."""
+        return self.answer_text
+
+
+@dataclass
+class PhaseSegmenter:
+    """Segments raw model output into deliberation and answer phases.
+
+    A deliberation phase is delimited by ``deliberation_start`` ... ``deliberation_end``
+    (e.g. ``<think>`` / ``</think>``). Use :meth:`for_format` to build a segmenter
+    for a known template, or pass explicit ``deliberation_start_id`` /
+    ``deliberation_end_id`` to enable token-level phase masking.
+    """
+
+    deliberation_start: str = "<think>"
+    deliberation_end: str = "</think>"
+    deliberation_start_id: int | None = None
+    deliberation_end_id: int | None = None
+    format_name: str = "think"
+
+    @classmethod
+    def for_format(cls, fmt: str = "think") -> PhaseSegmenter:
+        """Build a segmenter for a known chat/reasoning template.
+
+        Supported formats:
+
+        - ``"think"``: ``<think>`` / ``</think>``
+        - ``"reasoning"``: ``<reasoning>`` / ``</reasoning>``
+        - ``"harmony"``: ``<|channel|>analysis<|message|>`` / ``<|end|>``
+        """
+        key = fmt.lower().strip()
+        specs = {
+            "think": ("<think>", "</think>"),
+            "reasoning": ("<reasoning>", "</reasoning>"),
+            "harmony": ("<|channel|>analysis<|message|>", "<|end|>"),
+        }
+        if key not in specs:
+            supported = ", ".join(sorted(specs))
+            raise ValueError(f"Unsupported phase format {fmt!r}; supported: {supported}")
+        start, end = specs[key]
+        return cls(deliberation_start=start, deliberation_end=end, format_name=key)
+
+    def segment_text(self, text: str) -> PhaseSpan:
+        """Split ``text`` into deliberation and answer phases.
+
+        Counts open/close tag occurrences and pairs them with a depth scan:
+        a close tag with no open tag is a stray close, and an open tag never
+        closed is a truncation. ``deliberation_text`` joins the inner spans of
+        paired (or truncated) opens; ``answer_text`` is everything outside
+        tags. ``is_balanced`` requires equal counts with a fully closed,
+        properly paired structure; ``malformed`` is its negation.
+        """
+        # A chat template or reasoning-budget ceiling can append an immediate
+        # redundant close tag on its own blank line right after the real close
+        # tag (e.g. ``</think>\n\n</think>``). When the text contains an open
+        # tag, collapse blank-line-separated duplicate closes into one so the
+        # redundant copy is not miscounted as a stray close. Duplicates
+        # separated by a single newline or inline whitespace are genuine leaks
+        # and stay flagged as malformed.
+        first_open_idx = text.find(self.deliberation_start)
+        if first_open_idx != -1:
+            end_len = len(self.deliberation_end)
+            first_close = text.find(self.deliberation_end, first_open_idx)
+            second_close = (
+                text.find(self.deliberation_end, first_close + end_len) if first_close != -1 else -1
+            )
+            if (
+                second_close != -1
+                and text.find(self.deliberation_end, second_close + end_len) == -1
+                and text.find(
+                    self.deliberation_start, first_open_idx + len(self.deliberation_start)
+                )
+                == -1
+            ):
+                between = text[first_close + end_len : second_close]
+                if "\n\n" in between:
+                    text = text[:first_close] + text[first_close + end_len :]
+
+        open_count = 0
+        close_count = 0
+        depth = 0
+        structure_ok = True
+        delib_spans: list[str] = []
+        answer_parts: list[str] = []
+        i = 0
+        n = len(text)
+        content_start: int | None = None
+
+        while i < n:
+            if depth == 0:
+                open_idx = text.find(self.deliberation_start, i)
+                close_idx = text.find(self.deliberation_end, i)
+                if close_idx != -1 and (open_idx == -1 or close_idx < open_idx):
+                    # Stray close tag with no matching open: mark malformed and
+                    # treat the close tag itself as inert answer text.
+                    structure_ok = False
+                    close_count += 1
+                    answer_parts.append(text[i:close_idx])
+                    i = close_idx + len(self.deliberation_end)
+                    continue
+                if open_idx == -1:
+                    break
+                open_count += 1
+                answer_parts.append(text[i:open_idx])
+                depth += 1
+                i = open_idx + len(self.deliberation_start)
+                content_start = i
+            else:
+                close_idx = text.find(self.deliberation_end, i)
+                if close_idx == -1:
+                    # Unclosed open tag: everything to the end of the text is
+                    # truncated deliberation content.
+                    structure_ok = False
+                    delib_spans.append(text[content_start:] if content_start is not None else "")
+                    i = n
+                    content_start = None
+                    break
+                open_idx = text.find(self.deliberation_start, i)
+                if open_idx != -1 and open_idx < close_idx:
+                    # Nested open before the close: malformed nesting.
+                    structure_ok = False
+                    open_count += 1
+                    depth += 1
+                    i = open_idx + len(self.deliberation_start)
+                    continue
+                close_count += 1
+                delib_spans.append(
+                    text[content_start:close_idx] if content_start is not None else ""
+                )
+                i = close_idx + len(self.deliberation_end)
+                depth -= 1
+                content_start = None
+
+        if depth == 0 and content_start is None:
+            answer_parts.append(text[i:])
+
+        is_balanced = structure_ok and open_count == close_count and depth == 0
+        deliberation_text = "\n".join(span for span in delib_spans if span != "")
+        answer_text = "".join(answer_parts)
+        return PhaseSpan(
+            deliberation_text=deliberation_text,
+            answer_text=answer_text,
+            has_deliberation=open_count > 0,
+            is_balanced=is_balanced,
+            open_count=open_count,
+            close_count=close_count,
+            malformed=not is_balanced,
+        )
+
+    def get_deliberation_tag_token_ids(self, tokenizer: Any = None) -> list[int]:
+        """Return token ids for the deliberation open/close tags.
+
+        Explicit ``deliberation_start_id`` / ``deliberation_end_id`` take
+        precedence; when neither is set and a tokenizer is provided, both tags
+        are encoded with ``tokenizer.encode(tag, add_special_tokens=False)``.
+        Returns ``[]`` when no ids can be resolved.
+        """
+        ids: list[int] = []
+        if self.deliberation_start_id is not None:
+            ids.append(int(self.deliberation_start_id))
+        if self.deliberation_end_id is not None:
+            ids.append(int(self.deliberation_end_id))
+        if ids:
+            return ids
+        if tokenizer is None:
+            return []
+        for tag in (self.deliberation_start, self.deliberation_end):
+            try:
+                encoded = tokenizer.encode(tag, add_special_tokens=False)
+            except TypeError:
+                encoded = tokenizer.encode(tag)
+            ids.extend(int(t) for t in encoded)
+        return ids
+
+    def _resolve_tag_id_sequences(self, tokenizer: Any = None) -> tuple[list[int], list[int]]:
+        """Resolve (start_seq, end_seq) token-id subsequences for masking."""
+        start_seq: list[int] = []
+        end_seq: list[int] = []
+
+        def _encode(tag: str) -> list[int]:
+            try:
+                encoded = tokenizer.encode(tag, add_special_tokens=False)
+            except TypeError:
+                encoded = tokenizer.encode(tag)
+            return [int(t) for t in encoded]
+
+        if self.deliberation_start_id is not None:
+            start_seq = [int(self.deliberation_start_id)]
+        elif tokenizer is not None:
+            start_seq = _encode(self.deliberation_start)
+        if self.deliberation_end_id is not None:
+            end_seq = [int(self.deliberation_end_id)]
+        elif tokenizer is not None:
+            end_seq = _encode(self.deliberation_end)
+        return start_seq, end_seq
+
+    def compute_phase_masks(
+        self,
+        input_ids: torch.Tensor,
+        tokenizer: Any = None,
+        *,
+        texts: list[str] | None = None,
+    ) -> tuple[torch.Tensor, torch.Tensor]:
+        """Compute per-token deliberation and answer masks of shape (B, T).
+
+        Resolution order:
+
+        1. Token-ID matching: explicit ``deliberation_start_id`` /
+           ``deliberation_end_id``, else ``tokenizer.encode`` subsequences of
+           the tags. Each deliberation span covers the start tag through the
+           end tag inclusive (unclosed starts run to the end of the sequence).
+        2. Character-ratio fallback: when ``texts`` is provided, tokens are
+           split proportionally to the character counts of the segmented
+           deliberation vs. answer text.
+        3. Default fallback: ``deliberation_mask`` all False, ``answer_mask``
+           all True.
+
+        ``answer_mask`` is the complement of ``deliberation_mask``.
+        """
+        ids = input_ids if input_ids.dim() > 1 else input_ids.unsqueeze(0)
+        squeeze_back = input_ids.dim() == 1
+        batch_size, seq_len = int(ids.shape[0]), int(ids.shape[1])
+        device = ids.device
+
+        deliberation_mask = torch.zeros((batch_size, seq_len), dtype=torch.bool, device=device)
+        answer_mask = torch.ones((batch_size, seq_len), dtype=torch.bool, device=device)
+        if seq_len == 0:
+            if squeeze_back:
+                return deliberation_mask.squeeze(0), answer_mask.squeeze(0)
+            return deliberation_mask, answer_mask
+
+        start_seq, end_seq = self._resolve_tag_id_sequences(tokenizer)
+        if start_seq and end_seq:
+            start_t = torch.tensor(start_seq, dtype=torch.long, device=device)
+            end_t = torch.tensor(end_seq, dtype=torch.long, device=device)
+            start_len, end_len = len(start_seq), len(end_seq)
+            for b in range(batch_size):
+                row = ids[b]
+                i = 0
+                while i <= seq_len - start_len:
+                    # Find the next start-tag subsequence at position >= i.
+                    match_start = -1
+                    for j in range(i, seq_len - start_len + 1):
+                        if bool((row[j : j + start_len] == start_t).all()):
+                            match_start = j
+                            break
+                    if match_start == -1:
+                        break
+                    # Find the close-tag subsequence after the open tag.
+                    end_match = -1
+                    for j in range(match_start + start_len, seq_len - end_len + 1):
+                        if bool((row[j : j + end_len] == end_t).all()):
+                            end_match = j
+                            break
+                    if end_match == -1:
+                        deliberation_mask[b, match_start:] = True
+                        answer_mask[b, match_start:] = False
+                        break
+                    span_end = end_match + end_len
+                    deliberation_mask[b, match_start:span_end] = True
+                    answer_mask[b, match_start:span_end] = False
+                    i = span_end
+        elif texts is not None:
+            for b in range(min(batch_size, len(texts))):
+                span = self.segment_text(texts[b])
+                total_chars = len(span.deliberation_text) + len(span.answer_text)
+                if not span.has_deliberation or total_chars <= 0:
+                    continue
+                ratio = len(span.deliberation_text) / total_chars
+                k = int(round(ratio * seq_len))
+                k = max(0, min(seq_len, k))
+                if k > 0:
+                    deliberation_mask[b, :k] = True
+                    answer_mask[b, :k] = False
+
+        if squeeze_back:
+            return deliberation_mask.squeeze(0), answer_mask.squeeze(0)
+        return deliberation_mask, answer_mask
 
 
 def _hash_encode_text(text: str, vocab_size: int, seq_len: int) -> torch.Tensor:

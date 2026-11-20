@@ -1,0 +1,40 @@
+experiment_id: h16_length_calibrated_grpo
+hypothesis_id: H16
+hypothesis: >
+  Dual-window length-calibrated and artifact-completeness gated GRPO eliminates
+  length_collapse (< 1%) and overthinking while maintaining cot_tag_integrity_rate >= 0.995,
+  slop_and_refusal_rate <= 0.02, and 100% verifiable technical artifact survival
+  (code, read-only SQL, JSON, exact numeric) after </think>.
+prediction: >
+  After 27 GRPO steps on TENET_V2_SCENARIOS, length_collapse_rate < 0.01,
+  cot_tag_integrity_rate >= 0.995, slop_and_refusal_rate <= 0.02,
+  artifact_completeness_rate >= 0.99, and subspace_safe_lora_releakage < 1e-5.
+acceptance_criterion: >
+  cot_tag_integrity_rate >= 0.995 AND length_collapse_rate < 0.01 AND slop_and_refusal_rate <= 0.02 AND artifact_completeness_rate >= 0.99 AND h16_verified == True
+seed: 2026
+model_config_path: configs/model/sml_nano.yaml
+data_config_path: configs/data/tinystories.yaml
+hardware_config_path: configs/hardware/m4_pro_mps.yaml
+train:
+  batch_size_tokens: 4096
+  micro_batch_size: 2
+  seq_len: 512
+  max_steps: 27
+  lr: 0.0038
+  min_lr_ratio: 0.1
+  weight_decay: 0.05
+  beta1: 0.9
+  beta2: 0.95
+  grad_clip: 1.0
+  schedule: wsd
+  warmup_steps: 2
+  decay_fraction: 0.2
+  precision: bf16
+  compile: false
+grpo:
+  group_size: 6
+  beta_kl: 0.04
+  clip_eps: 0.2
+  lora_rank: 4
+  lora_alpha: 8.0
+  rubric_mode: v2

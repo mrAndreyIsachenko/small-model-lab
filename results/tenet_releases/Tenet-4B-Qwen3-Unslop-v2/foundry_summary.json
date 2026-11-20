@@ -1,0 +1,44 @@
+{
+  "artifacts": {
+    "Modelfile": "results/tenet_releases/Tenet-4B-Qwen3-Unslop-v2/Modelfile",
+    "Tenet-4B-Qwen3-Unslop-v2-cka-q4_k_m.gguf": "results/tenet_releases/Tenet-4B-Qwen3-Unslop-v2/Tenet-4B-Qwen3-Unslop-v2-cka-q4_k_m.gguf",
+    "Tenet-4B-Qwen3-Unslop-v2-f16.gguf": "results/tenet_releases/Tenet-4B-Qwen3-Unslop-v2/Tenet-4B-Qwen3-Unslop-v2-f16.gguf",
+    "Tenet-4B-Qwen3-Unslop-v2-i1-cka-q4_k_m.gguf": "results/tenet_releases/Tenet-4B-Qwen3-Unslop-v2/Tenet-4B-Qwen3-Unslop-v2-i1-cka-q4_k_m.gguf",
+    "cka_quant_recipe.json": "results/tenet_releases/Tenet-4B-Qwen3-Unslop-v2/cka_quant_recipe.json",
+    "gguf_audit/final_metrics.json": "results/tenet_releases/Tenet-4B-Qwen3-Unslop-v2/gguf_audit/final_metrics.json",
+    "lancet_basis.safetensors": "results/tenet_releases/Tenet-4B-Qwen3-Unslop-v2/lancet_basis.safetensors",
+    "lancet_recipe.json": "results/tenet_releases/Tenet-4B-Qwen3-Unslop-v2/lancet_recipe.json",
+    "quantize_cka_gguf.sh": "results/tenet_releases/Tenet-4B-Qwen3-Unslop-v2/quantize_cka_gguf.sh",
+    "tenet_domain.imatrix": "results/tenet_releases/Tenet-4B-Qwen3-Unslop-v2/tenet_domain.imatrix",
+    "tenet_domain_imatrix.txt": "results/tenet_releases/Tenet-4B-Qwen3-Unslop-v2/tenet_domain_imatrix.txt"
+  },
+  "failed_gates": [],
+  "gate_count": 10,
+  "key_metrics": {
+    "cka_recipe_summary": null,
+    "fp8_subspace_releakage_pct": null,
+    "gguf_variants": {
+      "cka_q4_k_m": {
+        "arena_house_hp": 100.0,
+        "cot_tag_integrity_rate": 1.0,
+        "unslop_pass_rate": 1.0
+      },
+      "f16": {
+        "arena_house_hp": 100.0,
+        "cot_tag_integrity_rate": 1.0,
+        "unslop_pass_rate": 1.0
+      },
+      "i1_cka_q4_k_m": {
+        "arena_house_hp": 100.0,
+        "cot_tag_integrity_rate": 1.0,
+        "unslop_pass_rate": 1.0
+      }
+    },
+    "max_row_crest_factor": null,
+    "v2_eval": null
+  },
+  "manifest_path": "results/tenet_releases/Tenet-4B-Qwen3-Unslop-v2/release_manifest.json",
+  "model_name": "Qwen/Qwen3-4B",
+  "overall_pass": true,
+  "release_name": "Tenet-4B-Qwen3-Unslop-v2"
+}

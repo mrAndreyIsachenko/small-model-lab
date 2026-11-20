@@ -1,0 +1,31 @@
+{
+  "schema_version": "1.0",
+  "model_id": "Tenet-4B-Qwen3-Unslop-v2",
+  "base_model": "Qwen/Qwen3-4B",
+  "extraction_mode": "activation_contrastive",
+  "d_model": 2560,
+  "num_layers": 36,
+  "scale": 1.0,
+  "top_k_layers": 8,
+  "selected_layers": [
+    13,
+    15,
+    17,
+    12,
+    11,
+    20,
+    9,
+    22
+  ],
+  "layer_weights": {
+    "13": 1.0,
+    "15": 0.999194,
+    "17": 0.987321,
+    "12": 0.979305,
+    "11": 0.952272,
+    "20": 0.867903,
+    "9": 0.851984,
+    "22": 0.800402
+  },
+  "probes_sha256": ""
+}

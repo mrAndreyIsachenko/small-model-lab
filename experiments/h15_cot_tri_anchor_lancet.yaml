@@ -1,0 +1,41 @@
+experiment_id: h15_cot_tri_anchor_lancet
+hypothesis_id: H15
+hypothesis: >
+  Phase-segmented Tri-Anchor Lancet surgery — extracting a protected CoT Self-Correction
+  Anchor (a_cot) from deliberation tokens, orthonormalizing it with math/logic and
+  tool/SQL anchors in float32 via two-pass Modified Gram-Schmidt, extracting refusal/slop
+  directions strictly from the post-</think> answer span, and scoring layers with
+  CoT-weighted KL collateral — preserves <think>...</think> deliberation integrity
+  while suppressing refusal and slop with row-norm preservation and FP8-ready crest factors.
+prediction: >
+  On sml-nano with <think>/</think> tokens, tri_anchor_orthogonality_error < 1e-6,
+  biprojected_orthogonality_error < 1e-6, max_row_crest_factor < 25.0, and CoT-weighted
+  SCR selection protects deliberation delimiter logits compared to unsegmented surgery.
+acceptance_criterion: >
+  tri_anchor_orthogonality_error < 1e-6 AND biprojected_orthogonality_error < 1e-6 AND max_row_crest_factor < 25.0 AND h15_verified == True
+seed: 2026
+model_config_path: configs/model/sml_nano.yaml
+data_config_path: configs/data/tinystories.yaml
+hardware_config_path: configs/hardware/m4_pro_mps.yaml
+train:
+  batch_size_tokens: 4096
+  micro_batch_size: 2
+  seq_len: 512
+  max_steps: 27
+  lr: 0.0005
+  min_lr_ratio: 0.1
+  weight_decay: 0.05
+  beta1: 0.9
+  beta2: 0.95
+  grad_clip: 1.0
+  schedule: wsd
+  warmup_steps: 2
+  decay_fraction: 0.2
+  precision: bf16
+  compile: false
+surgery:
+  deliberation_format: think
+  top_k_layers: 3
+  scale: 1.0
+  lambda_cot: 0.5
+  preserve_row_norm: true

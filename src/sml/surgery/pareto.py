@@ -12,7 +12,7 @@ from typing import Any
 import torch
 import torch.nn.functional as F
 
-from sml.config import ModelConfig
+from sml.config import ModelConfig, load_model_config
 from sml.model.transformer import Transformer
 from sml.surgery.cka import collect_layer_activations, compute_layerwise_cka_drift
 from sml.surgery.llm_pareto import (
@@ -20,10 +20,12 @@ from sml.surgery.llm_pareto import (
     run_llm_surgery_and_pareto_suite,
 )
 from sml.surgery.probes import (
+    COT_REASONING_ANCHOR_PAIRS,
     REASONING_ANCHOR_PAIRS,
     REFUSAL_CONTRAST_PAIRS,
     SLOP_CONTRAST_PAIRS,
     TOOL_SQL_ANCHOR_PAIRS,
+    PhaseSegmenter,
     encode_contrast_pairs,
 )
 from sml.surgery.quantization import (
@@ -32,10 +34,12 @@ from sml.surgery.quantization import (
     prune_transformer_layers,
 )
 from sml.surgery.subspace import (
+    _compute_row_crest_factor,
     apply_lancet_biprojected_surgery,
     apply_subspace_ablation,
     biproject_direction,
     build_lancet_recipe,
+    build_tri_anchor_basis,
     compute_layer_scr_profile,
     extract_contrastive_direction,
     extract_contrastive_direction_with_stats,
@@ -45,6 +49,7 @@ from sml.surgery.subspace import (
 
 __all__ = [
     "run_h9_biprojected_surgery_benchmark",
+    "run_h15_cot_tri_anchor_lancet_benchmark",
     "run_llm_h9_biprojected_surgery_benchmark",
     "run_llm_surgery_and_pareto_suite",
     "run_surgery_and_pareto_suite",
@@ -198,6 +203,68 @@ def _compute_probes_sha256() -> str:
         sort_keys=True,
     )
     return hashlib.sha256(payload.encode("utf-8")).hexdigest()
+
+
+def _inject_deliberation_tag_ids(
+    pos_ids: torch.Tensor,
+    neg_ids: torch.Tensor,
+    pairs: list[tuple[str, str]],
+    segmenter: PhaseSegmenter,
+    vocab_size: int,
+    start_id: int = 3,
+    end_id: int = 4,
+) -> tuple[torch.Tensor, torch.Tensor]:
+    """Splice deliberation tag token ids into hash-encoded probe sequences.
+
+    The fallback hash encoder carries no ``<think>`` / ``</think>`` tags, so
+    token-id phase masks would remain empty on sml-nano. For every sequence
+    this scrubs accidental tag-id collisions, writes ``start_id`` at position 0
+    and ``end_id`` at the proportional deliberation/answer boundary of the
+    source text (midpoint when the text has no close tag), so
+    ``deliberation_only`` and ``answer_only`` masks are populated.
+    """
+    pos_ids = pos_ids.clone()
+    neg_ids = neg_ids.clone()
+    fallback_id = (start_id + end_id) % max(5, vocab_size)
+    rows: list[tuple[torch.Tensor, str]] = [
+        *[(pos_ids[i], pos) for i, (pos, _neg) in enumerate(pairs)],
+        *[(neg_ids[i], neg) for i, (_pos, neg) in enumerate(pairs)],
+    ]
+    for ids_row, text in rows:
+        seq_len = int(ids_row.numel())
+        if seq_len < 2:
+            continue
+        collide = (ids_row == start_id) | (ids_row == end_id)
+        ids_row[collide] = fallback_id
+        content_bytes = max(1, len(text.encode("utf-8")))
+        close_idx = text.find(segmenter.deliberation_end)
+        boundary_bytes = (
+            close_idx + len(segmenter.deliberation_end) if close_idx != -1 else content_bytes // 2
+        )
+        k = int(round(boundary_bytes / content_bytes * seq_len))
+        k = min(max(k, 1), seq_len - 1)
+        ids_row[0] = start_id
+        ids_row[k] = end_id
+    return pos_ids, neg_ids
+
+
+def _orthonormality_error(basis: list[torch.Tensor]) -> float:
+    """Max deviation of a stacked basis from an identity Gram matrix."""
+    if not basis:
+        return 0.0
+    stacked = torch.stack([b.detach().float() for b in basis], dim=0)
+    gram = stacked @ stacked.T
+    return float((gram - torch.eye(gram.shape[0], device=gram.device)).abs().max().item())
+
+
+def _max_row_crest_factor(model: Transformer, layer_indices: list[int]) -> float:
+    """Peak-to-mean row-norm crest factor over `o_proj`/`down_proj` weights."""
+    crest = 1.0
+    for layer_idx in layer_indices:
+        layer = model.layers[layer_idx]
+        for proj in (layer.self_attn.o_proj, layer.mlp.down_proj):
+            crest = max(crest, _compute_row_crest_factor(proj.weight.detach().float()))
+    return crest
 
 
 def run_h9_biprojected_surgery_benchmark(
@@ -428,6 +495,225 @@ def run_h9_biprojected_surgery_benchmark(
             "naive_suppression_ratio": round(naive_suppression_ratio, 6),
         },
     }
+
+
+def run_h15_cot_tri_anchor_lancet_benchmark(
+    seed: int = 2026,
+    top_k_layers: int = 3,
+    scale: float = 1.0,
+    lambda_cot: float = 0.5,
+    output_dir: Path | str | None = None,
+    model_id: str = "Tenet-Nano-6L-Unslop-v2",
+) -> dict[str, Any]:
+    """Execute `H15` (CoT Tri-Anchor Lancet surgery) on the sml-nano Transformer.
+
+    Builds a Tri-Anchor basis per layer (CoT deliberation + reasoning + tool/SQL
+    anchors), bi-projects the refusal & slop suppression targets against it so
+    deliberation/answer phases are preserved, picks layers by CoT-aware SCR, and
+    applies row-norm-preserving Lancet surgery. Verifies basis/target
+    orthogonality, row-norm preservation and crest-factor stability, and that
+    anchor & CoT KL collateral collapses versus naive all-layer surgery.
+    """
+    torch.manual_seed(seed)
+
+    config = load_model_config("configs/model/sml_nano.yaml")
+    model = Transformer(config)
+    model.eval()
+
+    segmenter = PhaseSegmenter.for_format("think")
+    segmenter.deliberation_start_id = 3
+    segmenter.deliberation_end_id = 4
+    cot_tag_token_ids = [segmenter.deliberation_start_id, segmenter.deliberation_end_id]
+
+    cot_pos_ids, cot_neg_ids = encode_contrast_pairs(
+        COT_REASONING_ANCHOR_PAIRS, vocab_size=config.vocab_size, seq_len=32
+    )
+    refusal_pos_ids, refusal_neg_ids = encode_contrast_pairs(
+        REFUSAL_CONTRAST_PAIRS, vocab_size=config.vocab_size, seq_len=32
+    )
+    slop_pos_ids, slop_neg_ids = encode_contrast_pairs(
+        SLOP_CONTRAST_PAIRS, vocab_size=config.vocab_size, seq_len=32
+    )
+    anchor_pos_ids, anchor_neg_ids = encode_contrast_pairs(
+        REASONING_ANCHOR_PAIRS, vocab_size=config.vocab_size, seq_len=32
+    )
+    tool_sql_pos_ids, tool_sql_neg_ids = encode_contrast_pairs(
+        TOOL_SQL_ANCHOR_PAIRS, vocab_size=config.vocab_size, seq_len=32
+    )
+
+    # Inject token ids 3/4 so the deliberation_only / answer_only phase masks
+    # are populated for the CoT, refusal and slop probe sets on sml-nano.
+    cot_pos_ids, cot_neg_ids = _inject_deliberation_tag_ids(
+        cot_pos_ids, cot_neg_ids, COT_REASONING_ANCHOR_PAIRS, segmenter, config.vocab_size
+    )
+    refusal_pos_ids, refusal_neg_ids = _inject_deliberation_tag_ids(
+        refusal_pos_ids, refusal_neg_ids, REFUSAL_CONTRAST_PAIRS, segmenter, config.vocab_size
+    )
+    slop_pos_ids, slop_neg_ids = _inject_deliberation_tag_ids(
+        slop_pos_ids, slop_neg_ids, SLOP_CONTRAST_PAIRS, segmenter, config.vocab_size
+    )
+
+    # Per-layer Tri-Anchor basis (CoT + reasoning + tool/SQL, orthonormalized) and
+    # refusal/slop targets bi-projected against that basis.
+    tri_anchor_orthogonality_error = 0.0
+    biprojected_orthogonality_error = 0.0
+    per_layer_tri_ortho: dict[str, float] = {}
+    per_layer_biproj_ortho: dict[str, float] = {}
+    basis_per_layer_all: dict[int, list[torch.Tensor]] = {}
+    raw_target_dirs_per_layer: dict[int, list[torch.Tensor]] = {}
+    target_dirs_per_layer: dict[int, list[torch.Tensor]] = {}
+    for layer_idx in range(config.n_layers):
+        a_cot = extract_contrastive_direction(
+            model,
+            cot_pos_ids,
+            cot_neg_ids,
+            layer_idx=layer_idx,
+            pool_mode="deliberation_only",
+            phase_segmenter=segmenter,
+        )
+        a_reasoning = extract_contrastive_direction(
+            model, anchor_pos_ids, anchor_neg_ids, layer_idx=layer_idx
+        )
+        a_tool_sql = extract_contrastive_direction(
+            model, tool_sql_pos_ids, tool_sql_neg_ids, layer_idx=layer_idx
+        )
+        basis = build_tri_anchor_basis(a_cot, a_reasoning, a_tool_sql)
+        basis_per_layer_all[layer_idx] = basis
+
+        r_refusal = extract_contrastive_direction(
+            model,
+            refusal_pos_ids,
+            refusal_neg_ids,
+            layer_idx=layer_idx,
+            pool_mode="answer_only",
+            phase_segmenter=segmenter,
+        )
+        r_slop = extract_contrastive_direction(
+            model,
+            slop_pos_ids,
+            slop_neg_ids,
+            layer_idx=layer_idx,
+            pool_mode="answer_only",
+            phase_segmenter=segmenter,
+        )
+        r_refusal_perp = biproject_direction(r_refusal, basis)
+        r_slop_perp = biproject_direction(r_slop, basis)
+
+        layer_tri_error = _orthonormality_error(basis)
+        layer_biproj_error = (
+            max(float((r_refusal_perp @ b).abs().item()) for b in basis) if basis else 0.0
+        )
+        layer_biproj_error = max(
+            layer_biproj_error,
+            max((float((r_slop_perp @ b).abs().item()) for b in basis), default=0.0),
+        )
+        per_layer_tri_ortho[str(layer_idx)] = round(layer_tri_error, 8)
+        per_layer_biproj_ortho[str(layer_idx)] = round(layer_biproj_error, 8)
+        tri_anchor_orthogonality_error = max(tri_anchor_orthogonality_error, layer_tri_error)
+        biprojected_orthogonality_error = max(biprojected_orthogonality_error, layer_biproj_error)
+        target_dirs_per_layer[layer_idx] = [r_refusal_perp, r_slop_perp]
+        raw_target_dirs_per_layer[layer_idx] = [r_refusal, r_slop]
+
+    # CoT-aware SCR-guided layer selection: blended collateral weights the
+    # CoT-side KL (with tag-logit slice) against the anchor-side KL.
+    scr_profile = compute_layer_scr_profile(
+        model,
+        target_dirs_per_layer=target_dirs_per_layer,
+        anchor_input_ids=anchor_pos_ids,
+        scale=scale,
+        preserve_row_norm=True,
+        cot_input_ids=cot_pos_ids,
+        cot_tag_token_ids=cot_tag_token_ids,
+        lambda_cot=lambda_cot,
+    )
+    selected_layers = _select_top_scr_layers(scr_profile, top_k_layers)
+
+    anchor_dirs_per_layer = {idx: basis_per_layer_all[idx] for idx in selected_layers}
+
+    # Naive control: every layer, un-projected raw targets, no row-norm preservation.
+    naive_model = apply_lancet_biprojected_surgery(
+        model,
+        target_dirs=raw_target_dirs_per_layer,
+        anchor_dirs=None,
+        layer_indices=None,
+        scale=scale,
+        preserve_row_norm=False,
+    )
+    # Lancet: Tri-Anchor bi-projected targets, CoT-aware SCR top-k layers,
+    # norm-preserving projection.
+    lancet_model = apply_lancet_biprojected_surgery(
+        model,
+        target_dirs=target_dirs_per_layer,
+        anchor_dirs=anchor_dirs_per_layer,
+        layer_indices=selected_layers,
+        scale=scale,
+        preserve_row_norm=True,
+    )
+
+    original_weights = _snapshot_write_weights(model.layers, selected_layers)
+    max_row_norm_drift, _target_suppression_ratio, _unweighted_suppression_ratio = (
+        _h9_surgery_metrics(
+            lancet_model.layers,
+            original_weights,
+            selected_layers,
+            {idx: torch.stack(basis_per_layer_all[idx]) for idx in selected_layers},
+        )
+    )
+    max_row_crest_factor = _max_row_crest_factor(lancet_model, selected_layers)
+
+    kl_anchor_collateral = compute_logit_kl_divergence(model, lancet_model, anchor_pos_ids)
+    kl_cot_collateral = compute_logit_kl_divergence(model, lancet_model, cot_pos_ids)
+    naive_kl_anchor = compute_logit_kl_divergence(model, naive_model, anchor_pos_ids)
+    naive_kl_cot = compute_logit_kl_divergence(model, naive_model, cot_pos_ids)
+    lancet_collateral = lambda_cot * kl_cot_collateral + (1.0 - lambda_cot) * kl_anchor_collateral
+    naive_collateral = lambda_cot * naive_kl_cot + (1.0 - lambda_cot) * naive_kl_anchor
+    kl_reduction_ratio = 1.0 - (lancet_collateral / max(1e-8, naive_collateral))
+
+    h15_verified = bool(
+        tri_anchor_orthogonality_error < 1e-6
+        and biprojected_orthogonality_error < 1e-6
+        and max_row_norm_drift < 1e-5
+        and max_row_crest_factor < 25.0
+        and kl_reduction_ratio >= 0.35
+    )
+
+    result: dict[str, Any] = {
+        "h15_verified": h15_verified,
+        "backend": "nano",
+        "model_name": config.name,
+        "model_id": model_id,
+        "tri_anchor_orthogonality_error": round(tri_anchor_orthogonality_error, 8),
+        "biprojected_orthogonality_error": round(biprojected_orthogonality_error, 8),
+        "max_row_norm_drift": round(max_row_norm_drift, 8),
+        "max_row_crest_factor": round(max_row_crest_factor, 6),
+        "kl_anchor_collateral": round(kl_anchor_collateral, 6),
+        "kl_cot_collateral": round(kl_cot_collateral, 6),
+        "naive_kl_anchor_collateral": round(naive_kl_anchor, 6),
+        "naive_kl_cot_collateral": round(naive_kl_cot, 6),
+        "kl_reduction_ratio": round(kl_reduction_ratio, 4),
+        "selected_layers": selected_layers,
+        "scr_profile": scr_profile,
+        "diagnostics": {
+            "top_k_layers": top_k_layers,
+            "scale": scale,
+            "lambda_cot": lambda_cot,
+            "cot_tag_token_ids": cot_tag_token_ids,
+            "num_tri_anchor_dirs_per_layer": {
+                str(idx): len(basis_per_layer_all[idx]) for idx in range(config.n_layers)
+            },
+            "per_layer_tri_anchor_orthogonality": per_layer_tri_ortho,
+            "per_layer_biprojected_orthogonality": per_layer_biproj_ortho,
+        },
+    }
+
+    if output_dir is not None:
+        out_path = Path(output_dir)
+        out_path.mkdir(parents=True, exist_ok=True)
+        (out_path / "h15_cot_tri_anchor_benchmark.json").write_text(
+            json.dumps(result, indent=2, sort_keys=True), encoding="utf-8"
+        )
+
+    return result
 
 
 def run_surgery_and_pareto_suite(seed: int = 2026) -> dict[str, Any]:

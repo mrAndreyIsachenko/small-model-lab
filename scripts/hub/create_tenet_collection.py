@@ -23,6 +23,20 @@ ITEMS: list[tuple[str, str, str]] = [
         "re-leakage, Row Crest-Factor < 25.0, and CKA-guided GGUF quantization.",
     ),
     (
+        "mr-andrey-isachenko/Tenet-8B-Qwen3-Unslop-v2",
+        "model",
+        "Tenet v2 8B (Qwen3-8B, <think> CoT Tri-Anchor Lancet H15 + Length-Calibrated GRPO H16 "
+        "+ Domain i1-CKA-Q4_K_M GGUF): 10/10 gates, 100 HP (24/24), 100% CoT integrity, "
+        "KLD 0.0131.",
+    ),
+    (
+        "mr-andrey-isachenko/Tenet-4B-Qwen3-Unslop-v2",
+        "model",
+        "Tenet v2 4B (Qwen3-4B, <think> CoT Tri-Anchor Lancet H15 + Length-Calibrated GRPO H16 "
+        "+ Domain i1-CKA-Q4_K_M GGUF): 10/10 gates, 100 HP (24/24), 100% CoT integrity, "
+        "0% collapse.",
+    ),
+    (
         "mr-andrey-isachenko/Tenet-32B-Qwen2.5-Unslop-v1",
         "model",
         "32B Qwen2.5-32B-Instruct: H13 streaming shard surgery (max diff 7.45e-09), "
