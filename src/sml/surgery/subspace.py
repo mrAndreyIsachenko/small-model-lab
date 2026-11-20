@@ -10,17 +10,76 @@ import shutil
 import tracemalloc
 from dataclasses import dataclass
 from pathlib import Path
-from typing import Any
+from typing import Any, Literal
 
 import torch
 from safetensors.torch import load_file, save_file
 
 from sml.model.transformer import Transformer
 from sml.surgery.cka import collect_layer_activations, get_transformer_layers
+from sml.surgery.probes import (
+    COT_REASONING_ANCHOR_PAIRS,
+    REASONING_ANCHOR_PAIRS,
+    TOOL_SQL_ANCHOR_PAIRS,
+    PhaseSegmenter,
+    encode_contrast_pairs,
+)
+
+
+def _resolve_pool_mask(
+    input_ids: torch.Tensor,
+    pool_mode: Literal["all", "deliberation_only", "answer_only"] = "all",
+    phase_segmenter: PhaseSegmenter | None = None,
+    tokenizer: Any = None,
+    explicit_mask: torch.Tensor | None = None,
+    texts: list[str] | None = None,
+) -> torch.Tensor | None:
+    """Resolve a (B, T) pooling mask for one side of a contrastive pair.
+
+    Precedence: an explicit mask wins; ``pool_mode="all"`` returns ``None``
+    (pool everything); otherwise the phase segmenter computes the masks, using
+    ``deliberation_mask`` for ``"deliberation_only"`` and ``answer_mask`` for
+    ``"answer_only"``.
+    """
+    if explicit_mask is not None:
+        return explicit_mask
+    if pool_mode == "all":
+        return None
+    if phase_segmenter is None:
+        phase_segmenter = PhaseSegmenter()
+    delib_mask, answer_mask = phase_segmenter.compute_phase_masks(
+        input_ids, tokenizer=tokenizer, texts=texts
+    )
+    return delib_mask if pool_mode == "deliberation_only" else answer_mask
+
+
+def _masked_pooled_mean(activations: torch.Tensor, mask: torch.Tensor | None) -> torch.Tensor:
+    """Mean-pool a flattened (B*T, D) activation tensor, optionally masked.
+
+    ``mask`` is a (B, T) (or already flattened) boolean tensor aligned with the
+    activation rows; it is flattened to (B*T,). When no row is selected the
+    unmasked mean over ``dim=0`` is used as a fallback.
+    """
+    if mask is None:
+        return activations.mean(dim=0)
+    flat = mask.detach().reshape(-1).to(device=activations.device, dtype=torch.bool)
+    if bool(flat.any()):
+        return activations[flat].mean(dim=0)
+    return activations.mean(dim=0)
 
 
 def extract_contrastive_direction(
-    model: Transformer, positive_ids: torch.Tensor, negative_ids: torch.Tensor, layer_idx: int = -1
+    model: Transformer,
+    positive_ids: torch.Tensor,
+    negative_ids: torch.Tensor,
+    layer_idx: int = -1,
+    *,
+    pool_mode: Literal["all", "deliberation_only", "answer_only"] = "all",
+    phase_segmenter: PhaseSegmenter | None = None,
+    tokenizer: Any = None,
+    pos_mask: torch.Tensor | None = None,
+    neg_mask: torch.Tensor | None = None,
+    texts: tuple[list[str], list[str]] | None = None,
 ) -> torch.Tensor:
     """
     Extract a contrastive direction between positive and negative examples.
@@ -30,17 +89,47 @@ def extract_contrastive_direction(
         positive_ids: Positive input tensor of shape (B, T)
         negative_ids: Negative input tensor of shape (B, T)
         layer_idx: Index of layer to extract activations from
+        pool_mode: Which phase to pool - ``"all"`` (every token),
+            ``"deliberation_only"`` (inside deliberation tags) or
+            ``"answer_only"`` (outside deliberation tags).
+        phase_segmenter: Segmenter used to derive phase masks when
+            ``pool_mode`` is not ``"all"``.
+        tokenizer: Optional tokenizer passed through to phase-mask computation.
+        pos_mask: Optional explicit (B, T) boolean mask for the positive pool;
+            overrides ``pool_mode`` when provided.
+        neg_mask: Optional explicit (B, T) boolean mask for the negative pool;
+            overrides ``pool_mode`` when provided.
+        texts: Optional ``(positive_texts, negative_texts)`` backing the id
+            batches, used for the character-ratio phase-mask fallback.
 
     Returns:
         Unit-normalized contrastive direction vector of shape (D,)
     """
+    pos_texts, neg_texts = (None, None) if texts is None else (texts[0], texts[1])
+
     # Collect activations for positive examples
     pos_activations = collect_layer_activations(model, positive_ids)
-    pos_mean = pos_activations[layer_idx].mean(dim=0)  # Mean over tokens
+    pos_mask_resolved = _resolve_pool_mask(
+        positive_ids,
+        pool_mode,
+        phase_segmenter,
+        tokenizer,
+        explicit_mask=pos_mask,
+        texts=pos_texts,
+    )
+    pos_mean = _masked_pooled_mean(pos_activations[layer_idx], pos_mask_resolved)
 
     # Collect activations for negative examples
     neg_activations = collect_layer_activations(model, negative_ids)
-    neg_mean = neg_activations[layer_idx].mean(dim=0)  # Mean over tokens
+    neg_mask_resolved = _resolve_pool_mask(
+        negative_ids,
+        pool_mode,
+        phase_segmenter,
+        tokenizer,
+        explicit_mask=neg_mask,
+        texts=neg_texts,
+    )
+    neg_mean = _masked_pooled_mean(neg_activations[layer_idx], neg_mask_resolved)
 
     # Compute difference and normalize
     diff = pos_mean - neg_mean
@@ -94,7 +183,17 @@ def compute_probe_spectral_stats(diff_matrix: torch.Tensor) -> dict[str, float]:
 
 
 def extract_contrastive_direction_with_stats(
-    model: Transformer, positive_ids: torch.Tensor, negative_ids: torch.Tensor, layer_idx: int = -1
+    model: Transformer,
+    positive_ids: torch.Tensor,
+    negative_ids: torch.Tensor,
+    layer_idx: int = -1,
+    *,
+    pool_mode: Literal["all", "deliberation_only", "answer_only"] = "all",
+    phase_segmenter: PhaseSegmenter | None = None,
+    tokenizer: Any = None,
+    pos_mask: torch.Tensor | None = None,
+    neg_mask: torch.Tensor | None = None,
+    texts: tuple[list[str], list[str]] | None = None,
 ) -> tuple[torch.Tensor, dict[str, float]]:
     """
     Extract a contrastive direction plus spectral stats of the differences.
@@ -102,43 +201,217 @@ def extract_contrastive_direction_with_stats(
     Like ``extract_contrastive_direction``, but instead of averaging
     activations across examples first, it keeps a per-example mean over
     sequence tokens so ``Delta_H = mean_pos - mean_neg`` has shape (B, D).
-    The returned direction is the unit-normalized mean of ``Delta_H``,
-    matching ``extract_contrastive_direction``; the statistics describe how
-    concentrated the per-example differences are around that direction.
+    The returned direction is the unit-normalized difference of the pooled
+    means, matching ``extract_contrastive_direction`` (including any phase
+    pooling); the statistics describe how concentrated the per-example
+    differences are around that direction. When a phase mask is active, each
+    example is pooled over its own masked tokens, falling back to that
+    example's full token mean when its mask is empty.
 
     Args:
         model: Transformer model instance
         positive_ids: Positive input tensor of shape (B, T)
         negative_ids: Negative input tensor of shape (B, T)
         layer_idx: Index of layer to extract activations from
+        pool_mode: Which phase to pool - ``"all"`` (every token),
+            ``"deliberation_only"`` (inside deliberation tags) or
+            ``"answer_only"`` (outside deliberation tags).
+        phase_segmenter: Segmenter used to derive phase masks when
+            ``pool_mode`` is not ``"all"``.
+        tokenizer: Optional tokenizer passed through to phase-mask computation.
+        pos_mask: Optional explicit (B, T) boolean mask for the positive pool;
+            overrides ``pool_mode`` when provided.
+        neg_mask: Optional explicit (B, T) boolean mask for the negative pool;
+            overrides ``pool_mode`` when provided.
+        texts: Optional ``(positive_texts, negative_texts)`` backing the id
+            batches, used for the character-ratio phase-mask fallback.
 
     Returns:
         Tuple ``(direction, stats)`` where ``direction`` is a unit-norm
         vector of shape (D,) and ``stats`` comes from
         ``compute_probe_spectral_stats``.
     """
-    # Collect activations for positive examples. `collect_layer_activations`
-    # returns flattened (B*T, D) tensors, so restore the (B, T, D) layout from
-    # the input's shape; the mean over sequence tokens (dim=1) gives (B, D).
-    pos_activations = collect_layer_activations(model, positive_ids)
+    pos_texts, neg_texts = (None, None) if texts is None else (texts[0], texts[1])
     batch_size = int(positive_ids.shape[0])
     seq_len = int(positive_ids.shape[1]) if positive_ids.dim() > 1 else 1
-    pos_mean = pos_activations[layer_idx].reshape(batch_size, seq_len, -1).mean(dim=1)  # (B, D)
+
+    def _per_example_means(
+        activations: torch.Tensor, mask: torch.Tensor | None
+    ) -> torch.Tensor:
+        acts = activations[layer_idx].reshape(batch_size, seq_len, -1)
+        if mask is None:
+            return acts.mean(dim=1)  # (B, D)
+        flat = mask.detach().to(device=acts.device, dtype=torch.bool).reshape(batch_size, seq_len)
+        rows = []
+        for b in range(batch_size):
+            if bool(flat[b].any()):
+                rows.append(acts[b][flat[b]].mean(dim=0))
+            else:
+                rows.append(acts[b].mean(dim=0))
+        return torch.stack(rows, dim=0)
+
+    # Collect activations for positive examples. `collect_layer_activations`
+    # returns flattened (B*T, D) tensors, so restore the (B, T, D) layout from
+    # the input's shape; the masked mean over sequence tokens gives (B, D).
+    pos_activations = collect_layer_activations(model, positive_ids)
+    pos_mask_resolved = _resolve_pool_mask(
+        positive_ids,
+        pool_mode,
+        phase_segmenter,
+        tokenizer,
+        explicit_mask=pos_mask,
+        texts=pos_texts,
+    )
+    pos_mean = _per_example_means(pos_activations, pos_mask_resolved)  # (B, D)
 
     # Collect activations for negative examples
     neg_activations = collect_layer_activations(model, negative_ids)
-    neg_mean = neg_activations[layer_idx].reshape(batch_size, seq_len, -1).mean(dim=1)  # (B, D)
+    neg_mask_resolved = _resolve_pool_mask(
+        negative_ids,
+        pool_mode,
+        phase_segmenter,
+        tokenizer,
+        explicit_mask=neg_mask,
+        texts=neg_texts,
+    )
+    neg_mean = _per_example_means(neg_activations, neg_mask_resolved)  # (B, D)
 
     # Per-example difference matrix
     delta_h = pos_mean - neg_mean
     stats = compute_probe_spectral_stats(delta_h)
 
     # Mean direction, normalized to unit L2 norm (matching
-    # extract_contrastive_direction).
-    mean_dir = delta_h.mean(dim=0)
+    # extract_contrastive_direction, including its phase pooling).
+    pos_pooled = _masked_pooled_mean(pos_activations[layer_idx], pos_mask_resolved)
+    neg_pooled = _masked_pooled_mean(neg_activations[layer_idx], neg_mask_resolved)
+    mean_dir = pos_pooled - neg_pooled
     direction = mean_dir / (mean_dir.norm(p=2) + 1e-8)
 
     return direction, stats
+
+
+def build_tri_anchor_basis(
+    cot_dirs: list[torch.Tensor] | torch.Tensor,
+    math_logic_dirs: list[torch.Tensor] | torch.Tensor,
+    tool_sql_dirs: list[torch.Tensor] | torch.Tensor,
+    device: torch.device | None = None,
+) -> list[torch.Tensor]:
+    """
+    Combine Tri-Anchor direction families into one orthonormal basis.
+
+    Concatenates the CoT-reasoning, math/logic and tool/SQL direction sets
+    (in that order) and orthonormalizes them with ``_orthonormalize_basis``
+    (two-pass modified Gram-Schmidt in float32), so dependent or near-duplicate
+    directions across families are dropped.
+
+    Args:
+        cot_dirs: Deliberation/CoT anchor directions.
+        math_logic_dirs: Math/logic anchor directions.
+        tool_sql_dirs: Tool/SQL anchor directions.
+        device: Optional device to orthonormalize on.
+
+    Returns:
+        List of orthonormal float32 basis vectors.
+    """
+    combined = (
+        _as_direction_list(cot_dirs)
+        + _as_direction_list(math_logic_dirs)
+        + _as_direction_list(tool_sql_dirs)
+    )
+    return _orthonormalize_basis(combined, device=device)
+
+
+def extract_tri_anchor_directions(
+    model: torch.nn.Module,
+    *,
+    cot_pairs: list[tuple[str, str]] | None = None,
+    math_logic_pairs: list[tuple[str, str]] | None = None,
+    tool_sql_pairs: list[tuple[str, str]] | None = None,
+    layer_indices: list[int] | None = None,
+    phase_segmenter: PhaseSegmenter | None = None,
+    vocab_size: int = 32768,
+    seq_len: int = 48,
+    tokenizer: Any = None,
+) -> dict[int, list[torch.Tensor]]:
+    """
+    Extract per-layer Tri-Anchor basis directions from a model.
+
+    For every candidate layer, three contrastive directions are extracted:
+
+    - ``a_cot``: from the CoT reasoning pairs, pooled over the deliberation
+      phase only (``pool_mode="deliberation_only"``).
+    - ``a_math``: from the math/logic anchor pairs (all tokens).
+    - ``a_tool``: from the tool/SQL anchor pairs (all tokens).
+
+    The three directions are combined per layer with
+    ``build_tri_anchor_basis`` into an orthonormal Tri-Anchor basis.
+
+    Args:
+        model: Transformer model instance (HF or sml-nano).
+        cot_pairs: CoT reasoning pairs; defaults to ``COT_REASONING_ANCHOR_PAIRS``.
+        math_logic_pairs: Math/logic pairs; defaults to ``REASONING_ANCHOR_PAIRS``.
+        tool_sql_pairs: Tool/SQL pairs; defaults to ``TOOL_SQL_ANCHOR_PAIRS``.
+        layer_indices: Layers to extract (None means all layers).
+        phase_segmenter: Segmenter used to isolate deliberation tokens for
+            ``a_cot``; defaults to the ``"think"`` format.
+        vocab_size: Vocabulary size for the fallback hash encoder.
+        seq_len: Sequence length used when encoding probe texts.
+        tokenizer: Optional HF-style tokenizer for encoding probe texts.
+
+    Returns:
+        Dict mapping layer index -> list of orthonormal Tri-Anchor directions.
+    """
+    cot_pairs = COT_REASONING_ANCHOR_PAIRS if cot_pairs is None else cot_pairs
+    math_logic_pairs = REASONING_ANCHOR_PAIRS if math_logic_pairs is None else math_logic_pairs
+    tool_sql_pairs = TOOL_SQL_ANCHOR_PAIRS if tool_sql_pairs is None else tool_sql_pairs
+    if phase_segmenter is None:
+        phase_segmenter = PhaseSegmenter()
+
+    model_device = next(model.parameters()).device
+    cot_pos_ids, cot_neg_ids = encode_contrast_pairs(
+        cot_pairs, vocab_size=vocab_size, seq_len=seq_len, device=model_device, tokenizer=tokenizer
+    )
+    cot_texts = ([pos for pos, _ in cot_pairs], [neg for _, neg in cot_pairs])
+    math_pos_ids, math_neg_ids = encode_contrast_pairs(
+        math_logic_pairs,
+        vocab_size=vocab_size,
+        seq_len=seq_len,
+        device=model_device,
+        tokenizer=tokenizer,
+    )
+    tool_pos_ids, tool_neg_ids = encode_contrast_pairs(
+        tool_sql_pairs,
+        vocab_size=vocab_size,
+        seq_len=seq_len,
+        device=model_device,
+        tokenizer=tokenizer,
+    )
+
+    if layer_indices is None:
+        layer_indices = list(range(len(get_transformer_layers(model))))
+
+    tri_basis: dict[int, list[torch.Tensor]] = {}
+    for idx in layer_indices:
+        a_cot = extract_contrastive_direction(
+            model,
+            cot_pos_ids,
+            cot_neg_ids,
+            layer_idx=idx,
+            pool_mode="deliberation_only",
+            phase_segmenter=phase_segmenter,
+            tokenizer=tokenizer,
+            texts=cot_texts,
+        )
+        a_math = extract_contrastive_direction(
+            model, math_pos_ids, math_neg_ids, layer_idx=idx, pool_mode="all"
+        )
+        a_tool = extract_contrastive_direction(
+            model, tool_pos_ids, tool_neg_ids, layer_idx=idx, pool_mode="all"
+        )
+        tri_basis[int(idx)] = build_tri_anchor_basis(
+            [a_cot], [a_math], [a_tool], device=model_device
+        )
+    return tri_basis
 
 
 def project_out_rank1_subspace(
@@ -341,6 +614,10 @@ def compute_layer_scr_profile(
     candidate_layers: list[int] | None = None,
     scale: float = 1.0,
     preserve_row_norm: bool = True,
+    *,
+    cot_input_ids: torch.Tensor | None = None,
+    cot_tag_token_ids: list[int] | None = None,
+    lambda_cot: float = 0.5,
 ) -> list[dict[str, float | int]]:
     """
     Score candidate layers by signal-to-collateral ratio (SCR) for surgery.
@@ -351,8 +628,15 @@ def compute_layer_scr_profile(
 
     - ``signal``: sum of squared removed target-projection energy on both
       weights.
-    - ``kl_collateral``: forward KL divergence between original and modified
+    - ``kl_anchor``: forward KL divergence between original and modified
       model logits on ``anchor_input_ids``.
+    - ``kl_cot``: when ``cot_input_ids`` is provided, forward KL on the CoT
+      batch; if ``cot_tag_token_ids`` is non-empty this is the blend
+      ``0.5 * full-sequence KL + 0.5 * KL over the tag-logit slice``
+      (``log_softmax(logits[..., cot_tag_token_ids])``).
+    - ``kl_collateral``: the collateral penalty - ``lambda_cot * kl_cot +
+      (1 - lambda_cot) * kl_anchor`` when CoT inputs are provided, otherwise
+      just ``kl_anchor``.
     - ``scr``: ``signal / (kl_collateral + 1e-6)``.
 
     Args:
@@ -362,10 +646,17 @@ def compute_layer_scr_profile(
         candidate_layers: Layers to score (None means all layers).
         scale: Projection scale passed through to the projection.
         preserve_row_norm: Passed through to the projection.
+        cot_input_ids: Optional CoT token ids used to measure reasoning-side
+            collateral damage alongside ``anchor_input_ids``.
+        cot_tag_token_ids: Optional deliberation tag token ids; when
+            non-empty (and CoT inputs are provided), half of ``kl_cot`` comes
+            from the KL over those tag logits only.
+        lambda_cot: Weight of ``kl_cot`` in the blended ``kl_collateral``.
 
     Returns:
-        List of dicts with keys ``layer_idx``, ``signal``, ``kl_collateral``,
-        and ``scr``, sorted descending by ``scr``.
+        List of dicts with keys ``layer_idx``, ``signal``, ``kl_anchor``,
+        ``kl_cot``, ``kl_collateral``, and ``scr``, sorted descending by
+        ``scr``.
     """
     layers = get_transformer_layers(model)
     num_layers = len(layers)
@@ -376,12 +667,25 @@ def compute_layer_scr_profile(
     model_device = next(model.parameters()).device
     anchor_input_ids = anchor_input_ids.to(model_device)
 
+    use_cot = cot_input_ids is not None
+    if use_cot:
+        cot_input_ids = cot_input_ids.to(model_device)
+    tag_ids = [int(t) for t in (cot_tag_token_ids or [])] if use_cot else []
+    has_tag_kl = use_cot and len(tag_ids) > 0
+
     was_training = model.training
     model.eval()
     with torch.no_grad():
         orig_logits = _forward_logits(model, anchor_input_ids)
         orig_log_probs = torch.log_softmax(orig_logits.float(), dim=-1)
         orig_probs = orig_log_probs.exp()
+
+        orig_cot_log_probs = None
+        orig_cot_probs = None
+        if use_cot:
+            orig_cot_logits = _forward_logits(model, cot_input_ids)
+            orig_cot_log_probs = torch.log_softmax(orig_cot_logits.float(), dim=-1)
+            orig_cot_probs = orig_cot_log_probs.exp()
 
         profile: list[dict[str, float | int]] = []
         try:
@@ -415,20 +719,54 @@ def compute_layer_scr_profile(
                 try:
                     mod_logits = _forward_logits(model, anchor_input_ids)
                     mod_log_probs = torch.log_softmax(mod_logits.float(), dim=-1)
-                    kl = float((orig_probs * (orig_log_probs - mod_log_probs)).sum(dim=-1).mean())
+                    kl_anchor = float(
+                        (orig_probs * (orig_log_probs - mod_log_probs)).sum(dim=-1).mean()
+                    )
+
+                    if use_cot:
+                        mod_cot_logits = _forward_logits(model, cot_input_ids)
+                        mod_cot_log_probs = torch.log_softmax(mod_cot_logits.float(), dim=-1)
+                        kl_cot_full = float(
+                            (orig_cot_probs * (orig_cot_log_probs - mod_cot_log_probs))
+                            .sum(dim=-1)
+                            .mean()
+                        )
+                        if has_tag_kl:
+                            # Full-vocab binary Bernoulli KL per tag token id, so a
+                            # uniform shift in tag logits is not normalized away.
+                            mod_cot_probs = mod_cot_log_probs.exp()
+                            eps = 1e-8
+                            p_ref = orig_cot_probs[..., tag_ids].clamp(eps, 1.0 - eps)
+                            p_mod = mod_cot_probs[..., tag_ids].clamp(eps, 1.0 - eps)
+                            kl_cot_tag = float(
+                                (
+                                    p_ref * (p_ref.log() - p_mod.log())
+                                    + (1.0 - p_ref)
+                                    * ((1.0 - p_ref).log() - (1.0 - p_mod).log())
+                                ).mean()
+                            )
+                            kl_cot = 0.5 * kl_cot_full + 0.5 * kl_cot_tag
+                        else:
+                            kl_cot = kl_cot_full
+                        kl = lambda_cot * kl_cot + (1.0 - lambda_cot) * kl_anchor
+                    else:
+                        kl_cot = 0.0
+                        kl = kl_anchor
                 finally:
                     layer.self_attn.o_proj.weight = orig_attn_weight
                     layer.mlp.down_proj.weight = orig_mlp_weight
 
                 scr = signal / (kl + 1e-6)
-                profile.append(
-                    {
-                        "layer_idx": int(idx),
-                        "signal": float(signal),
-                        "kl_collateral": float(kl),
-                        "scr": float(scr),
-                    }
-                )
+                entry: dict[str, float | int] = {
+                    "layer_idx": int(idx),
+                    "signal": float(signal),
+                    "kl_collateral": float(kl),
+                    "scr": float(scr),
+                }
+                if use_cot:
+                    entry["kl_anchor"] = float(kl_anchor)
+                    entry["kl_cot"] = float(kl_cot)
+                profile.append(entry)
         finally:
             if was_training:
                 model.train()

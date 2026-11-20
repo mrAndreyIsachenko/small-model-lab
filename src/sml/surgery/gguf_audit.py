@@ -10,7 +10,8 @@ Audits quantized (GGUF) variants of surgically-improved checkpoints:
 - ``build_h14_eval_corpus`` / ``run_llama_perplexity_kl``: real text-perplexity
   and KL-vs-F16 measurements via the ``llama-perplexity`` binary.
 - ``run_llama_server_behavioral_eval``: behavioral evals (unslop audit, IF-Eval
-  subset, SQL read-only safety) against a live ``llama-server`` instance.
+  subset, SQL read-only safety, plus the optional Tenet arena-house series with
+  its peer-eval gate) against a live ``llama-server`` instance.
 - ``run_h14_gguf_audit``: orchestrates every variant and writes
   ``final_metrics.json``.
 """
@@ -31,12 +32,18 @@ import gguf
 import numpy as np
 from safetensors.torch import load_file as load_safetensors
 
+from sml.evals.artifact_verifier import (
+    TENET_ARENA_HOUSE_SERIES,
+    evaluate_arena_house_series,
+)
 from sml.evals.harness import (
     GSM8K_MATH_CASES,
     IFEVAL_CASES,
     _run_ifeval_subset,
     _run_unslop_audit,
 )
+from sml.evals.peer_eval import run_peer_eval_gate
+from sml.surgery.probes import PhaseSegmenter
 
 # ---------------------------------------------------------------------------
 # Inventory
@@ -502,29 +509,87 @@ def run_llama_server_behavioral_eval(
     max_tokens: int = 512,
     seed: int = 2026,
     server_bin: str = "llama-server",
+    use_chat_completions: bool = False,
+    run_arena_house: bool = True,
+    require_think: bool = False,
 ) -> dict[str, Any]:
-    """Launch ``llama-server`` on ``gguf_path`` and run the H14 behavioral suite."""
+    """Launch ``llama-server`` on ``gguf_path`` and run the H14/H17 behavioral suite.
+
+    Raw responses are recorded and segmented with the ``think`` phase segmenter;
+    only the post-``</think>`` surface answer is passed to the SQL extraction,
+    unslop audit and IF-Eval subset. CoT tag integrity is tracked across every
+    recorded response. When ``run_arena_house`` is set, the Tenet arena-house
+    series runs on top and its HP / classification rates plus the peer-eval
+    gate are folded into the returned ``behavioral`` block.
+    """
     from sml.envs import load_environment, validate_readonly_sql
 
     gguf_path = Path(gguf_path)
     completion_url = f"http://127.0.0.1:{port}/completion"
+    chat_completions_url = f"http://127.0.0.1:{port}/v1/chat/completions"
+    segmenter = PhaseSegmenter.for_format("think")
 
     def answer_fn(prompt: str) -> str:
-        payload = {
-            "prompt": prompt,
-            "n_predict": max_tokens,
-            "temperature": 0.0,
-            "seed": seed,
-        }
+        if use_chat_completions:
+            payload = {
+                "messages": [{"role": "user", "content": prompt}],
+                "max_tokens": max_tokens,
+                "temperature": 0.0,
+                "repeat_penalty": 1.05,
+                "seed": seed,
+            }
+            url = chat_completions_url
+        else:
+            payload = {
+                "prompt": prompt,
+                "n_predict": max_tokens,
+                "temperature": 0.0,
+                "seed": seed,
+            }
+            url = completion_url
         try:
-            data = _http_json(completion_url, payload)
+            data = _http_json(url, payload)
         except Exception as exc:  # server died mid-run
             return f"[server error: {exc}]"
+        if use_chat_completions:
+            choices = data.get("choices") or []
+            message = (choices[0].get("message") or {}) if choices else {}
+            content = str(message.get("content") or "")
+            reasoning = message.get("reasoning_content")
+            if reasoning:
+                # llama-server may split CoT out into reasoning_content; wrap
+                # it back into think tags so downstream segmentation works.
+                content = f"<think>{reasoning}</think>{content}"
+            return content
         content = data.get("content")
         if content is None:
             choices = data.get("choices") or []
             content = choices[0].get("text", "") if choices else ""
         return str(content or "")
+
+    recorded: list[dict[str, Any]] = []
+
+    def answer_and_record(prompt: str, source: str) -> str:
+        raw = answer_fn(prompt)
+        span = segmenter.segment_text(raw)
+        cot_tag_valid = span.is_balanced
+        if require_think and span.open_count == 0:
+            cot_tag_valid = False
+        recorded.append(
+            {
+                "source": source,
+                "raw": raw,
+                "cot_tag_valid": bool(cot_tag_valid),
+            }
+        )
+        return raw
+
+    def surface_answer_fn(source: str) -> Any:
+        def respond(prompt: str) -> str:
+            raw = answer_and_record(prompt, source)
+            return segmenter.segment_text(raw).answer_text
+
+        return respond
 
     proc: subprocess.Popen[bytes] | None = None
     result: dict[str, Any] = {
@@ -533,20 +598,23 @@ def run_llama_server_behavioral_eval(
         "server_bin": server_bin,
     }
     try:
+        server_cmd = [
+            server_bin,
+            "-m",
+            str(gguf_path),
+            "--port",
+            str(int(port)),
+            "-c",
+            str(int(ctx_size)),
+            "-ngl",
+            str(int(ngl)),
+            "--seed",
+            str(int(seed)),
+        ]
+        if use_chat_completions and require_think:
+            server_cmd.extend(["--reasoning-format", "none", "--reasoning-budget", "768"])
         proc = subprocess.Popen(
-            [
-                server_bin,
-                "-m",
-                str(gguf_path),
-                "--port",
-                str(int(port)),
-                "-c",
-                str(int(ctx_size)),
-                "-ngl",
-                str(int(ngl)),
-                "--seed",
-                str(int(seed)),
-            ],
+            server_cmd,
             stdout=subprocess.DEVNULL,
             stderr=subprocess.DEVNULL,
         )
@@ -570,7 +638,8 @@ def run_llama_server_behavioral_eval(
                 f"{getattr(scenario, 'description', '')}\n"
                 f"{getattr(scenario, 'prompt', '')}"
             )
-            sql = _extract_sql(answer_fn(query_prompt))
+            raw_sql_response = answer_and_record(query_prompt, "sql_readonly")
+            sql = _extract_sql(segmenter.segment_text(raw_sql_response).answer_text)
             ok, reason = validate_readonly_sql(sql)
             sql_readonly_ok += int(ok)
             sql_scenarios.append(
@@ -583,10 +652,10 @@ def run_llama_server_behavioral_eval(
             )
         n_sql = len(sql_scenarios)
 
-        result["behavioral"] = {
+        behavioral: dict[str, Any] = {
             "ok": True,
-            "unslop_audit": _run_unslop_audit(answer_fn),
-            "ifeval_subset": _run_ifeval_subset(answer_fn),
+            "unslop_audit": _run_unslop_audit(surface_answer_fn("unslop_audit")),
+            "ifeval_subset": _run_ifeval_subset(surface_answer_fn("ifeval_subset")),
             "sql_readonly": {
                 "readonly_ok": sql_readonly_ok,
                 "total": n_sql,
@@ -594,6 +663,35 @@ def run_llama_server_behavioral_eval(
                 "scenarios": sql_scenarios,
             },
         }
+
+        if run_arena_house:
+            arena_raw_responses: list[str] = []
+
+            def arena_answer_fn(prompt: str) -> str:
+                raw = answer_and_record(prompt, "arena_house")
+                arena_raw_responses.append(raw)
+                return raw
+
+            arena_house = evaluate_arena_house_series(arena_answer_fn)
+            behavioral["arena_house"] = arena_house
+            behavioral["house_artifact_classification_rate"] = arena_house[
+                "house_artifact_classification_rate"
+            ]
+            behavioral["arena_house_hp"] = arena_house["simulated_arena_hp"]
+            behavioral["peer_eval"] = run_peer_eval_gate(
+                responses=arena_raw_responses,
+                prompts=TENET_ARENA_HOUSE_SERIES,
+                require_think=require_think,
+            )
+
+        n_recorded = len(recorded)
+        behavioral["cot_tag_integrity_rate"] = (
+            sum(1 for entry in recorded if entry["cot_tag_valid"]) / n_recorded
+            if n_recorded
+            else 0.0
+        )
+        behavioral["raw_responses"] = recorded
+        result["behavioral"] = behavioral
     except Exception as exc:
         result["error"] = f"{type(exc).__name__}: {exc}"
         result.setdefault("behavioral", {"ok": False})
@@ -622,6 +720,10 @@ def run_h14_gguf_audit(
     run_perplexity: bool = True,
     run_behavioral: bool = True,
     ppl_chunks: int = -1,
+    use_chat_completions: bool | None = None,
+    run_arena_house: bool | None = None,
+    require_think: bool | None = None,
+    max_tokens: int | None = None,
 ) -> dict[str, Any]:
     """Audit every GGUF variant and write ``output_dir/final_metrics.json``."""
     output_dir = Path(output_dir)
@@ -639,8 +741,11 @@ def run_h14_gguf_audit(
         "variants": {},
     }
 
-    for name, gguf_path in sorted(variants.items()):
-        gguf_path = Path(gguf_path)
+    ordered_names = [f16_name] + [n for n in sorted(variants) if n != f16_name]
+    f16_logits_bin = output_dir / "f16_logits.bin"
+
+    for name in ordered_names:
+        gguf_path = Path(variants[name])
         f16_ref = f16_gguf_path if gguf_path != f16_gguf_path else None
         variant_metrics: dict[str, Any] = {
             "gguf_path": str(gguf_path),
@@ -657,12 +762,31 @@ def run_h14_gguf_audit(
                 gguf_path,
                 corpus_path,
                 chunks=ppl_chunks,
+                save_logits_path=f16_logits_bin if name == f16_name else None,
+                kl_base_logits_path=(
+                    f16_logits_bin if name != f16_name and f16_logits_bin.is_file() else None
+                ),
             )
 
         if run_behavioral:
-            variant_metrics["behavioral"] = run_llama_server_behavioral_eval(gguf_path)
+            behavioral_kwargs: dict[str, Any] = {}
+            if use_chat_completions is not None:
+                behavioral_kwargs["use_chat_completions"] = use_chat_completions
+            if run_arena_house is not None:
+                behavioral_kwargs["run_arena_house"] = run_arena_house
+            if require_think is not None:
+                behavioral_kwargs["require_think"] = require_think
+            if max_tokens is not None:
+                behavioral_kwargs["max_tokens"] = max_tokens
+            variant_metrics["behavioral"] = run_llama_server_behavioral_eval(
+                gguf_path,
+                **behavioral_kwargs,
+            )
 
         metrics["variants"][name] = variant_metrics
+
+    if f16_logits_bin.is_file():
+        f16_logits_bin.unlink(missing_ok=True)
 
     metrics_path = output_dir / "final_metrics.json"
     metrics_path.write_text(

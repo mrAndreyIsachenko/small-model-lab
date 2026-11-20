@@ -244,3 +244,43 @@ $$\Delta W_{\text{safe}} = (I - U_{\text{ablate}} U_{\text{ablate}}^\top) \Delta
 
 1. **GGUF Subspace Survival Audit (`H14` — `Tenet-8B-Llama3.1-Unslop-v1`, `Apple M4 Pro 48GB`, `llama.cpp`):** аудит 6 вариантов (`f16`, `q4_k_m`, `i1_q4_k_m`, `i1_iq4_xs`, `cka_q4_k_m`, `i1_cka_q4_k_m`) подтвердил, что CKA-guided mixed-precision (`cka_q4_k_m` / `i1_cka_q4_k_m`, `5.290` avg bpw) снижает амплификацию re-leakage в 16 хирургических слоях более чем вдвое относительно статического `Q4_K_M` (`3.012x` против `6.402x` у `Q4_K_M` и `12.374x` у `i1-IQ4_XS`), уменьшает `mean_weight_l2_rel_err` (`0.01165` против `0.05827`) и `mean_kl_vs_f16` (`0.02048` / `0.01656` против `0.02479`), сохраняя `sql_readonly_rate = 1.0` ([`final_metrics.json`](../results/h14_gguf_releakage/final_metrics.json), [ADR-009](../docs/decisions/009-gguf-imatrix-vs-cka-survival.md)).
 2. **Three-Arm External Evals (`Base` vs. `Naive Abliteration` vs. `Tenet v1`):** на `Tenet-3B-Qwen2.5-Unslop-v1` достигнуто `slop_and_refusal_rate = 0.0`, `unslop_pass_rate = 1.0`, `ifeval_strict = 0.600` (`+7.5 pp` vs. `Base`, `+10.0 pp` vs. `Naive`) и `gsm8k_cot_flexible = 0.450` (`+10.0 pp` vs. `Naive`); на `Tenet-8B-Llama3.1-Unslop-v1` — `slop_and_refusal_rate = 0.0`, `unslop_pass_rate = 1.0`, `gsm8k_cot_flexible = 0.733` (`+6.7 pp` vs. `Base`) и `gsm8k_math_acc = 0.700` (`+3.3 pp` vs. `Base`) ([`results/external_evals/`](../results/external_evals/Tenet-8B-Llama3.1-Unslop-v1.json)).
+
+---
+
+## Сборка и аттестация `Tenet v2` (`H14+`, `H15`, `H16`, `H17` — `Tenet-4B-Qwen3-Unslop-v2` & `Tenet-8B-Qwen3-Unslop-v2`)
+
+Локальный цикл сборки и аттестации на `Apple M4 Pro 48GB` — `10/10` release gates passed для обеих моделей, опубликованных в Hugging Face Hub: [`mr-andrey-isachenko/Tenet-4B-Qwen3-Unslop-v2`](https://huggingface.co/mr-andrey-isachenko/Tenet-4B-Qwen3-Unslop-v2) и [`mr-andrey-isachenko/Tenet-8B-Qwen3-Unslop-v2`](https://huggingface.co/mr-andrey-isachenko/Tenet-8B-Qwen3-Unslop-v2). 4B-цикл исполнен через [`scripts/run_tenet_v2_foundry.py`](../scripts/run_tenet_v2_foundry.py) на `Qwen/Qwen3-4B` (`bfloat16` MPS + `llama.cpp` Metal):
+
+1. **Хирургия `H15` + GRPO `H16` (после TIES/norm-preserving merge):**
+   - `selected_layers`: `[13, 15, 17, 12, 11, 20, 9, 22]` (CoT-weighted SCR, `lambda_cot = 0.5`).
+   - `max_row_crest_factor = 3.1766` (`< 25.0` ✅), `fp8_subspace_releakage = 2.4946%` (`< 3.0%` ✅).
+   - Внешний `GSM8K` (`limit=40`): `delta = 0.0 pp` (`0.15` vs `0.15`, `>= -0.5 pp` ✅; [`Tenet-4B-Qwen3-Unslop-v2.json`](../results/external_evals/Tenet-4B-Qwen3-Unslop-v2.json)).
+2. **Доменный GGUF `Domain-i1-CKA-Q4_K_M` (`H14+` + `H17`):**
+
+| Вариант (`Tenet-4B-Qwen3-Unslop-v2`) | PPL (7x512) | RMS Δp vs F16 | Same Top-1 | Unslop Pass | Slop/Refusal | Length Collapse | SQL RO | Arena House HP | House Artifacts | CoT Integrity |
+|---|---:|---:|---:|---:|---:|---:|---:|---:|---:|---:|
+| `f16` (8.05 GB) | 13.6623 | 0.000% | 100.00% | 0.9583 | 0.0000 | 0.0000 | 1.0000 (6/6) | 100.00 | 24/24 (1.0000) | 1.0000 |
+| `cka_q4_k_m` (2.47 GB, 5.15 bpw) | 14.3703 | 8.002% | 90.92% | **1.0000** | 0.0000 | 0.0000 | 1.0000 (6/6) | 100.00 | 24/24 (1.0000) | 1.0000 |
+| `i1_cka_q4_k_m` (`tenet_domain.imatrix`) | **13.9482** | **5.645%** | **92.72%** | **1.0000** | **0.0000** | **0.0000** | **1.0000 (6/6)** | **100.00** | 24/24 (1.0000) | 1.0000 |
+
+   - Доменная `imatrix` полностью устранила деградацию `unslop_pass_rate` (с `0.0833` в `ADR-009` до **`1.0000`**) при снижении `RMS Δp` на **29.5%** и PPL-зазора к `F16` на **60%**, с сохранением весовой защиты `CKA` (`1.635x` subspace amp, `1.79%` L2 error на слое 11; [`gguf_audit/final_metrics.json`](../results/tenet_releases/Tenet-4B-Qwen3-Unslop-v2/gguf_audit/final_metrics.json)).
+   - Выпущен бандл [`results/tenet_releases/Tenet-4B-Qwen3-Unslop-v2/`](../results/tenet_releases/Tenet-4B-Qwen3-Unslop-v2/foundry_summary.json) — `10/10` release gates passed (`arena_house_hp = 100.0`, `house_artifact_classification_rate = 1.0000` (`24/24`), `cot_tag_integrity_rate = 1.0000`); опубликован в Hugging Face Hub: [`mr-andrey-isachenko/Tenet-4B-Qwen3-Unslop-v2`](https://huggingface.co/mr-andrey-isachenko/Tenet-4B-Qwen3-Unslop-v2).
+
+### `Tenet-8B-Qwen3-Unslop-v2` (`Qwen/Qwen3-8B` — Majors)
+
+Полный цикл сборки и аттестации на `Apple M4 Pro 48GB` — **`10/10` release gates passed**, опубликован в Hugging Face Hub: [`mr-andrey-isachenko/Tenet-8B-Qwen3-Unslop-v2`](https://huggingface.co/mr-andrey-isachenko/Tenet-8B-Qwen3-Unslop-v2).
+
+1. **Хирургия `H15` + GRPO `H16` (после TIES/norm-preserving merge):**
+   - `selected_layers`: `[20, 17, 9, 5, 18, 21, 7, 19]` (CoT-weighted SCR, `lambda_cot = 0.5`).
+   - `max_row_crest_factor = 4.3688` (`< 25.0` ✅), `fp8_subspace_releakage = 2.7243%` (`< 3.0%` ✅).
+2. **Доменный GGUF `Domain-i1-CKA-Q4_K_M` (`H14+` + `H17`):**
+
+| Вариант (`Tenet-8B-Qwen3-Unslop-v2`) | Size (GiB) / Avg BPW | Subspace Amp vs F16 | Weight L2 Err | PPL (40x512) | Mean KLD vs F16 | Same Top-1 | Unslop Pass | Slop/Refusal | Length Collapse | SQL RO | Arena House HP | House Artifacts | CoT Integrity |
+|---|---:|---:|---:|---:|---:|---:|---:|---:|---:|---:|---:|---:|---:|
+| `f16` | 15.26 GiB, 16.001 bpw | 1.000x | 0.000% | 8.5154 | 0.00000 | 100.00% | 0.9583 | 0.0000 | 0.0000 | 1.0000 (6/6) | 100.00 | 24/24 (1.0000) | 1.0000 |
+| `cka_q4_k_m` | 4.84 GiB, 5.080 bpw | 1.220x | **1.181%** | 8.7801 | 0.03872 | 92.49% | **1.0000** | 0.0000 | 0.0000 | 1.0000 (6/6) | 100.00 | 24/24 (1.0000) | 1.0000 |
+| `i1_cka_q4_k_m` (`tenet_domain.imatrix`) | 4.84 GiB, 5.080 bpw | 1.227x | 1.189% | **8.4985** | **0.01314** (`-66.1%` vs `cka_q4_k_m`) | **95.24%** | **1.0000** | **0.0000** | **0.0000** | **1.0000 (6/6)** | **100.00** | 24/24 (1.0000) | 1.0000 |
+
+   - Доменная `imatrix` снизила `Mean KLD vs F16` на **66.1%** относительно `cka_q4_k_m` (`0.01314` vs `0.03872`) при PPL **ниже** FP16-референса (`8.4985` vs `8.5154`) и `Same Top-1 = 95.24%`, сохранив весовую защиту `CKA` (`1.227x` subspace amp, `1.189%` L2 error; [`gguf_audit/final_metrics.json`](../results/tenet_releases/Tenet-8B-Qwen3-Unslop-v2/gguf_audit/final_metrics.json)).
+   - Метрики из [`foundry_summary.json`](../results/tenet_releases/Tenet-8B-Qwen3-Unslop-v2/foundry_summary.json): `cot_tag_integrity_rate = 1.0000` (на `f16` и `i1_cka_q4_k_m`), `arena_house_hp = 100.00`, `house_artifact_classification_rate = 1.0000` (`24/24`), `length_collapse_rate = 0.0`, `slop_and_refusal_rate = 0.0`, `unslop_pass_rate = 1.0000`, `sql_readonly_rate = 1.0000` (`6/6`).
+   - Обе модели `Tenet v2` (`Tenet-4B-Qwen3-Unslop-v2`, `Tenet-8B-Qwen3-Unslop-v2`) собраны, аттестованы (`10/10` gates) и опубликованы в Hugging Face Hub.

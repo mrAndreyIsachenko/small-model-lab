@@ -29,6 +29,9 @@ htmlcov/
 *.safetensors
 *.gguf
 *.parquet
+*.imatrix
+.tools/
+/releases/
 results/*/models/
 .hf_cache/
 wandb/

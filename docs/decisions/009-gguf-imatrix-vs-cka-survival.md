@@ -75,3 +75,25 @@ We designed **H14** to measure, locally on Apple M4 Pro 48GB (`llama.cpp` v0.5.0
 ## Decision
 
 - **H14 Accepted (`h14_verified: True`):** CKA-guided mixed precision (`quantize_cka_gguf.sh`) is validated as the highest-fidelity weight-preserving 4-bit GGUF recipe for Lancet-surgered models, `mradermacher`'s `i1-Q4_K_M` is validated as the best ~4.9 bpw drop-in community quant, and the hybrid `i1-CKA-Q4_K_M` (`quantize_cka_gguf.sh --imatrix <path>`) is validated as the overall highest-fidelity 4-bit GGUF (`Mean KLD = 0.01656`, `PPL = 9.0533`, `3.012x` subspace amp, `1.17%` L2 error, `6/6` SQL).
+
+---
+
+## Addendum (`H14+`, 2026-11-20): Domain `imatrix` Eliminates `unslop_pass_rate` Degradation (`Tenet-4B-Qwen3-Unslop-v2`)
+
+In `Tenet-8B-Llama3.1-Unslop-v1`, pairing `CKA-Q4_K_M` with `mradermacher`'s general-purpose `imatrix` dropped `unslop_pass_rate` from `0.5833` to `0.0833`. For `Tenet-4B-Qwen3-Unslop-v2` (`Qwen/Qwen3-4B`, `<think>` reasoning), we generated a 0%-slop domain calibration corpus (`build_tenet_domain_imatrix_corpus()`, `tenet_domain_imatrix.txt`) and computed `tenet_domain.imatrix` via `llama-imatrix`, then audited `f16`, `cka_q4_k_m`, and `i1_cka_q4_k_m` (`Domain-i1-CKA-Q4_K_M`, 2.47 GB, `5.15` bpw) with `llama-server` (`--reasoning-format none --reasoning-budget 768`, `max_tokens=2048`):
+
+| Variant | PPL (7x512) | RMS Δp vs F16 | Same Top-1 | Unslop Pass | Slop/Refusal | SQL RO | Arena House HP | House Artifacts |
+|---|---:|---:|---:|---:|---:|---:|---:|---:|
+| `f16` | 13.6623 | 0.000% | 100.00% | 0.9583 | 0.0000 | 1.0000 | 100.00 | 24/24 (1.0000) |
+| `cka_q4_k_m` | 14.3703 | 8.002% | 90.92% | **1.0000** | 0.0000 | 1.0000 | 100.00 | 24/24 (1.0000) |
+| `i1_cka_q4_k_m` (Domain) | **13.9482** | **5.645%** | **92.72%** | **1.0000** | **0.0000** | **1.0000** | 100.00 | 24/24 (1.0000) |
+
+- **Result:** `Domain-i1-CKA-Q4_K_M` cuts the PPL gap vs `F16` by **60%** (`+0.2859` vs `+0.7080`), reduces `RMS Δp` by **29.5%** (`5.645%` vs `8.002%`), preserves layer-level CKA protection (`1.635x` subspace amp, `1.79%` L2 error, `2.416` max crest at layer 11), and achieves **`unslop_pass_rate = 1.0000`** (`>= cka_q4_k_m` and `>= f16`) with `0.0` slop/refusal and `6/6` SQL.
+
+**`Tenet-8B-Qwen3-Unslop-v2` (`Qwen/Qwen3-8B`, 10/10 release gates passed, uploaded to `mr-andrey-isachenko/Tenet-8B-Qwen3-Unslop-v2`)** — same `f16` / `cka_q4_k_m` / Domain-`i1_cka_q4_k_m` audit on 40x512 chunks:
+
+| Variant | Size (GiB) | Avg BPW | Subspace Amp vs F16 | Weight L2 Err | PPL (40x512) | Mean KLD vs F16 | Same Top-1 | Unslop Pass | Slop/Refusal | SQL RO | Arena House HP | House Artifacts | CoT Integrity |
+|---|---:|---:|---:|---:|---:|---:|---:|---:|---:|---:|---:|---:|---:|
+| `f16` | 15.26 | 16.001 | 1.000x | 0.000% | 8.5154 | 0.00000 | 100.00% | 0.9583 | 0.0000 | 1.0000 (6/6) | 100.00 | 24/24 (1.0000) | 1.0000 |
+| `cka_q4_k_m` | 4.84 | 5.080 | 1.220x | **1.181%** | 8.7801 | 0.03872 | 92.49% | **1.0000** | 0.0000 | 1.0000 (6/6) | 100.00 | 24/24 (1.0000) | 1.0000 |
+| `i1_cka_q4_k_m` (Domain `tenet_domain.imatrix`) | 4.84 | 5.080 | 1.227x | 1.189% | **8.4985** | **0.01314** (`-66.1%` vs `cka_q4_k_m`) | **95.24%** | **1.0000** | 0.0000 | 1.0000 (6/6) | 100.00 | 24/24 (1.0000) | 1.0000 |

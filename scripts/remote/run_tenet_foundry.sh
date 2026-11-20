@@ -5,7 +5,8 @@
 #   TENET_PROFILE=3b-mps ./scripts/remote/run_tenet_foundry.sh
 #
 # Environment knobs (all optional):
-#   TENET_PROFILE  3b-mps | 8b-h100 | 12b-h100 | 32b-h100 | 70b-h100  (default: 3b-mps)
+#   TENET_PROFILE  3b-mps | 4b-qwen3-v2-h100 | 8b-h100 | 12b-h100 | 32b-h100 | 70b-h100
+#                  | 8b-qwen3-v2-h100 | 14b-qwen3-v2-h100 | 32b-qwen3-v2-h100  (default: 3b-mps)
 #   MODEL_NAME / RELEASE_ID / DEVICE / BACKEND  override the profile values
 #   OUTPUT_DIR     release output root          (default: results/tenet_releases)
 #   HF_NAMESPACE   HF Hub namespace             (default: tenet-lab)
@@ -69,8 +70,36 @@ case "${TENET_PROFILE}" in
     PROFILE_BACKEND="llm"
     PROFILE_RUN_SUFFIX="llama70b_h100"
     ;;
+  4b-qwen3-v2-h100)
+    PROFILE_MODEL="Qwen/Qwen3-4B"
+    PROFILE_RELEASE_ID="Tenet-4B-Qwen3-Unslop-v2"
+    PROFILE_DEVICE="cuda"
+    PROFILE_BACKEND="v2"
+    PROFILE_RUN_SUFFIX="qwen3_4b_v2_h100"
+    ;;
+  8b-qwen3-v2-h100)
+    PROFILE_MODEL="Qwen/Qwen3-8B"
+    PROFILE_RELEASE_ID="Tenet-8B-Qwen3-Unslop-v2"
+    PROFILE_DEVICE="cuda"
+    PROFILE_BACKEND="v2"
+    PROFILE_RUN_SUFFIX="qwen3_8b_v2_h100"
+    ;;
+  14b-qwen3-v2-h100)
+    PROFILE_MODEL="Qwen/Qwen3-14B"
+    PROFILE_RELEASE_ID="Tenet-14B-Qwen3-Unslop-v2"
+    PROFILE_DEVICE="cuda"
+    PROFILE_BACKEND="v2"
+    PROFILE_RUN_SUFFIX="qwen3_14b_v2_h100"
+    ;;
+  32b-qwen3-v2-h100)
+    PROFILE_MODEL="Qwen/Qwen3-32B"
+    PROFILE_RELEASE_ID="Tenet-32B-Qwen3-Unslop-v2"
+    PROFILE_DEVICE="cuda"
+    PROFILE_BACKEND="v2"
+    PROFILE_RUN_SUFFIX="qwen3_32b_v2_h100"
+    ;;
   *)
-    echo "Unknown TENET_PROFILE '${TENET_PROFILE}' (expected 3b-mps, 8b-h100, 12b-h100, 32b-h100, or 70b-h100)." >&2
+    echo "Unknown TENET_PROFILE '${TENET_PROFILE}' (expected 3b-mps, 4b-qwen3-v2-h100, 8b-qwen3-v2-h100, 14b-qwen3-v2-h100, 32b-qwen3-v2-h100, 8b-h100, 12b-h100, 32b-h100, or 70b-h100)." >&2
     exit 2
     ;;
 esac
@@ -143,6 +172,27 @@ run_or_print() {
     "$@"
   fi
 }
+
+# Tenet v2 runs skip the legacy build-tenet pipeline entirely: the v2 foundry
+# script owns all four stages (Lancet -> GRPO -> GGUF -> gates) plus Hub upload.
+if [[ "${BACKEND}" == "v2" && "${SMOKE_ONLY}" != "1" ]]; then
+  V2_CMD=(
+    .venv/bin/python scripts/run_tenet_v2_foundry.py
+    --model-name "${MODEL_NAME}"
+    --release-name "${RELEASE_ID}"
+    --releases-dir "${OUTPUT_DIR}"
+  )
+  if [[ "${UPLOAD_TO_HF}" == "1" || "${DROP_LOCAL_WEIGHTS}" == "1" ]]; then
+    V2_CMD+=(
+      --upload-to-hf
+      --drop-local-weights
+      --hf-namespace "${HF_NAMESPACE}"
+    )
+  fi
+  echo "Delegating Tenet v2 release '${RELEASE_ID}' to scripts/run_tenet_v2_foundry.py."
+  run_or_print "${V2_CMD[@]}"
+  exit 0
+fi
 
 VERIFY_H9_CMD=(
   uv run sml verify-h9

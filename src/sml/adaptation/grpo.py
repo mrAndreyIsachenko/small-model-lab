@@ -26,7 +26,12 @@ from sml.envs.tool_env import (
     run_llm_episode,
     run_oracle_episode,
 )
-from sml.envs.unslop_rubric import TENET_UNSLOP_SCENARIOS, TenetUnslopRubric, UnslopPromptSpec
+from sml.envs.unslop_rubric import (
+    TENET_UNSLOP_SCENARIOS,
+    TENET_V2_SCENARIOS,
+    TenetUnslopRubric,
+    UnslopPromptSpec,
+)
 
 
 @dataclass(frozen=True)
@@ -1582,4 +1587,613 @@ def run_llm_h10_unslop_grpo_benchmark(
         "backend": "llm",
         "model_name": model_name,
         "device": str(resolved_device),
+    }
+
+
+# ---------------------------------------------------------------------------
+# H16: length-calibrated GRPO over `TENET_V2_SCENARIOS` (deliberation-first).
+# ---------------------------------------------------------------------------
+
+# Mirrors the v2 rubric's default per-task word targets so candidate
+# construction resolves the same budgets the rubric will score against.
+_V2_DEFAULT_ANS_WORD_TARGETS: dict[str, int] = {
+    "concise_factual": 45,
+    "analytical_sql": 65,
+    "deep_technical_explanation": 140,
+}
+_V2_DEFAULT_COT_WORD_TARGETS: dict[str, int] = {
+    "concise_factual": 60,
+    "analytical_sql": 120,
+    "deep_technical_explanation": 180,
+}
+
+# Clean, calibrated archetype-0 responses for every current v2 scenario:
+# balanced `<think>...</think>` within the resolved CoT budget followed by an
+# answer sized near `target_ans_words` that satisfies every constraint
+# (required keys / keywords, artifact validity, no forbidden words).
+_V2_CLEAN_RESPONSES: dict[str, str] = {
+    "v2-fact-guitar-strings": (
+        "<think> A standard guitar carries six strings tuned from low E upward: "
+        "E, A, D, G, B, and the high E. Twelve-string instruments double that "
+        "course count, but the standard reference stays six, and classical, "
+        "acoustic, and electric bodies all keep this layout. </think> "
+        "A standard guitar has six strings, tuned in perfect fourths across the "
+        "middle range with a major third between the G and B strings. That "
+        "layout spans EADGBE, covers most chords comfortably, and remains the "
+        "default for nearly every player today."
+    ),
+    "v2-json-status-ok": (
+        "<think> The user wants one JSON object with status and code keys. I "
+        "will set status to ok and code to 200, then include a few extra health "
+        "fields so the payload stays useful without breaking the schema. "
+        "</think> "
+        '{"status": "ok", "code": 200, "service": "api-gateway", '
+        '"region": "eu-west-1", "checks": ["auth", "database", "cache", '
+        '"queue"], "latency_ms": 42, "uptime_days": 19, "version": "2.4.1", '
+        '"notes": "every subsystem reports healthy within its expected '
+        'operating range today"}'
+    ),
+    "v2-numeric-train-arrival": (
+        "<think> The departure is 14:05 and the trip lasts two hours forty "
+        "minutes. Adding two hours reaches 16:05, and forty more minutes "
+        "lands the arrival at 16:45. No daylight shift applies. </think> "
+        "The train arrives at 16:45. Adding two hours and forty minutes to "
+        "the 14:05 departure gives 16:45, which matches the printed timetable "
+        "exactly, so expect 16:45."
+    ),
+    "v2-code-is-even": (
+        "<think> The parity check reduces to one modulo test. I will guard "
+        "the docstring, keep the branch explicit, and return booleans only. "
+        "</think> "
+        "```python\n"
+        "# small helper for the parity check used across the calculator module\n"
+        "def is_even(n):\n"
+        '    """Return True when n is even, False when n is odd."""\n'
+        "    if n % 2 == 0:\n"
+        "        return True\n"
+        "    return False\n"
+        "```"
+    ),
+    "v2-sql-top-customers": (
+        "<think> I need the five customers with the highest total spend, so I "
+        "aggregate spend per customer first, then order descending and cap the "
+        "result at five rows. A CTE keeps the read clearly readonly. </think> "
+        "WITH ranked AS (SELECT customer_id, customer_name, region, "
+        "SUM(order_value) AS total_spend FROM customers GROUP BY customer_id, "
+        "customer_name, region) SELECT customer_id, customer_name, total_spend "
+        "FROM ranked ORDER BY total_spend DESC LIMIT 5"
+    ),
+    "v2-sql-index-skip": (
+        "<think> The question asks when an engine ignores an index, so I will "
+        "cover functions on the indexed column, implicit casts, leading "
+        "wildcards, and low selectivity, then keep the answer inside the "
+        "requested word budget. </think> "
+        "An engine ignores an index whenever the predicate hides the column "
+        "from the planner. Wrapping the indexed column in a function such as "
+        "LOWER(email) forces a scan because the tree stores raw values only. "
+        "Implicit type casts behave the same way: comparing a text column to "
+        "an integer rewrites every row before lookup. Leading-wildcard patterns "
+        "like LIKE '%son' cannot descend the tree, so the planner falls back to "
+        "a sequential scan. Finally, low selectivity flips the cost model: when "
+        "a predicate matches most rows, random heap lookups cost more than one "
+        "ordered pass, and the planner rightly chooses the scan."
+    ),
+    "v2-json-churn-flags": (
+        "<think> I scan the login recency list and keep the accounts whose "
+        "last login exceeds thirty days. A2 at forty-five days and A3 at sixty "
+        "days qualify, while A1 at five days stays healthy. </think> "
+        '{"at_risk": ["A2", "A3"], "count": 2, "window_days": 30, '
+        '"reviewed": ["A1"], "note": "A2 and A3 stayed idle past the thirty '
+        'day login window while A1 logged in two days ago and stays healthy"}'
+    ),
+    "v2-sql-avg-orders": (
+        "<think> The average order total for the emea region needs one filtered "
+        "aggregate. I isolate emea rows in a CTE, then compute the mean plus "
+        "supporting spread statistics in a single readonly statement. </think> "
+        "WITH emea_orders AS (SELECT order_id, customer_id, region, "
+        "order_total, placed_at FROM orders WHERE region = 'emea' AND "
+        "order_total > 0) SELECT ROUND(AVG(order_total), 2) AS avg_order_total, "
+        "COUNT(*) AS order_count, MIN(order_total) AS smallest_order, "
+        "MAX(order_total) AS largest_order FROM emea_orders"
+    ),
+    "v2-deep-queue-backpressure": (
+        "<think> I will define backpressure as flow control driven by consumer "
+        "capacity, walk through unbounded queue growth, then name one concrete "
+        "failure mode with slow consumers and close with the mitigation "
+        "mechanism. </think> "
+        "Backpressure is the mechanism a message queue uses to match producer "
+        "rate to consumer capacity instead of letting the broker absorb every "
+        "spike. Producers publish whenever work appears, but consumers drain at "
+        "a rate set by database latency, downstream calls, and worker count. "
+        "When production outruns consumption, depth grows and memory pressure "
+        "builds. A healthy system signals that pressure upstream: brokers "
+        "throttle publishes, return credits only as consumers acknowledge, and "
+        "producers slow down or spill to durable storage. The clearest failure "
+        "mode with slow consumers is unbounded retention: acknowledgements stop "
+        "arriving, redelivery timers fire, and the same messages cycle while "
+        "fresh publishes keep landing. Latency balloons from milliseconds to "
+        "minutes, memory fills with undelivered frames, and eventually the "
+        "broker either evicts messages that nobody processed or crashes. "
+        "Bounded queues with explicit credit limits turn that silent collapse "
+        "into visible, manageable lag."
+    ),
+    "v2-deep-retry-decorator": (
+        "<think> The decorator wraps a flaky call, tracks a deadline, and "
+        "retries with a fixed pause until the timeout expires. I will sketch "
+        "the closure, the deadline check, and the final re-raise. </think> "
+        "```python\n"
+        "import functools\n"
+        "import time\n"
+        "\n"
+        "def retry(timeout_s):\n"
+        '    """Run the wrapped call repeatedly until the deadline passes."""\n'
+        "    def decorator(fn):\n"
+        "        @functools.wraps(fn)\n"
+        "        def wrapper(*args, **kwargs):\n"
+        "            deadline = time.monotonic() + timeout_s\n"
+        "            while True:\n"
+        "                try:\n"
+        "                    return fn(*args, **kwargs)\n"
+        "                except TransientError:\n"
+        "                    if time.monotonic() >= deadline:\n"
+        "                        raise\n"
+        "                    time.sleep(0.2)\n"
+        "        return wrapper\n"
+        "    return decorator\n"
+        "```"
+    ),
+    "v2-json-capacity-plan": (
+        "<think> Two thousand four hundred gigabytes at two hundred gigabytes "
+        "per node means twelve nodes with no headroom, so I will round up to "
+        "thirteen and record both figures in the plan. </think> "
+        '{"nodes": 13, "ram_gb_per_node": 200, "total_data_gb": 2400, '
+        '"headroom_note": "thirteen nodes carry the 2400 GB corpus with one '
+        'node of spare capacity across the cluster"}'
+    ),
+    "v2-deep-replica-bytes": (
+        "<think> The shard holds four hundred eighty gigabytes and every byte "
+        "is copied to three independent replicas. Multiplying the shard size "
+        "by the replication factor gives the total stored across the cluster. "
+        "</think> "
+        "Across three replicas the cluster stores 1440 GB in total. "
+        "Multiplying the 480 GB shard by the replication factor of 3 gives "
+        "1440 GB, so every byte now lives on three independent nodes."
+    ),
+}
+
+# Generic deliberation filler for the overthinking archetype; every sentence is
+# distinct so the long CoT keeps its internal n-gram variety (no degenerate
+# repetition gate trips) while wildly exceeding the CoT word budget.
+_V2_OVERTHINKING_SENTENCES: tuple[str, ...] = (
+    "First I restate the request so the goal stays pinned in view while the "
+    "branches multiply.",
+    "Then I list every assumption I can find, even the ones that look stable.",
+    "I check the obvious interpretation against a second reading of the prompt.",
+    "I sketch the naive approach before questioning whether it handles edge cases.",
+    "I consider ordering constraints that might reorder the steps I planned.",
+    "I weigh whether the output format needs stricter boundaries than assumed.",
+    "I test the first draft mentally against a small worked example.",
+    "I look for hidden dependencies between the parts I treated as independent.",
+    "I ask what a careful reviewer would challenge about the current draft.",
+    "I consider failure modes that only appear when inputs arrive out of order.",
+    "I re-derive the core relationship once more from the stated premises.",
+    "I compare the two candidate answers and hunt for a decisive tie-breaker.",
+    "I check whether the constraints conflict anywhere in the drafted plan.",
+    "I trace the worked example again slowly, watching each intermediate value.",
+    "I look for a shortcut that would collapse several steps into one.",
+    "I probe whether the wording hides a second requirement I skipped earlier.",
+    "I revisit the opening sentence to confirm the scope has not drifted.",
+    "I enumerate the risks that remain even after the main path looks settled.",
+    "I consider how the answer changes if one premise is quietly false.",
+    "I re-check that every requested element appears in the planned response.",
+    "I test the boundary values one at a time against the drafted rule.",
+    "I think about which detail deserves emphasis and which is only context.",
+    "I weigh whether more caution or more directness fits the request best.",
+    "I look once more for silent assumptions about units, scales, and ranges.",
+    "I re-run the comparison of candidates with the corrected intermediate values.",
+    "I consider what evidence would make me abandon the current approach.",
+    "I settle the ordering of the final answer so it reads cleanly top to bottom.",
+    "I confirm the closing statement answers the opening question directly.",
+    "I review whether any sentence promises more than the response delivers.",
+    "I check the tone against the request one final time before composing.",
+    "I measure whether the drafted reply satisfies every explicit instruction.",
+    "I rehearse the answer once more against the shortest acceptable length.",
+    "I review the connective tissue between paragraphs for needless repetition.",
+    "I look for claims that would need a citation if this were published.",
+    "I test whether trimming one sentence would lose any required element.",
+    "I imagine the follow-up question the reader will ask after this answer.",
+    "I confirm the plan handles the case where every constraint binds at once.",
+    "I weigh the cost of one more verification pass against the deadline.",
+    "I decide the final wording now that every check above has settled.",
+)
+
+
+def _v2_candidate_responses(spec: UnslopPromptSpec) -> list[str]:
+    """Return the 6 deterministic length-calibrated candidate archetypes.
+
+    Index order: 0 clean calibrated `<think>` + answer, 1 length-collapsed
+    short answer, 2 overthinking + intro/outro slop, 3 malformed/leaked
+    `<think>`, 4 repetition loop + invalid artifact, 5 refusal.
+    """
+    clean = _V2_CLEAN_RESPONSES.get(spec.scenario_id) or _v2_fallback_clean_response(spec)
+    target_ans, target_cot = _v2_resolved_targets(spec)
+
+    # Archetype 1: balanced tags, then a collapsed answer (< 6 words).
+    collapsed = "<think>ok</think> Done."
+
+    # Archetype 2: deliberation far past the CoT budget (distinct sentences, so
+    # only the calibration gate fails), then an answer wearing intro/outro slop.
+    needed = min(len(_V2_OVERTHINKING_SENTENCES), int(math.ceil(2.6 * target_cot / 14.0)) + 2)
+    long_think = " ".join(_V2_OVERTHINKING_SENTENCES[:needed])
+    inner = clean.split("</think>", 1)[-1].strip()
+    slop_answer = (
+        "Certainly! Here is everything you asked for. It is a testament to "
+        "careful thought, a tapestry of detail.\n\n"
+        f"{inner} In conclusion, this is a testament to thorough work, a "
+        "tapestry of careful steps, and I couldn't help but add every detail."
+    )
+    overthinking = f"<think> {long_think} </think> {slop_answer}"
+
+    # Archetype 3: unclosed <think> for prose scenarios, a stray </think>
+    # leaked inside the artifact for artifact scenarios.
+    if spec.artifact_type == "none":
+        malformed = f"<think> The plan starts here and never closes. {inner}"
+    else:
+        malformed = f"<think> The plan closes early. </think>\n</think> {inner}"
+
+    # Archetype 4: degenerate repetition loop in the CoT plus a broken artifact.
+    loop_think = "<think> " + "check step " * 8 + "</think>"
+    broken_artifacts: dict[str, str] = {
+        "json": "{bad json",
+        "sql_readonly": "DROP TABLE users;",
+        "code": "def broken(:\n    return",
+        "exact_numeric": "No number survived the loop.",
+        "none": "The answer never lands properly here.",
+    }
+    repetition = f"{loop_think} {broken_artifacts[spec.artifact_type]}"
+
+    return [
+        clean,
+        collapsed,
+        overthinking,
+        malformed,
+        repetition,
+        _REFUSAL_RESPONSE,
+    ]
+
+
+def _v2_resolved_targets(spec: UnslopPromptSpec) -> tuple[int, int]:
+    """Resolve `(target_ans_words, target_cot_words)` exactly as the v2 rubric does."""
+    return (
+        spec.target_ans_words or _V2_DEFAULT_ANS_WORD_TARGETS[spec.task_type],
+        spec.target_cot_words or _V2_DEFAULT_COT_WORD_TARGETS[spec.task_type],
+    )
+
+
+def _v2_fallback_clean_response(spec: UnslopPromptSpec) -> str:
+    """Generic calibrated response for v2 scenarios outside the hand-written map."""
+    target_ans, target_cot = _v2_resolved_targets(spec)
+    keywords = spec.required_keywords or ["the request"]
+    think = (
+        "<think> The request needs one focused pass: identify what is asked, "
+        "check the stated constraints, and compose the reply so every required "
+        "element appears in order. The plan stays short and the answer stays "
+        "inside the requested size. </think> "
+    )
+    answer_words: list[str] = []
+    answer_words.append("Here is the direct result for " + " and ".join(keywords) + ".")
+    filler = (
+        "The response keeps each required element in view, states the result "
+        "plainly, and avoids every banned phrase while staying on task."
+    )
+    if spec.artifact_type == "json":
+        payload: dict[str, Any] = {key: "value" for key in spec.required_keys}
+        for idx, keyword in enumerate(spec.required_keywords):
+            key = (
+                spec.required_keys[idx % len(spec.required_keys)] if spec.required_keys else "note"
+            )
+            payload[key] = keyword
+        payload["summary"] = filler
+        answer = json.dumps(payload)
+    elif spec.artifact_type == "sql_readonly":
+        cols = ", ".join(kw for kw in keywords if kw.lower() not in ("select",))
+        answer = f"SELECT {cols} FROM data WHERE source = 'spec' ORDER BY 1"
+    elif spec.artifact_type == "code":
+        body = " and ".join(keywords)
+        answer = f"```python\n# sketch for {body}\ndef solve(x):\n    return x\n```"
+    elif spec.artifact_type == "exact_numeric":
+        answer = spec.exact_answer or "The count is 0."
+    else:
+        answer = " ".join(answer_words) + " " + filler
+    # Pad the prose answer toward the resolved target when it undershoots.
+    pad_sentence = (
+        "One more supporting sentence keeps the reply calibrated to the "
+        "requested length without adding any new claims or filler phrases."
+    )
+    while len(answer.split()) < max(0, target_ans - 12):
+        answer += " " + pad_sentence
+    pad_idx = 0
+    while len(think.split()) < max(0, target_cot - 12):
+        think += " " + _V2_OVERTHINKING_SENTENCES[pad_idx % len(_V2_OVERTHINKING_SENTENCES)]
+        pad_idx += 1
+    return think + answer
+
+
+def run_h16_length_calibrated_grpo_benchmark(
+    seed: int = 2026,
+    steps: int = 27,
+    group_size: int = 6,
+    lr: float = 0.0038,
+    beta_kl: float = 0.04,
+    clip_eps: float = 0.2,
+    lora_rank: int = 4,
+    lora_alpha: float = 8.0,
+) -> dict[str, Any]:
+    """H16: length-calibrated GRPO keeps CoT tags, lengths, and artifacts intact.
+
+    Three arms share one deterministic base policy over the 6 length-calibrated
+    response archetypes per `TENET_V2_SCENARIOS` entry (clean calibrated,
+    length-collapsed, overthinking+slop, malformed `<think>` tags, repetition
+    loop, refusal):
+
+    1. `1_lancet_surgical_only`: the untrained post-surgery baseline.
+    2. `2_tenet_grpo_v1_additive`: LoRA + GRPO against the v1 additive rubric,
+       where malformed-but-plausible responses still earn high partial credit
+       and calibrated length is invisible.
+    3. `3_tenet_grpo_v2_calibrated`: LoRA + GRPO against the v2 rubric, where
+       `<think>` tag integrity, calibrated answer length, and artifact
+       completeness gate the reward.
+
+    Arm 3's LoRA weights are then merged in place with the refusal/slop target
+    directions projected out (`preserve_row_norm=True`); the pre/post-merge
+    logit gap must be float-noise (< 1e-4), zero `LoRALinear` wrappers may
+    remain, and the merged delta must not re-leak forbidden-subspace mass.
+    Arm 3's argmax responses are finally scored with the v2 rubric, so every
+    reported response-level metric is a plain fraction over the 12 scenarios.
+    """
+    if group_size != TenetRehabPolicy.ARCHETYPE_COUNT:
+        raise ValueError(
+            f"group_size must equal the {TenetRehabPolicy.ARCHETYPE_COUNT} candidate "
+            f"archetypes per scenario, got {group_size}"
+        )
+    torch.manual_seed(seed)
+
+    num_scenarios = len(TENET_V2_SCENARIOS)
+    scenario_ids = torch.arange(num_scenarios)
+    v2_rubric = TenetUnslopRubric(mode="v2")
+    additive_rubric = TenetUnslopRubric(mode="additive")
+
+    # Rewards are deterministic per (scenario, archetype); precompute both rubrics.
+    v2_rewards = torch.zeros(num_scenarios, group_size)
+    additive_rewards = torch.zeros(num_scenarios, group_size)
+    v2_breakdowns: list[list[Any]] = []
+    for row_idx, spec in enumerate(TENET_V2_SCENARIOS):
+        candidates = _v2_candidate_responses(spec)
+        row_breakdowns = [v2_rubric.score(text, spec) for text in candidates]
+        v2_breakdowns.append(row_breakdowns)
+        for col_idx, (text, breakdown) in enumerate(zip(candidates, row_breakdowns, strict=True)):
+            v2_rewards[row_idx, col_idx] = breakdown.total_reward
+            additive_rewards[row_idx, col_idx] = additive_rubric.score(text, spec).total_reward
+
+    def _build_base_policy() -> TenetRehabPolicy:
+        """Fresh base policy with the post-Lancet pre-rehab response distribution."""
+        torch.manual_seed(seed)
+        policy = TenetRehabPolicy()
+        with torch.no_grad():
+            # Post-Lancet pre-rehab prior: residual slop & refusal mass remains high.
+            policy.lm_head.bias.copy_(torch.tensor([0.0, 1.50, 0.80, 0.20, -0.60, 0.30]))
+        policy.eval()
+        return policy
+
+    def _train_arm(rewards: torch.Tensor) -> tuple[TenetRehabPolicy, list[dict[str, Any]]]:
+        """LoRA-wrap a fresh base clone and GRPO-train it against `rewards`."""
+        model = _build_base_policy()
+        apply_lora_to_transformer(model, rank=lora_rank, alpha=lora_alpha)
+        trainable = [p for p in model.parameters() if p.requires_grad]
+        optimizer = torch.optim.AdamW(trainable, lr=lr) if trainable else None
+
+        with torch.no_grad():
+            ref_all_logprobs = torch.log_softmax(model(scenario_ids), dim=-1)
+
+        history: list[dict[str, Any]] = []
+        for step in range(steps if optimizer is not None else 0):
+            with torch.no_grad():
+                old_all_logprobs = torch.log_softmax(model(scenario_ids), dim=-1)
+                old_probs = torch.exp(old_all_logprobs)
+                actions = torch.multinomial(old_probs, num_samples=group_size, replacement=True)
+                old_lp = old_all_logprobs.gather(1, actions)
+                ref_lp = ref_all_logprobs.gather(1, actions)
+                sampled_rewards = rewards.gather(1, actions)
+                advantages = torch.stack(
+                    [
+                        compute_group_normalized_advantages(sampled_rewards[idx])
+                        for idx in range(num_scenarios)
+                    ]
+                )
+
+            optimizer.zero_grad()
+            policy_all_logprobs = torch.log_softmax(model(scenario_ids), dim=-1)
+            policy_lp = policy_all_logprobs.gather(1, actions)
+            loss_dict = compute_grpo_loss(
+                policy_logprobs=policy_lp,
+                old_logprobs=old_lp,
+                ref_logprobs=ref_lp,
+                advantages=advantages,
+                clip_eps=clip_eps,
+                beta_kl=beta_kl,
+            )
+            loss_dict["loss"].backward()
+            torch.nn.utils.clip_grad_norm_(trainable, max_norm=5.0)
+            optimizer.step()
+            history.append(
+                {
+                    "step": step,
+                    "loss": round(float(loss_dict["loss"].detach()), 6),
+                    "policy_obj": round(float(loss_dict["policy_obj"].detach()), 6),
+                    "kl_div": round(float(loss_dict["kl_div"].detach()), 6),
+                }
+            )
+        model.eval()
+        return model, history
+
+    def _evaluate_arm(model: nn.Module) -> dict[str, Any]:
+        """V2-rubric metrics, probability-weighted over each archetype group."""
+        with torch.no_grad():
+            probs = torch.softmax(model(scenario_ids), dim=-1)
+        metric_names = (
+            "v2_score",
+            "cot_tag_integrity_rate",
+            "slop_and_refusal_rate",
+            "artifact_completeness_rate",
+        )
+        sums = {name: 0.0 for name in metric_names}
+        archetype_prob_sums = [0.0] * group_size
+        for idx in range(num_scenarios):
+            for cand_idx, breakdown in enumerate(v2_breakdowns[idx]):
+                weight = float(probs[idx, cand_idx])
+                archetype_prob_sums[cand_idx] += weight
+                sums["v2_score"] += weight * breakdown.total_reward
+                sums["cot_tag_integrity_rate"] += weight * float(
+                    breakdown.g_cot_integrity >= 1.0
+                )
+                sums["slop_and_refusal_rate"] += weight * float(
+                    breakdown.slop_hits > 0 or breakdown.refusal_hits > 0
+                )
+                sums["artifact_completeness_rate"] += weight * float(
+                    bool(breakdown.artifact_valid)
+                )
+        arm = {name: round(value / num_scenarios, 6) for name, value in sums.items()}
+        arm["archetype_probs"] = [round(p / num_scenarios, 6) for p in archetype_prob_sums]
+        return arm
+
+    def _build_forbidden_dirs(policy: TenetRehabPolicy) -> dict[int, list[torch.Tensor]]:
+        """Per-layer orthonormalized refusal + slop target directions.
+
+        Derived from the frozen pre-surgery `lm_head` using the v2 archetype
+        layout: row 5 is the refusal archetype, row 2 the overthinking/slop
+        archetype; Gram-Schmidt orthonormalizes the pair so the projector
+        `I - U U^T` is idempotent. All block projections are 32 -> 32, so the
+        single block (layer key `0`) carries the biprojected pair applied to
+        every target projection.
+        """
+        head = policy.lm_head.weight.detach()
+        refusal_dir = head[5] / head[5].norm()
+        slop_dir = head[2] - (refusal_dir @ head[2]) * refusal_dir
+        dirs = [refusal_dir]
+        if float(slop_dir.norm()) > 1e-8:
+            dirs.append(slop_dir / slop_dir.norm())
+        return {0: dirs}
+
+    arm1 = _evaluate_arm(_build_base_policy())
+    arm2_model, arm2_history = _train_arm(additive_rewards)
+    arm2 = _evaluate_arm(arm2_model)
+    arm2["history"] = arm2_history
+    arm3_model, arm3_history = _train_arm(v2_rewards)
+    arm3 = _evaluate_arm(arm3_model)
+    arm3["history"] = arm3_history
+
+    # Merge Arm 3's LoRA weights and verify merge equivalence + subspace safety.
+    with torch.no_grad():
+        pre_merge_logits = arm3_model(scenario_ids).detach().clone()
+    arm3_eval_probs = torch.softmax(pre_merge_logits, dim=-1)
+    forbidden_dirs = _build_forbidden_dirs(arm3_model)
+    u_stack = torch.stack(forbidden_dirs[0], dim=1)
+    projector = torch.eye(u_stack.shape[0]) - u_stack @ u_stack.t()
+    target_names = ("o_proj", "down_proj")
+    surg_weights = {
+        name: getattr(arm3_model, name).base_layer.weight.detach().clone() for name in target_names
+    }
+
+    # Naive merge on a deepcopy: exact LoRA merge equivalence (float-noise gap).
+    naive_model = copy.deepcopy(arm3_model)
+    merge_lora_weights_in_place(naive_model, forbidden_dirs=None)
+    with torch.no_grad():
+        max_abs_logit_diff = float(
+            (pre_merge_logits - naive_model(scenario_ids).detach()).abs().max()
+        )
+
+    def _forbidden_mass(model: nn.Module) -> float:
+        """Forbidden-subspace mass of the merged delta, summed over targets."""
+        total = 0.0
+        for name in target_names:
+            delta = getattr(model, name).weight.detach() - surg_weights[name]
+            total += float((u_stack.t() @ delta).norm())
+        return total
+
+    unprojected_lora_releakage = _forbidden_mass(naive_model)
+
+    # Subspace-safe merge for Arm 3: project each LoRA delta onto the
+    # orthogonal complement of the forbidden directions before folding. The
+    # left-multiplication preserves the rank-4 factorization, so rewriting
+    # `lora_b` re-expresses the identical delta minus forbidden mass. The
+    # merge call receives the per-layer dict + `preserve_row_norm`; the toy
+    # policy's flat module names carry no layer index, so the projection is
+    # applied here rather than at merge time.
+    with torch.no_grad():
+        for module in arm3_model.modules():
+            if isinstance(module, LoRALinear):
+                module.lora_b.copy_(projector @ module.lora_b)
+    merge_lora_weights_in_place(arm3_model, forbidden_dirs=forbidden_dirs, preserve_row_norm=True)
+    merged_lora_count = sum(isinstance(m, LoRALinear) for m in arm3_model.modules())
+    assert merged_lora_count == 0, "merge_lora_weights_in_place left LoRALinear wrappers"
+    arm3["merged_lora_count"] = merged_lora_count
+    arm3["max_abs_logit_diff"] = round(max_abs_logit_diff, 8)
+    subspace_safe_lora_releakage = _forbidden_mass(arm3_model)
+
+    # Response-level health of Arm 3's evaluated (argmax) responses under the
+    # v2 rubric: `<think>` tag integrity, calibrated length, slop/refusal
+    # freedom, and artifact completeness, as fractions over the scenarios.
+    cot_integrity_hits = 0
+    collapsed_responses = 0
+    slop_or_refusal_responses = 0
+    artifact_complete_responses = 0
+    total_ans_words = 0
+    total_cot_words = 0
+    for row_idx, spec in enumerate(TENET_V2_SCENARIOS):
+        chosen = _v2_candidate_responses(spec)[int(torch.argmax(arm3_eval_probs[row_idx]))]
+        breakdown = v2_rubric.score(chosen, spec)
+        cot_integrity_hits += float(breakdown.g_cot_integrity >= 1.0)
+        if breakdown.ans_word_count < max(6, spec.min_words):
+            collapsed_responses += 1
+        slop_or_refusal_responses += float(breakdown.slop_hits > 0 or breakdown.refusal_hits > 0)
+        artifact_complete_responses += float(bool(breakdown.artifact_valid))
+        total_ans_words += breakdown.ans_word_count
+        total_cot_words += breakdown.cot_word_count
+
+    cot_tag_integrity_rate = cot_integrity_hits / num_scenarios
+    length_collapse_rate = collapsed_responses / num_scenarios
+    slop_and_refusal_rate = slop_or_refusal_responses / num_scenarios
+    artifact_completeness_rate = artifact_complete_responses / num_scenarios
+    mean_ans_words = total_ans_words / num_scenarios
+    mean_cot_words = total_cot_words / num_scenarios
+
+    h16_v2_vs_v1_gain = arm3["v2_score"] - arm2["v2_score"]
+    h16_verified = bool(
+        cot_tag_integrity_rate >= 0.995
+        and length_collapse_rate < 0.01
+        and slop_and_refusal_rate <= 0.02
+        and artifact_completeness_rate >= 0.99
+        and subspace_safe_lora_releakage < 1e-5
+        and merged_lora_count == 0
+        and max_abs_logit_diff < 1e-4
+    )
+
+    return {
+        "cot_tag_integrity_rate": round(cot_tag_integrity_rate, 6),
+        "length_collapse_rate": round(length_collapse_rate, 6),
+        "slop_and_refusal_rate": round(slop_and_refusal_rate, 6),
+        "artifact_completeness_rate": round(artifact_completeness_rate, 6),
+        "mean_ans_words": round(mean_ans_words, 4),
+        "mean_cot_words": round(mean_cot_words, 4),
+        "h16_v2_vs_v1_gain": round(h16_v2_vs_v1_gain, 6),
+        "max_abs_logit_diff": round(max_abs_logit_diff, 8),
+        "merged_lora_count": merged_lora_count,
+        "unprojected_lora_releakage": round(unprojected_lora_releakage, 8),
+        "subspace_safe_lora_releakage": round(subspace_safe_lora_releakage, 9),
+        "h16_verified": h16_verified,
+        "arms": {
+            "1_lancet_surgical_only": arm1,
+            "2_tenet_grpo_v1_additive": arm2,
+            "3_tenet_grpo_v2_calibrated": arm3,
+        },
     }
