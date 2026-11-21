@@ -1,0 +1,27 @@
+{
+  "schema_version": "1.0",
+  "model_id": "Tenet-32B-Qwen3-Unslop-v2",
+  "base_model": "Qwen/Qwen3-32B",
+  "extraction_mode": "activation_contrastive",
+  "d_model": 5120,
+  "num_layers": 64,
+  "scale": 1.0,
+  "top_k_layers": 6,
+  "selected_layers": [
+    30,
+    42,
+    46,
+    45,
+    48,
+    24
+  ],
+  "layer_weights": {
+    "30": 1.0,
+    "42": 0.957582,
+    "46": 0.917609,
+    "45": 0.900355,
+    "48": 0.871789,
+    "24": 0.842817
+  },
+  "probes_sha256": ""
+}
