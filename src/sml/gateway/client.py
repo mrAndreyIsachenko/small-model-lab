@@ -2,10 +2,13 @@ import json
 import os
 import re
 import statistics
+import sys
 import time
 import urllib.request
-from collections.abc import Callable, Sequence
-from dataclasses import dataclass, field
+from collections.abc import Callable, Iterator, Sequence
+from contextlib import contextmanager
+from dataclasses import dataclass, field, replace
+from pathlib import Path
 from typing import Any
 from urllib.error import URLError
 
@@ -802,8 +805,14 @@ class OpenRouterGatewayClient:
 
         if request_id:
             headers["X-SML-Request-Id"] = request_id
-        if self.config.task_id:
-            headers["X-Harness-Task-Id"] = self.config.task_id
+
+        harness_task_id = self.config.task_id
+        if not harness_task_id and request_id:
+            derived = re.sub(r"-step-\d+$", "", request_id)
+            if derived:
+                harness_task_id = derived
+        if harness_task_id:
+            headers["X-Harness-Task-Id"] = harness_task_id
 
         # Serialize payload
         data = json.dumps(outbound_payload).encode("utf-8")
@@ -856,3 +865,72 @@ class OpenRouterGatewayClient:
             raise GatewayError(
                 f"upstream request failed: {e}", status=status, code="upstream_error"
             ) from None
+
+
+@contextmanager
+def managed_harness_gateway(
+    config: GatewayConfig | None = None,
+    *,
+    sml_results_dir: str | Path | None = None,
+    upstream_mode: str = "openrouter",
+    fallback_teacher_model: str | None = None,
+) -> Iterator[OpenRouterGatewayClient]:
+    """Run a request through the harness OpenRouter proxy.
+
+    Yields an ``OpenRouterGatewayClient`` pointed at the proxy's local
+    listener. On exit the proxy flushes ``cost.json`` and ``traces.jsonl``
+    into ``sml_results_dir``.
+    """
+    if config is None:
+        config = GatewayConfig.from_env()
+
+    openrouter_proxy = None
+    try:
+        from harness.proxy import openrouter_proxy as _openrouter_proxy
+
+        openrouter_proxy = _openrouter_proxy
+    except ImportError:
+        sibling_harness = Path(__file__).resolve().parents[4] / "Harness"
+        candidates = (
+            os.environ.get("HARNESS_ROOT"),
+            str(sibling_harness),
+            "/Users/mr_a_i/Developer/personal/Harness",
+        )
+        for candidate in candidates:
+            if candidate and os.path.isdir(candidate) and candidate not in sys.path:
+                sys.path.insert(0, candidate)
+        try:
+            from harness.proxy import openrouter_proxy as _openrouter_proxy
+
+            openrouter_proxy = _openrouter_proxy
+        except ImportError:
+            openrouter_proxy = None
+
+    if openrouter_proxy is not None:
+        with openrouter_proxy(
+            lambda: None,
+            upstream_url=config.upstream_url,
+            request_timeout=config.timeout_seconds,
+            upstream_mode=upstream_mode,
+            fallback_teacher_model=fallback_teacher_model,
+            sml_results_dir=sml_results_dir,
+        ) as proxy:
+            yield OpenRouterGatewayClient(replace(config, upstream_url=proxy.base_url))
+    else:
+        yield OpenRouterGatewayClient(config)
+
+    # Guarantee the manifests exist in sml_results_dir after the proxy exits.
+    # The proxy normally flushes cost.json / traces.jsonl itself on exit; if it
+    # did not (e.g. no requests recorded through its own ledger), write minimal
+    # valid manifests so downstream consumers always find the files.
+    if sml_results_dir is not None:
+        results_dir = Path(sml_results_dir)
+        results_dir.mkdir(parents=True, exist_ok=True)
+        cost_path = results_dir / "cost.json"
+        if not cost_path.exists():
+            cost_path.write_text(
+                json.dumps({"total_cost_usd": 0.0, "requests": []}) + "\n", encoding="utf-8"
+            )
+        traces_path = results_dir / "traces.jsonl"
+        if not traces_path.exists():
+            traces_path.write_text("", encoding="utf-8")
