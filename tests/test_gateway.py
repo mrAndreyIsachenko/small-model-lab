@@ -1,3 +1,5 @@
+import json
+import threading
 from unittest.mock import patch
 
 import pytest
@@ -10,6 +12,7 @@ from sml.gateway import (
     find_secret_leak_paths,
     validate_chat_payload,
 )
+from sml.gateway.client import managed_harness_gateway
 
 
 def test_find_forbidden_key_paths():
@@ -263,6 +266,83 @@ def test_gateway_config_harness_base_url_and_task_id():
     payload = {"model": "qwen/qwen3-coder", "messages": [{"role": "user", "content": "hi"}]}
     client.chat_completions(payload)
     assert captured_headers.get("x-harness-task-id") == "task-123"
+
+
+def test_chat_completions_derives_harness_task_id_from_request_id():
+    """Test X-Harness-Task-Id derivation from request_id when task_id is unset."""
+    captured_headers: dict[str, str] = {}
+
+    def mock_transport(request, timeout):
+        captured_headers.update({k.lower(): v for k, v in request.header_items()})
+        return {
+            "id": "resp-1",
+            "choices": [{"message": {"role": "assistant", "content": "ok"}}],
+            "usage": {"prompt_tokens": 1, "completion_tokens": 1},
+        }
+
+    payload = {"model": "qwen/qwen3-coder", "messages": [{"role": "user", "content": "hi"}]}
+
+    # No explicit task_id: derive from request_id by stripping the step suffix.
+    client = OpenRouterGatewayClient(GatewayConfig(api_key="test-key"), transport=mock_transport)
+    client.chat_completions(payload, request_id="teacher-traj-42-step-3")
+    assert captured_headers.get("x-harness-task-id") == "teacher-traj-42"
+
+    # Explicit task_id wins over the derived one.
+    captured_headers.clear()
+    client = OpenRouterGatewayClient(
+        GatewayConfig(api_key="test-key", task_id="explicit-task"), transport=mock_transport
+    )
+    client.chat_completions(payload, request_id="teacher-traj-42-step-3")
+    assert captured_headers.get("x-harness-task-id") == "explicit-task"
+
+
+def test_managed_harness_gateway_lifecycle_and_manifests(tmp_path):
+    """Test managed_harness_gateway routes through the harness proxy and flushes manifests."""
+    import http.server
+
+    class StubHandler(http.server.BaseHTTPRequestHandler):
+        def do_POST(self):  # noqa: N802 - stdlib naming
+            body = json.dumps(
+                {
+                    "id": "stub-1",
+                    "choices": [{"message": {"role": "assistant", "content": "ok"}}],
+                    "usage": {"prompt_tokens": 5, "completion_tokens": 2},
+                }
+            ).encode("utf-8")
+            self.send_response(200)
+            self.send_header("Content-Type", "application/json")
+            self.send_header("Content-Length", str(len(body)))
+            self.end_headers()
+            self.wfile.write(body)
+
+        def log_message(self, format, *args):
+            pass
+
+    server = http.server.ThreadingHTTPServer(("127.0.0.1", 0), StubHandler)
+    port = server.server_address[1]
+    stub_url = f"http://127.0.0.1:{port}/v1"
+    thread = threading.Thread(target=server.serve_forever, daemon=True)
+    thread.start()
+
+    try:
+        with managed_harness_gateway(
+            GatewayConfig(upstream_url=stub_url, api_key="test-key"),
+            sml_results_dir=tmp_path,
+        ) as client:
+            assert client.config.upstream_url.startswith("http://127.0.0.1:")
+            assert client.config.upstream_url != stub_url
+
+            resp = client.chat_completions(
+                {"model": "qwen/qwen3-coder", "messages": [{"role": "user", "content": "hi"}]},
+                request_id="smoke-1-step-0",
+            )
+            assert resp["id"] == "stub-1"
+
+        assert (tmp_path / "cost.json").exists()
+        assert (tmp_path / "traces.jsonl").exists()
+    finally:
+        server.shutdown()
+        server.server_close()
 
 
 if __name__ == "__main__":
