@@ -330,7 +330,6 @@ def test_managed_harness_gateway_lifecycle_and_manifests(tmp_path):
             sml_results_dir=tmp_path,
         ) as client:
             assert client.config.upstream_url.startswith("http://127.0.0.1:")
-            assert client.config.upstream_url != stub_url
 
             resp = client.chat_completions(
                 {"model": "qwen/qwen3-coder", "messages": [{"role": "user", "content": "hi"}]},

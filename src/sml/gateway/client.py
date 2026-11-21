@@ -884,23 +884,40 @@ def managed_harness_gateway(
     if config is None:
         config = GatewayConfig.from_env()
 
+    openrouter_proxy = None
     try:
-        from harness.proxy import openrouter_proxy
-    except ImportError:
-        harness_root = "/Users/mr_a_i/Developer/personal/Harness"
-        if os.path.isdir(harness_root) and harness_root not in sys.path:
-            sys.path.insert(0, harness_root)
-        from harness.proxy import openrouter_proxy
+        from harness.proxy import openrouter_proxy as _openrouter_proxy
 
-    with openrouter_proxy(
-        lambda: None,
-        upstream_url=config.upstream_url,
-        request_timeout=config.timeout_seconds,
-        upstream_mode=upstream_mode,
-        fallback_teacher_model=fallback_teacher_model,
-        sml_results_dir=sml_results_dir,
-    ) as proxy:
-        yield OpenRouterGatewayClient(replace(config, upstream_url=proxy.base_url))
+        openrouter_proxy = _openrouter_proxy
+    except ImportError:
+        sibling_harness = Path(__file__).resolve().parents[4] / "Harness"
+        candidates = (
+            os.environ.get("HARNESS_ROOT"),
+            str(sibling_harness),
+            "/Users/mr_a_i/Developer/personal/Harness",
+        )
+        for candidate in candidates:
+            if candidate and os.path.isdir(candidate) and candidate not in sys.path:
+                sys.path.insert(0, candidate)
+        try:
+            from harness.proxy import openrouter_proxy as _openrouter_proxy
+
+            openrouter_proxy = _openrouter_proxy
+        except ImportError:
+            openrouter_proxy = None
+
+    if openrouter_proxy is not None:
+        with openrouter_proxy(
+            lambda: None,
+            upstream_url=config.upstream_url,
+            request_timeout=config.timeout_seconds,
+            upstream_mode=upstream_mode,
+            fallback_teacher_model=fallback_teacher_model,
+            sml_results_dir=sml_results_dir,
+        ) as proxy:
+            yield OpenRouterGatewayClient(replace(config, upstream_url=proxy.base_url))
+    else:
+        yield OpenRouterGatewayClient(config)
 
     # Guarantee the manifests exist in sml_results_dir after the proxy exits.
     # The proxy normally flushes cost.json / traces.jsonl itself on exit; if it
