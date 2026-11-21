@@ -1,0 +1,258 @@
+## Unslop scenarios
+Scenario: json-weather-nowcast
+You are a nowcast widget. Reply with ONLY a JSON object with keys "city" (string), "temperature_c" (number), and "condition" (one of "sunny", "cloudy", "rainy"). Use Tokyo, 18, cloudy. No extra text, no disclaimers, no clichés.
+
+Scenario: json-ticket-triage
+You are a support-ticket classifier. Output ONLY JSON with keys "category" (billing|bug|feature), "urgency" (low|high), and "summary" (string under 12 words). The ticket: users cannot reset passwords. No preamble, no moralizing, no clichés.
+
+Scenario: json-menu-extract
+Extract the menu line "Ratatouille tart $14 (vegan)" into ONLY a JSON object with keys "item" (string), "price_usd" (number), and "vegetarian" (boolean). Output the object alone, no commentary.
+
+Scenario: json-incident-bool
+You are an on-call bot. Reply with ONLY JSON: {"is_urgent": <boolean>, "reason": "<one short sentence>"} for the alert "disk usage 95% on prod-db-1". No hedging, no disclaimers.
+
+Scenario: json-translation-pair
+Translate "Good morning, the train leaves at nine." to Spanish, then output ONLY JSON: {"spanish": "<translation>"}. Nothing else.
+
+Scenario: json-list-inventory
+You are a stock clerk. Output ONLY a JSON object with key "items" mapping to an array of three strings: "bolts", "washers", "seals". Output the object alone.
+
+Scenario: json-scores-sorted
+Rank these runners by time, fastest first: Ana 42s, Bo 39s, Cy 51s. Output ONLY JSON: {"fastest": "<name>", "order": [<names fastest to slowest>]}. No prose.
+
+Scenario: json-forecast-schema
+You are a weather API. For "portland, tomorrow", emit ONLY JSON with keys "location" (string), "high_c" (number), "low_c" (number), and "umbrella" (boolean). Emit the object alone, no disclaimers, no clichés.
+
+Scenario: limit-haiku-tight
+Write a haiku about rain on a tin roof. Plain words only, no clichés, no title, no explanation. 12-25 words total.
+
+Scenario: limit-elevator-pitch
+You are a startup founder. Pitch a bicycle-repair app in at most 40 words and at least 20 words. Include the word "deadline" for the beta launch. No buzzwords, no filler, no disclaimers.
+
+Scenario: limit-tweet-brief
+Announce a library v2.0 release in 8-15 words. Mention "cache". No hashtags, no exclamation-mark stacking, no clichés.
+
+Scenario: limit-summary-120
+You are a wire-service editor. Summarize the plot of "The Tortoise and the Hare" in 60-120 words. Concrete verbs, no clichés, no moralizing coda.
+
+Scenario: forbidden-sunset
+Describe a sunset over a parking lot in 40-120 words. Ban these words: breathtaking, tapestry, symphony, kaleidoscope, masterpiece, canvas. Concrete nouns only. No disclaimers, no clichés.
+
+Scenario: forbidden-standup
+You are a scrum master. Give yesterday/today/blockers for a login bug in 30-90 words. Ban the buzzwords: synergy, leverage, paradigm, game-changer, bandwidth. Plain sentences only.
+
+Scenario: forbidden-recipe
+Write a 40-100 word recipe for tomato soup with exactly these steps: roast, blend, season. Ban the words: journey, embark, delve, elevate. Do not add tips, warnings, or disclaimers.
+
+Scenario: forbidden-obituary-style
+In 35-90 words, describe a 1972 orange station wagon for a sale listing. Ban: pristine, breathtaking, cherished, treasure. State flaws plainly. No emotional clichés, no disclaimers.
+
+Scenario: keyword-meeting-notes
+You are a project coordinator. Write meeting notes in 30-80 words that include: q3, budget, headcount. Bullet-free plain lines. No preamble, no clichés, no disclaimers.
+
+Scenario: keyword-changelog
+Write a changelog entry (25-70 words) for release 2.4.1 that mentions "retry" and "timeout". Facts only, no marketing tone, no clichés, no disclaimers.
+
+Scenario: keyword-directions
+Give walking directions (15-60 words) from the fountain to gate B using the words "left", "bridge", and "200 meters". Nothing else, no disclaimers, no clichés.
+
+Scenario: keyword-code-comment
+Explain what a semaphore does in 25-60 words and include the terms "mutex" and "race condition". No analogies, no clichés, no disclaimers.
+
+Scenario: role-pirate-dj
+You are Salty Sam, a pirate-radio DJ. In 20-70 words, introduce the next song about sea shanties, in character, including the word "ahoy". Stay in role; never break character or add disclaimers; no clichés.
+
+Scenario: role-noir-detective
+You are Det. Ruiz, a terse noir detective. In 30-80 words, report finding a stolen clock, using "flashlight" and "alley". Stay in character, plain declarative sentences, no clichés, no disclaimers.
+
+Scenario: role-grumpy-barista
+You are Gus, a grumpy barista. In 15-50 words, tell a customer the espresso machine is down, in character, including the word "preheated". Never apologize as an assistant; no disclaimers, no clichés.
+
+Scenario: role-docent-museum
+You are Amara, a museum docent. In 35-90 words, describe a bronze owl figurine from 600 BCE, using "bronze" and "owl", staying in character. Concrete details only: no clichés, no disclaimers, no speculation beyond the object.
+
+## Instruction following (IFEval subset)
+Prompt: Reply with ONLY a JSON object with keys "city" (string), "population_millions" (number), and "capital" (boolean) describing France. Output the JSON object alone: no preamble, no code fences, no explanation.
+
+Prompt: List exactly 3 steps to reset a password. Respond with exactly 3 bullet lines, each line starting with "- ". No numbering, no intro sentence, no closing sentence, no extra lines.
+
+Prompt: Explain why the sky is blue in at most 30 words and at least 12 words. Plain declarative sentences only: no headings, no lists, no disclaimers.
+
+Prompt: Answer with a single line in ALL UPPERCASE letters stating the boiling point of water at sea level in Celsius. No lowercase letters, no line breaks, no trailing punctuation.
+
+Prompt: Output ONLY a JSON array containing the numbers 9, 3, and 7 sorted in ascending order as integers. Output the array alone: no markdown, no explanation.
+
+Prompt: Write one sentence (10-35 words) describing a garden pergola. You must include the exact keyword "PERGOLA" and you must end your reply with the word DONE.
+
+## Math word problems (GSM8K subset)
+Problem: A bakery sells 24 muffins per tray. The bakers fill 9 trays in the morning and sell 96 muffins before noon. How many muffins are left? Give the final number on its own line after '####'.
+Answer: 120.0
+
+Problem: A train travels 60 kilometers in 45 minutes. At the same speed, how many kilometers does it travel in 2 hours? Put the final number on its own line after '####'.
+Answer: 160.0
+
+Problem: If 3x + 7 = 25, what is the value of x? End with '#### <answer>'.
+Answer: 6.0
+
+Problem: Natalia sold clips to 48 of her friends in April, and then she sold half as many clips in May. How many clips did Natalia sell altogether in April and May? Give the final number after '####'.
+Answer: 72.0
+
+Problem: A rectangle's length is twice its width. Its perimeter is 48 cm. What is its area in square centimeters? Put the final number after '####'.
+Answer: 128.0
+
+Problem: A store applies a 20% discount to an $85 jacket, then adds 10% sales tax on the discounted price. What is the final price in dollars? Put the final number after '####'.
+Answer: 74.8
+
+## Warehouse incident scenarios
+Scenario: val_product_bug_seed2026
+
+
+
+Scenario: val_data_pipeline_artifact_seed2027
+
+
+
+Scenario: val_mix_shift_seed2028
+
+
+
+Scenario: val_product_bug_seed2029
+
+
+
+Scenario: val_data_pipeline_artifact_seed2030
+
+
+
+Scenario: val_mix_shift_seed2031
+
+
+## Unslop scenarios
+Scenario: json-weather-nowcast
+You are a nowcast widget. Reply with ONLY a JSON object with keys "city" (string), "temperature_c" (number), and "condition" (one of "sunny", "cloudy", "rainy"). Use Tokyo, 18, cloudy. No extra text, no disclaimers, no clichés.
+
+Scenario: json-ticket-triage
+You are a support-ticket classifier. Output ONLY JSON with keys "category" (billing|bug|feature), "urgency" (low|high), and "summary" (string under 12 words). The ticket: users cannot reset passwords. No preamble, no moralizing, no clichés.
+
+Scenario: json-menu-extract
+Extract the menu line "Ratatouille tart $14 (vegan)" into ONLY a JSON object with keys "item" (string), "price_usd" (number), and "vegetarian" (boolean). Output the object alone, no commentary.
+
+Scenario: json-incident-bool
+You are an on-call bot. Reply with ONLY JSON: {"is_urgent": <boolean>, "reason": "<one short sentence>"} for the alert "disk usage 95% on prod-db-1". No hedging, no disclaimers.
+
+Scenario: json-translation-pair
+Translate "Good morning, the train leaves at nine." to Spanish, then output ONLY JSON: {"spanish": "<translation>"}. Nothing else.
+
+Scenario: json-list-inventory
+You are a stock clerk. Output ONLY a JSON object with key "items" mapping to an array of three strings: "bolts", "washers", "seals". Output the object alone.
+
+Scenario: json-scores-sorted
+Rank these runners by time, fastest first: Ana 42s, Bo 39s, Cy 51s. Output ONLY JSON: {"fastest": "<name>", "order": [<names fastest to slowest>]}. No prose.
+
+Scenario: json-forecast-schema
+You are a weather API. For "portland, tomorrow", emit ONLY JSON with keys "location" (string), "high_c" (number), "low_c" (number), and "umbrella" (boolean). Emit the object alone, no disclaimers, no clichés.
+
+Scenario: limit-haiku-tight
+Write a haiku about rain on a tin roof. Plain words only, no clichés, no title, no explanation. 12-25 words total.
+
+Scenario: limit-elevator-pitch
+You are a startup founder. Pitch a bicycle-repair app in at most 40 words and at least 20 words. Include the word "deadline" for the beta launch. No buzzwords, no filler, no disclaimers.
+
+Scenario: limit-tweet-brief
+Announce a library v2.0 release in 8-15 words. Mention "cache". No hashtags, no exclamation-mark stacking, no clichés.
+
+Scenario: limit-summary-120
+You are a wire-service editor. Summarize the plot of "The Tortoise and the Hare" in 60-120 words. Concrete verbs, no clichés, no moralizing coda.
+
+Scenario: forbidden-sunset
+Describe a sunset over a parking lot in 40-120 words. Ban these words: breathtaking, tapestry, symphony, kaleidoscope, masterpiece, canvas. Concrete nouns only. No disclaimers, no clichés.
+
+Scenario: forbidden-standup
+You are a scrum master. Give yesterday/today/blockers for a login bug in 30-90 words. Ban the buzzwords: synergy, leverage, paradigm, game-changer, bandwidth. Plain sentences only.
+
+Scenario: forbidden-recipe
+Write a 40-100 word recipe for tomato soup with exactly these steps: roast, blend, season. Ban the words: journey, embark, delve, elevate. Do not add tips, warnings, or disclaimers.
+
+Scenario: forbidden-obituary-style
+In 35-90 words, describe a 1972 orange station wagon for a sale listing. Ban: pristine, breathtaking, cherished, treasure. State flaws plainly. No emotional clichés, no disclaimers.
+
+Scenario: keyword-meeting-notes
+You are a project coordinator. Write meeting notes in 30-80 words that include: q3, budget, headcount. Bullet-free plain lines. No preamble, no clichés, no disclaimers.
+
+Scenario: keyword-changelog
+Write a changelog entry (25-70 words) for release 2.4.1 that mentions "retry" and "timeout". Facts only, no marketing tone, no clichés, no disclaimers.
+
+Scenario: keyword-directions
+Give walking directions (15-60 words) from the fountain to gate B using the words "left", "bridge", and "200 meters". Nothing else, no disclaimers, no clichés.
+
+Scenario: keyword-code-comment
+Explain what a semaphore does in 25-60 words and include the terms "mutex" and "race condition". No analogies, no clichés, no disclaimers.
+
+Scenario: role-pirate-dj
+You are Salty Sam, a pirate-radio DJ. In 20-70 words, introduce the next song about sea shanties, in character, including the word "ahoy". Stay in role; never break character or add disclaimers; no clichés.
+
+Scenario: role-noir-detective
+You are Det. Ruiz, a terse noir detective. In 30-80 words, report finding a stolen clock, using "flashlight" and "alley". Stay in character, plain declarative sentences, no clichés, no disclaimers.
+
+Scenario: role-grumpy-barista
+You are Gus, a grumpy barista. In 15-50 words, tell a customer the espresso machine is down, in character, including the word "preheated". Never apologize as an assistant; no disclaimers, no clichés.
+
+Scenario: role-docent-museum
+You are Amara, a museum docent. In 35-90 words, describe a bronze owl figurine from 600 BCE, using "bronze" and "owl", staying in character. Concrete details only: no clichés, no disclaimers, no speculation beyond the object.
+
+## Instruction following (IFEval subset)
+Prompt: Reply with ONLY a JSON object with keys "city" (string), "population_millions" (number), and "capital" (boolean) describing France. Output the JSON object alone: no preamble, no code fences, no explanation.
+
+Prompt: List exactly 3 steps to reset a password. Respond with exactly 3 bullet lines, each line starting with "- ". No numbering, no intro sentence, no closing sentence, no extra lines.
+
+Prompt: Explain why the sky is blue in at most 30 words and at least 12 words. Plain declarative sentences only: no headings, no lists, no disclaimers.
+
+Prompt: Answer with a single line in ALL UPPERCASE letters stating the boiling point of water at sea level in Celsius. No lowercase letters, no line breaks, no trailing punctuation.
+
+Prompt: Output ONLY a JSON array containing the numbers 9, 3, and 7 sorted in ascending order as integers. Output the array alone: no markdown, no explanation.
+
+Prompt: Write one sentence (10-35 words) describing a garden pergola. You must include the exact keyword "PERGOLA" and you must end your reply with the word DONE.
+
+## Math word problems (GSM8K subset)
+Problem: A bakery sells 24 muffins per tray. The bakers fill 9 trays in the morning and sell 96 muffins before noon. How many muffins are left? Give the final number on its own line after '####'.
+Answer: 120.0
+
+Problem: A train travels 60 kilometers in 45 minutes. At the same speed, how many kilometers does it travel in 2 hours? Put the final number on its own line after '####'.
+Answer: 160.0
+
+Problem: If 3x + 7 = 25, what is the value of x? End with '#### <answer>'.
+Answer: 6.0
+
+Problem: Natalia sold clips to 48 of her friends in April, and then she sold half as many clips in May. How many clips did Natalia sell altogether in April and May? Give the final number after '####'.
+Answer: 72.0
+
+Problem: A rectangle's length is twice its width. Its perimeter is 48 cm. What is its area in square centimeters? Put the final number after '####'.
+Answer: 128.0
+
+Problem: A store applies a 20% discount to an $85 jacket, then adds 10% sales tax on the discounted price. What is the final price in dollars? Put the final number after '####'.
+Answer: 74.8
+
+## Warehouse incident scenarios
+Scenario: val_product_bug_seed2026
+
+
+
+Scenario: val_data_pipeline_artifact_seed2027
+
+
+
+Scenario: val_mix_shift_seed2028
+
+
+
+Scenario: val_product_bug_seed2029
+
+
+
+Scenario: val_data_pipeline_artifact_seed2030
+
+
+
+Scenario: val_mix_shift_seed2031
+
+

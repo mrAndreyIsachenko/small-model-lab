@@ -1,0 +1,555 @@
+```python
+import time
+
+
+class TokenBucket:
+    """Lazy-refill token bucket rate limiter."""
+
+    def __init__(self, rate: float, capacity: int) -> None:
+        self.rate, self.capacity = rate, capacity
+        self.credits, self.stamp = float(capacity), 0.0
+
+    def allow(self, tokens: int = 1) -> bool:
+        now = time.monotonic()
+        self.credits = min(self.capacity, self.credits + (now - self.stamp) * self.rate)
+        self.stamp = now
+        if self.credits < tokens:
+            return False
+        self.credits -= tokens
+        return True
+```
+
+```sql
+WITH ranked AS (
+    SELECT employee_id, department, salary,
+           ROW_NUMBER() OVER (PARTITION BY department ORDER BY salary DESC) AS rn
+    FROM employees
+)
+SELECT employee_id, department, salary FROM ranked WHERE rn <= 3;
+```
+
+B-tree pages keep keys sorted with a bounded branching factor, so lookups cost O(log n) page reads and leaf scans stay cache friendly. Write-heavy workloads amplify differently: LSM trees batch inserts into memtables and flush sorted runs, then compaction merges them, trading slower point reads for much higher ingest throughput.
+
+```python
+def flatten(nested: list) -> list:
+    """Flatten an arbitrarily nested list into scalars."""
+    flat: list = []
+    for item in nested:
+        if isinstance(item, list):
+            flat.extend(flatten(item))
+        else:
+            flat.append(item)
+    return flat
+```
+
+Reference counting frees objects the instant their count reaches zero, paying a mutation overhead on every assignment, and it leaks cycles unless a cycle collector intervenes. Generational collectors trace roots periodically, promote survivors, and collect young generations more often, giving longer pauses but complete cycle reclamation.
+
+<think>
+Floor semantics: -7 // 3 is -3 because the floor of -2.333 is -3; the remainder is -7 - (-9) = 2, which shares the sign of the divisor.
+</think>
+The result is 2.
+
+Reference counting frees objects the instant their count reaches zero, paying a mutation overhead on every assignment, and it leaks cycles unless a cycle collector intervenes. Generational collectors trace roots periodically, promote survivors, and collect young generations more often, giving longer pauses but complete cycle reclamation.
+
+```json
+{"service": "search", "flags": {"reranker_v2": true, "spell_correct": false}}
+```
+
+```python
+def is_even(n: int) -> bool:
+    """Return True when n is even."""
+    return n % 2 == 0
+```
+
+```json
+{"service": "search", "flags": {"reranker_v2": true, "spell_correct": false}}
+```
+
+```json
+{"name": "ci", "on": {"push": {"branches": ["main"]}}, "jobs": {"test": {"runs-on": "ubuntu-latest"}}}
+```
+
+<think>
+Leap-year rule: divisible by 4, except centuries not divisible by 400. From 2000 to 2096 the step is 4 years: (2096 - 2000) / 4 + 1 = 25; 2100 is excluded.
+</think>
+The range contains 25 leap years.
+
+<think>
+Planning the query: filter nothing at the base level, partition by department, order by salary descending, and project the ratio against the partition total using SUM OVER the same partition. A single CTE keeps the plan readable.
+</think>
+A CTE with ROW_NUMBER and SUM OVER the department partition yields the salary share.
+
+<think>
+Signed 8-bit wrap: 127 is 0b01111111; incrementing gives 0b10000000, which decodes to -128 in two's complement. No carry exists beyond the 8th bit.
+</think>
+The counter wraps to -128.
+
+```sql
+WITH totals AS (
+    SELECT product_id, SUM(quantity * unit_price) AS revenue
+    FROM order_items
+    GROUP BY product_id
+)
+SELECT totals.product_id, products.product_name, totals.revenue
+FROM totals JOIN products ON products.product_id = totals.product_id
+ORDER BY totals.revenue DESC LIMIT 5;
+```
+
+Reference counting frees objects the instant their count reaches zero, paying a mutation overhead on every assignment, and it leaks cycles unless a cycle collector intervenes. Generational collectors trace roots periodically, promote survivors, and collect young generations more often, giving longer pauses but complete cycle reclamation.
+
+<think>
+Signed 8-bit wrap: 127 is 0b01111111; incrementing gives 0b10000000, which decodes to -128 in two's complement. No carry exists beyond the 8th bit.
+</think>
+The counter wraps to -128.
+
+```sql
+WITH ranked AS (
+    SELECT employee_id, department, salary,
+           ROW_NUMBER() OVER (PARTITION BY department ORDER BY salary DESC) AS rn
+    FROM employees
+)
+SELECT employee_id, department, salary FROM ranked WHERE rn <= 3;
+```
+
+```sql
+SELECT customer_id, MAX(order_date) AS last_order
+FROM orders
+GROUP BY customer_id
+ORDER BY customer_id;
+```
+
+```json
+{"max_entries": 512, "ttl_seconds": 300, "eviction": "lru"}
+```
+
+<think>
+JSON validation order: parse first, then require the exact key set, then type-check each value. Missing keys fail faster than wrong types, so the checker reports missing keys before comparing types.
+</think>
+Validate {"max_entries", "ttl_seconds", "eviction"} in that order after parsing.
+
+<think>
+JSON validation order: parse first, then require the exact key set, then type-check each value. Missing keys fail faster than wrong types, so the checker reports missing keys before comparing types.
+</think>
+Validate {"max_entries", "ttl_seconds", "eviction"} in that order after parsing.
+
+```sql
+SELECT visit_date,
+       AVG(visitors) OVER (
+           ORDER BY visit_date ROWS BETWEEN 6 PRECEDING AND CURRENT ROW
+       ) AS rolling_7d
+FROM daily_visits
+ORDER BY visit_date;
+```
+
+<think>
+The manifest totals need recomputation: 1,284 + 937 = 2,221; 2,221 + 2,105 = 4,326. The clerk's 4,426 overstates the sum by 100, so the recorded figure is wrong.
+</think>
+The correct three-day total is 4,326 units.
+
+```json
+{"name": "ci", "on": {"push": {"branches": ["main"]}}, "jobs": {"test": {"runs-on": "ubuntu-latest"}}}
+```
+
+<think>
+The manifest totals need recomputation: 1,284 + 937 = 2,221; 2,221 + 2,105 = 4,326. The clerk's 4,426 overstates the sum by 100, so the recorded figure is wrong.
+</think>
+The correct three-day total is 4,326 units.
+
+```sql
+WITH totals AS (
+    SELECT product_id, SUM(quantity * unit_price) AS revenue
+    FROM order_items
+    GROUP BY product_id
+)
+SELECT totals.product_id, products.product_name, totals.revenue
+FROM totals JOIN products ON products.product_id = totals.product_id
+ORDER BY totals.revenue DESC LIMIT 5;
+```
+
+<think>
+Leap-year rule: divisible by 4, except centuries not divisible by 400. From 2000 to 2096 the step is 4 years: (2096 - 2000) / 4 + 1 = 25; 2100 is excluded.
+</think>
+The range contains 25 leap years.
+
+TCP reacts to loss as congestion: timeout-driven recovery resets the window and re-enters slow start, while duplicate-ACK triggers fast retransmit and congestion avoidance halves the window instead. Slow start grows the window exponentially until loss or the ssthresh is reached, then growth turns additive.
+
+```python
+import time
+
+
+class TokenBucket:
+    """Lazy-refill token bucket rate limiter."""
+
+    def __init__(self, rate: float, capacity: int) -> None:
+        self.rate, self.capacity = rate, capacity
+        self.credits, self.stamp = float(capacity), 0.0
+
+    def allow(self, tokens: int = 1) -> bool:
+        now = time.monotonic()
+        self.credits = min(self.capacity, self.credits + (now - self.stamp) * self.rate)
+        self.stamp = now
+        if self.credits < tokens:
+            return False
+        self.credits -= tokens
+        return True
+```
+
+<think>
+Planning the query: filter nothing at the base level, partition by department, order by salary descending, and project the ratio against the partition total using SUM OVER the same partition. A single CTE keeps the plan readable.
+</think>
+A CTE with ROW_NUMBER and SUM OVER the department partition yields the salary share.
+
+<think>
+Planning the query: filter nothing at the base level, partition by department, order by salary descending, and project the ratio against the partition total using SUM OVER the same partition. A single CTE keeps the plan readable.
+</think>
+A CTE with ROW_NUMBER and SUM OVER the department partition yields the salary share.
+
+Write-ahead logging appends a commit record to a sequential log before touching data pages, so batching fsync calls groups many commits into one flush: throughput rises and mean latency falls, but the crash window widens because acknowledged commits can sit in the OS page cache until the next flush.
+
+```sql
+SELECT customer_id, MAX(order_date) AS last_order
+FROM orders
+GROUP BY customer_id
+ORDER BY customer_id;
+```
+
+```sql
+SELECT visit_date,
+       AVG(visitors) OVER (
+           ORDER BY visit_date ROWS BETWEEN 6 PRECEDING AND CURRENT ROW
+       ) AS rolling_7d
+FROM daily_visits
+ORDER BY visit_date;
+```
+
+A CTE with ROW_NUMBER assigns a stable ranking per partition without self-joins, and the planner can prune the outer query to rn <= 3 before the join. Window functions compute aggregate context per row in one pass, which keeps the read-only plan linear in input size.
+
+```python
+def flatten(nested: list) -> list:
+    """Flatten an arbitrarily nested list into scalars."""
+    flat: list = []
+    for item in nested:
+        if isinstance(item, list):
+            flat.extend(flatten(item))
+        else:
+            flat.append(item)
+    return flat
+```
+
+```json
+{"max_entries": 512, "ttl_seconds": 300, "eviction": "lru"}
+```
+
+<think>
+The bucket refills lazily: elapsed time since the last refill multiplied by rate gives new credits, capped at capacity. allow() rejects when credits fall below the requested amount, otherwise it debits and succeeds.
+</think>
+Lazy refill with a capacity cap and a debit-on-success check is sufficient.
+
+A CTE with ROW_NUMBER assigns a stable ranking per partition without self-joins, and the planner can prune the outer query to rn <= 3 before the join. Window functions compute aggregate context per row in one pass, which keeps the read-only plan linear in input size.
+
+<think>
+For divisibility, 24 * 298 = 7,152, and 7,168 - 7,152 = 16, so the claim of even divisibility fails. The remainder is nonzero.
+</think>
+The remainder is 16.
+
+<think>
+The manifest totals need recomputation: 1,284 + 937 = 2,221; 2,221 + 2,105 = 4,326. The clerk's 4,426 overstates the sum by 100, so the recorded figure is wrong.
+</think>
+The correct three-day total is 4,326 units.
+
+TCP reacts to loss as congestion: timeout-driven recovery resets the window and re-enters slow start, while duplicate-ACK triggers fast retransmit and congestion avoidance halves the window instead. Slow start grows the window exponentially until loss or the ssthresh is reached, then growth turns additive.
+
+```sql
+WITH totals AS (
+    SELECT product_id, SUM(quantity * unit_price) AS revenue
+    FROM order_items
+    GROUP BY product_id
+)
+SELECT totals.product_id, products.product_name, totals.revenue
+FROM totals JOIN products ON products.product_id = totals.product_id
+ORDER BY totals.revenue DESC LIMIT 5;
+```
+
+<think>
+Leap-year rule: divisible by 4, except centuries not divisible by 400. From 2000 to 2096 the step is 4 years: (2096 - 2000) / 4 + 1 = 25; 2100 is excluded.
+</think>
+The range contains 25 leap years.
+
+```sql
+SELECT customer_id, MAX(order_date) AS last_order
+FROM orders
+GROUP BY customer_id
+ORDER BY customer_id;
+```
+
+B-tree pages keep keys sorted with a bounded branching factor, so lookups cost O(log n) page reads and leaf scans stay cache friendly. Write-heavy workloads amplify differently: LSM trees batch inserts into memtables and flush sorted runs, then compaction merges them, trading slower point reads for much higher ingest throughput.
+
+A CTE with ROW_NUMBER assigns a stable ranking per partition without self-joins, and the planner can prune the outer query to rn <= 3 before the join. Window functions compute aggregate context per row in one pass, which keeps the read-only plan linear in input size.
+
+<think>
+The manifest totals need recomputation: 1,284 + 937 = 2,221; 2,221 + 2,105 = 4,326. The clerk's 4,426 overstates the sum by 100, so the recorded figure is wrong.
+</think>
+The correct three-day total is 4,326 units.
+
+```python
+def flatten(nested: list) -> list:
+    """Flatten an arbitrarily nested list into scalars."""
+    flat: list = []
+    for item in nested:
+        if isinstance(item, list):
+            flat.extend(flatten(item))
+        else:
+            flat.append(item)
+    return flat
+```
+
+```python
+def is_even(n: int) -> bool:
+    """Return True when n is even."""
+    return n % 2 == 0
+```
+
+A CTE with ROW_NUMBER assigns a stable ranking per partition without self-joins, and the planner can prune the outer query to rn <= 3 before the join. Window functions compute aggregate context per row in one pass, which keeps the read-only plan linear in input size.
+
+<think>
+The bucket refills lazily: elapsed time since the last refill multiplied by rate gives new credits, capped at capacity. allow() rejects when credits fall below the requested amount, otherwise it debits and succeeds.
+</think>
+Lazy refill with a capacity cap and a debit-on-success check is sufficient.
+
+<think>
+For divisibility, 24 * 298 = 7,152, and 7,168 - 7,152 = 16, so the claim of even divisibility fails. The remainder is nonzero.
+</think>
+The remainder is 16.
+
+Write-ahead logging appends a commit record to a sequential log before touching data pages, so batching fsync calls groups many commits into one flush: throughput rises and mean latency falls, but the crash window widens because acknowledged commits can sit in the OS page cache until the next flush.
+
+```sql
+SELECT visit_date,
+       AVG(visitors) OVER (
+           ORDER BY visit_date ROWS BETWEEN 6 PRECEDING AND CURRENT ROW
+       ) AS rolling_7d
+FROM daily_visits
+ORDER BY visit_date;
+```
+
+```json
+{"service": "search", "flags": {"reranker_v2": true, "spell_correct": false}}
+```
+
+<think>
+JSON validation order: parse first, then require the exact key set, then type-check each value. Missing keys fail faster than wrong types, so the checker reports missing keys before comparing types.
+</think>
+Validate {"max_entries", "ttl_seconds", "eviction"} in that order after parsing.
+
+<think>
+Leap-year rule: divisible by 4, except centuries not divisible by 400. From 2000 to 2096 the step is 4 years: (2096 - 2000) / 4 + 1 = 25; 2100 is excluded.
+</think>
+The range contains 25 leap years.
+
+TCP reacts to loss as congestion: timeout-driven recovery resets the window and re-enters slow start, while duplicate-ACK triggers fast retransmit and congestion avoidance halves the window instead. Slow start grows the window exponentially until loss or the ssthresh is reached, then growth turns additive.
+
+```sql
+SELECT visit_date,
+       AVG(visitors) OVER (
+           ORDER BY visit_date ROWS BETWEEN 6 PRECEDING AND CURRENT ROW
+       ) AS rolling_7d
+FROM daily_visits
+ORDER BY visit_date;
+```
+
+Write-ahead logging appends a commit record to a sequential log before touching data pages, so batching fsync calls groups many commits into one flush: throughput rises and mean latency falls, but the crash window widens because acknowledged commits can sit in the OS page cache until the next flush.
+
+<think>
+Floor semantics: -7 // 3 is -3 because the floor of -2.333 is -3; the remainder is -7 - (-9) = 2, which shares the sign of the divisor.
+</think>
+The result is 2.
+
+```python
+def is_even(n: int) -> bool:
+    """Return True when n is even."""
+    return n % 2 == 0
+```
+
+```sql
+WITH totals AS (
+    SELECT product_id, SUM(quantity * unit_price) AS revenue
+    FROM order_items
+    GROUP BY product_id
+)
+SELECT totals.product_id, products.product_name, totals.revenue
+FROM totals JOIN products ON products.product_id = totals.product_id
+ORDER BY totals.revenue DESC LIMIT 5;
+```
+
+<think>
+JSON validation order: parse first, then require the exact key set, then type-check each value. Missing keys fail faster than wrong types, so the checker reports missing keys before comparing types.
+</think>
+Validate {"max_entries", "ttl_seconds", "eviction"} in that order after parsing.
+
+```json
+{"max_entries": 512, "ttl_seconds": 300, "eviction": "lru"}
+```
+
+```sql
+WITH ranked AS (
+    SELECT employee_id, department, salary,
+           ROW_NUMBER() OVER (PARTITION BY department ORDER BY salary DESC) AS rn
+    FROM employees
+)
+SELECT employee_id, department, salary FROM ranked WHERE rn <= 3;
+```
+
+```json
+{"max_entries": 512, "ttl_seconds": 300, "eviction": "lru"}
+```
+
+B-tree pages keep keys sorted with a bounded branching factor, so lookups cost O(log n) page reads and leaf scans stay cache friendly. Write-heavy workloads amplify differently: LSM trees batch inserts into memtables and flush sorted runs, then compaction merges them, trading slower point reads for much higher ingest throughput.
+
+<think>
+Planning the query: filter nothing at the base level, partition by department, order by salary descending, and project the ratio against the partition total using SUM OVER the same partition. A single CTE keeps the plan readable.
+</think>
+A CTE with ROW_NUMBER and SUM OVER the department partition yields the salary share.
+
+Reference counting frees objects the instant their count reaches zero, paying a mutation overhead on every assignment, and it leaks cycles unless a cycle collector intervenes. Generational collectors trace roots periodically, promote survivors, and collect young generations more often, giving longer pauses but complete cycle reclamation.
+
+TCP reacts to loss as congestion: timeout-driven recovery resets the window and re-enters slow start, while duplicate-ACK triggers fast retransmit and congestion avoidance halves the window instead. Slow start grows the window exponentially until loss or the ssthresh is reached, then growth turns additive.
+
+<think>
+For divisibility, 24 * 298 = 7,152, and 7,168 - 7,152 = 16, so the claim of even divisibility fails. The remainder is nonzero.
+</think>
+The remainder is 16.
+
+<think>
+Signed 8-bit wrap: 127 is 0b01111111; incrementing gives 0b10000000, which decodes to -128 in two's complement. No carry exists beyond the 8th bit.
+</think>
+The counter wraps to -128.
+
+<think>
+Floor semantics: -7 // 3 is -3 because the floor of -2.333 is -3; the remainder is -7 - (-9) = 2, which shares the sign of the divisor.
+</think>
+The result is 2.
+
+Floating-point comparison needs care near the representability limit: doubles carry 53 bits of significand, so every integer up to 2^53 and its neighbors stay exact, while above 2^53 spacing grows to 2 and sums like 2^53 + 1 round back to 2^53. Hash functions and counters that mix large integers with floats must respect that boundary.
+
+```json
+{"service": "search", "flags": {"reranker_v2": true, "spell_correct": false}}
+```
+
+<think>
+The bucket refills lazily: elapsed time since the last refill multiplied by rate gives new credits, capped at capacity. allow() rejects when credits fall below the requested amount, otherwise it debits and succeeds.
+</think>
+Lazy refill with a capacity cap and a debit-on-success check is sufficient.
+
+```json
+{"name": "ci", "on": {"push": {"branches": ["main"]}}, "jobs": {"test": {"runs-on": "ubuntu-latest"}}}
+```
+
+```json
+{"name": "ci", "on": {"push": {"branches": ["main"]}}, "jobs": {"test": {"runs-on": "ubuntu-latest"}}}
+```
+
+```sql
+WITH ranked AS (
+    SELECT employee_id, department, salary,
+           ROW_NUMBER() OVER (PARTITION BY department ORDER BY salary DESC) AS rn
+    FROM employees
+)
+SELECT employee_id, department, salary FROM ranked WHERE rn <= 3;
+```
+
+Floating-point comparison needs care near the representability limit: doubles carry 53 bits of significand, so every integer up to 2^53 and its neighbors stay exact, while above 2^53 spacing grows to 2 and sums like 2^53 + 1 round back to 2^53. Hash functions and counters that mix large integers with floats must respect that boundary.
+
+<think>
+For divisibility, 24 * 298 = 7,152, and 7,168 - 7,152 = 16, so the claim of even divisibility fails. The remainder is nonzero.
+</think>
+The remainder is 16.
+
+<think>
+Floor semantics: -7 // 3 is -3 because the floor of -2.333 is -3; the remainder is -7 - (-9) = 2, which shares the sign of the divisor.
+</think>
+The result is 2.
+
+<think>
+The bucket refills lazily: elapsed time since the last refill multiplied by rate gives new credits, capped at capacity. allow() rejects when credits fall below the requested amount, otherwise it debits and succeeds.
+</think>
+Lazy refill with a capacity cap and a debit-on-success check is sufficient.
+
+```python
+import time
+
+
+class TokenBucket:
+    """Lazy-refill token bucket rate limiter."""
+
+    def __init__(self, rate: float, capacity: int) -> None:
+        self.rate, self.capacity = rate, capacity
+        self.credits, self.stamp = float(capacity), 0.0
+
+    def allow(self, tokens: int = 1) -> bool:
+        now = time.monotonic()
+        self.credits = min(self.capacity, self.credits + (now - self.stamp) * self.rate)
+        self.stamp = now
+        if self.credits < tokens:
+            return False
+        self.credits -= tokens
+        return True
+```
+
+```sql
+SELECT customer_id, MAX(order_date) AS last_order
+FROM orders
+GROUP BY customer_id
+ORDER BY customer_id;
+```
+
+```python
+def is_even(n: int) -> bool:
+    """Return True when n is even."""
+    return n % 2 == 0
+```
+
+Write-ahead logging appends a commit record to a sequential log before touching data pages, so batching fsync calls groups many commits into one flush: throughput rises and mean latency falls, but the crash window widens because acknowledged commits can sit in the OS page cache until the next flush.
+
+Floating-point comparison needs care near the representability limit: doubles carry 53 bits of significand, so every integer up to 2^53 and its neighbors stay exact, while above 2^53 spacing grows to 2 and sums like 2^53 + 1 round back to 2^53. Hash functions and counters that mix large integers with floats must respect that boundary.
+
+```python
+def flatten(nested: list) -> list:
+    """Flatten an arbitrarily nested list into scalars."""
+    flat: list = []
+    for item in nested:
+        if isinstance(item, list):
+            flat.extend(flatten(item))
+        else:
+            flat.append(item)
+    return flat
+```
+
+Floating-point comparison needs care near the representability limit: doubles carry 53 bits of significand, so every integer up to 2^53 and its neighbors stay exact, while above 2^53 spacing grows to 2 and sums like 2^53 + 1 round back to 2^53. Hash functions and counters that mix large integers with floats must respect that boundary.
+
+```python
+import time
+
+
+class TokenBucket:
+    """Lazy-refill token bucket rate limiter."""
+
+    def __init__(self, rate: float, capacity: int) -> None:
+        self.rate, self.capacity = rate, capacity
+        self.credits, self.stamp = float(capacity), 0.0
+
+    def allow(self, tokens: int = 1) -> bool:
+        now = time.monotonic()
+        self.credits = min(self.capacity, self.credits + (now - self.stamp) * self.rate)
+        self.stamp = now
+        if self.credits < tokens:
+            return False
+        self.credits -= tokens
+        return True
+```
+
+<think>
+Signed 8-bit wrap: 127 is 0b01111111; incrementing gives 0b10000000, which decodes to -128 in two's complement. No carry exists beyond the 8th bit.
+</think>
+The counter wraps to -128.
+
+B-tree pages keep keys sorted with a bounded branching factor, so lookups cost O(log n) page reads and leaf scans stay cache friendly. Write-heavy workloads amplify differently: LSM trees batch inserts into memtables and flush sorted runs, then compaction merges them, trading slower point reads for much higher ingest throughput.

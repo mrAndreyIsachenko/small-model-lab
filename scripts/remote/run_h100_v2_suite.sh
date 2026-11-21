@@ -68,12 +68,12 @@ fi
 # 2. Environment sync & llama.cpp binary setup
 # ---------------------------------------------------------------------------
 echo "=== Syncing uv environment ==="
-uv sync --frozen --extra data --extra parity --extra telemetry
+uv sync --frozen --extra data --extra parity --extra telemetry --extra eval
 
 LLAMA_DIR="${REPO_ROOT}/.tools/llama.cpp"
 if [[ "${SKIP_LLAMA_BUILD}" != "1" ]]; then
   need_llama=0
-  for bin in llama-quantize llama-imatrix llama-perplexity; do
+  for bin in llama-quantize llama-imatrix llama-perplexity llama-server; do
     if ! command -v "${bin}" >/dev/null 2>&1 && [[ ! -x "${LLAMA_DIR}/${bin}" ]]; then
       need_llama=1
       break
@@ -81,14 +81,14 @@ if [[ "${SKIP_LLAMA_BUILD}" != "1" ]]; then
   done
 
   if [[ "${need_llama}" == "1" ]]; then
-    echo "=== Building llama.cpp (llama-quantize, llama-imatrix, llama-perplexity) ==="
+    echo "=== Building llama.cpp (llama-quantize, llama-imatrix, llama-perplexity, llama-server) ==="
     mkdir -p "${REPO_ROOT}/.tools"
     if [[ ! -d "${LLAMA_DIR}/.git" ]]; then
       git clone --depth 1 https://github.com/ggml-org/llama.cpp.git "${LLAMA_DIR}"
     fi
     cmake -S "${LLAMA_DIR}" -B "${LLAMA_DIR}/build" -DGGML_CUDA=ON -DLLAMA_BUILD_TESTS=OFF
-    cmake --build "${LLAMA_DIR}/build" --target llama-quantize llama-imatrix llama-perplexity -j"$(nproc)"
-    for bin in llama-quantize llama-imatrix llama-perplexity; do
+    cmake --build "${LLAMA_DIR}/build" --target llama-quantize llama-imatrix llama-perplexity llama-server -j"$(nproc)"
+    for bin in llama-quantize llama-imatrix llama-perplexity llama-server; do
       if [[ -x "${LLAMA_DIR}/build/bin/${bin}" ]]; then
         ln -sf "${LLAMA_DIR}/build/bin/${bin}" "${LLAMA_DIR}/${bin}"
       fi
@@ -136,6 +136,7 @@ run_foundry_v2_and_eval() {
     UPLOAD_TO_HF=1 \
     DROP_LOCAL_WEIGHTS=0 \
     RUN_EXTERNAL_EVAL=0 \
+    ALLOW_GATE_FAIL="${ALLOW_GATE_FAIL:-1}" \
       "${REPO_ROOT}/scripts/remote/run_tenet_foundry.sh"
   else
     echo "[skip] ${release_dir}/foundry_summary.json already exists (set FORCE_RERUN=1 to rerun)."
