@@ -1,0 +1,75 @@
+{
+  "artifacts": {
+    "Modelfile": "results/tenet_releases/Tenet-14B-Qwen3-Unslop-v2/Modelfile",
+    "Tenet-14B-Qwen3-Unslop-v2-cka-q4_k_m.gguf": "results/tenet_releases/Tenet-14B-Qwen3-Unslop-v2/Tenet-14B-Qwen3-Unslop-v2-cka-q4_k_m.gguf",
+    "Tenet-14B-Qwen3-Unslop-v2-f16.gguf": "results/tenet_releases/Tenet-14B-Qwen3-Unslop-v2/Tenet-14B-Qwen3-Unslop-v2-f16.gguf",
+    "Tenet-14B-Qwen3-Unslop-v2-i1-cka-q4_k_m.gguf": "results/tenet_releases/Tenet-14B-Qwen3-Unslop-v2/Tenet-14B-Qwen3-Unslop-v2-i1-cka-q4_k_m.gguf",
+    "cka_quant_recipe.json": "results/tenet_releases/Tenet-14B-Qwen3-Unslop-v2/cka_quant_recipe.json",
+    "gguf_audit/final_metrics.json": "results/tenet_releases/Tenet-14B-Qwen3-Unslop-v2/gguf_audit/final_metrics.json",
+    "lancet_basis.safetensors": "results/tenet_releases/Tenet-14B-Qwen3-Unslop-v2/lancet_basis.safetensors",
+    "lancet_recipe.json": "results/tenet_releases/Tenet-14B-Qwen3-Unslop-v2/lancet_recipe.json",
+    "quantize_cka_gguf.sh": "results/tenet_releases/Tenet-14B-Qwen3-Unslop-v2/quantize_cka_gguf.sh",
+    "tenet_domain.imatrix": "results/tenet_releases/Tenet-14B-Qwen3-Unslop-v2/tenet_domain.imatrix",
+    "tenet_domain_imatrix.txt": "results/tenet_releases/Tenet-14B-Qwen3-Unslop-v2/tenet_domain_imatrix.txt"
+  },
+  "failed_gates": [
+    "cot_tag_integrity_rate[f16]",
+    "cot_tag_integrity_rate[i1_cka_q4_k_m]",
+    "house_artifact_classification_rate[i1_cka_q4_k_m]",
+    "length_collapse_rate[i1_cka_q4_k_m]",
+    "sql_readonly_rate[i1_cka_q4_k_m]"
+  ],
+  "gate_count": 10,
+  "key_metrics": {
+    "cka_recipe_summary": {
+      "boundary_layers": [
+        0,
+        39
+      ],
+      "estimated_avg_bpw": 5.014,
+      "q6_k_layers": [
+        10,
+        13,
+        22
+      ],
+      "q8_0_layers": [
+        0,
+        11,
+        12,
+        18,
+        39
+      ]
+    },
+    "fp8_subspace_releakage_pct": 2.5898,
+    "gguf_variants": {
+      "cka_q4_k_m": {
+        "arena_house_hp": 91.66666666666667,
+        "cot_tag_integrity_rate": 0.9833333333333333,
+        "unslop_pass_rate": 1.0
+      },
+      "f16": {
+        "arena_house_hp": 93.75,
+        "cot_tag_integrity_rate": 0.9833333333333333,
+        "unslop_pass_rate": 1.0
+      },
+      "i1_cka_q4_k_m": {
+        "arena_house_hp": 95.83333333333333,
+        "cot_tag_integrity_rate": 0.9833333333333333,
+        "unslop_pass_rate": 1.0
+      }
+    },
+    "max_row_crest_factor": 3.5974,
+    "v2_eval": {
+      "artifact_completeness_rate": 1.0,
+      "cot_tag_integrity_rate": 0.75,
+      "length_collapse_rate": 0.083333,
+      "mean_ans_words": 41.5833,
+      "mean_cot_words": 27.75,
+      "slop_and_refusal_rate": 0.166667
+    }
+  },
+  "manifest_path": "results/tenet_releases/Tenet-14B-Qwen3-Unslop-v2/release_manifest.json",
+  "model_name": "Qwen/Qwen3-14B",
+  "overall_pass": false,
+  "release_name": "Tenet-14B-Qwen3-Unslop-v2"
+}

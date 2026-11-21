@@ -22,6 +22,7 @@ from pathlib import Path
 from typing import Any
 
 import torch
+from huggingface_hub import hf_hub_download
 from safetensors.torch import load_file
 from transformers import AutoModelForCausalLM, AutoTokenizer
 
@@ -146,6 +147,20 @@ def main() -> int:
     release_dir = REPO_ROOT / "results" / "tenet_releases" / args.release_id
     basis_path = release_dir / "lancet_basis.safetensors"
     recipe_path = release_dir / "lancet_recipe.json"
+    if not basis_path.is_file() or not recipe_path.is_file():
+        release_dir.mkdir(parents=True, exist_ok=True)
+        hf_hub_download(
+            repo_id=args.tenet_repo,
+            filename="lancet_basis.safetensors",
+            local_dir=str(release_dir),
+            token=token,
+        )
+        hf_hub_download(
+            repo_id=args.tenet_repo,
+            filename="lancet_recipe.json",
+            local_dir=str(release_dir),
+            token=token,
+        )
     recipe = json.loads(recipe_path.read_text(encoding="utf-8"))
     scale = float(recipe.get("scale", 1.0))
 

@@ -1201,6 +1201,11 @@ def parse_args(argv: list[str] | None = None) -> argparse.Namespace:
         action="store_true",
         help="Override macOS Zero-Local-Weights guard",
     )
+    parser.add_argument(
+        "--allow-gate-fail",
+        action="store_true",
+        help="Upload and exit 0 even if gates fail (keeps overall_pass=false in manifests)",
+    )
     return parser.parse_args(argv)
 
 
@@ -1273,7 +1278,7 @@ def main(argv: list[str] | None = None) -> None:
     summary = stage4_gates_and_manifest(
         release_dir, args, stage1_metrics, stage2_metrics, stage3_metrics
     )
-    if summary["overall_pass"] and args.upload_to_hf:
+    if (summary["overall_pass"] or args.allow_gate_fail) and args.upload_to_hf:
         upload_info = upload_and_drop_local_weights(
             release_dir, args.release_name, args.hf_namespace, args.drop_local_weights
         )
@@ -1286,7 +1291,7 @@ def main(argv: list[str] | None = None) -> None:
                 dropped += 1
         log_step(f"dropped {dropped} local weight file(s) from {release_dir}")
     log_step(f"foundry finished in {time.time() - started:.1f}s")
-    if not summary["overall_pass"]:
+    if not summary["overall_pass"] and not args.allow_gate_fail:
         raise SystemExit(1)
 
 

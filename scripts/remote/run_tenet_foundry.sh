@@ -17,6 +17,7 @@
 #   SQL_LORA_PATH  optional SQL LoRA adapter to merge during materialization
 #   FP8_EXPORT     1 to also export FP8 shards (default: 0)
 #   DROP_LOCAL_WEIGHTS  1 to drop local materialized shards after a successful Hub push (default: 0)
+#   ALLOW_GATE_FAIL  1 to upload and exit 0 even if release gates fail (default: 0)
 #   SMOKE_ONLY     1 for a tiny CPU smoke run   (default: 0)
 #   DRY_RUN        1 to print the command only  (default: 0)
 #   RUN_SUFFIX     run-id suffix for benchmarks (default: per-profile suffix)
@@ -117,6 +118,7 @@ LORA_PATH="${LORA_PATH:-}"
 SQL_LORA_PATH="${SQL_LORA_PATH:-}"
 FP8_EXPORT="${FP8_EXPORT:-0}"
 DROP_LOCAL_WEIGHTS="${DROP_LOCAL_WEIGHTS:-0}"
+ALLOW_GATE_FAIL="${ALLOW_GATE_FAIL:-0}"
 SMOKE_ONLY="${SMOKE_ONLY:-0}"
 DRY_RUN="${DRY_RUN:-0}"
 RUN_SUFFIX="${RUN_SUFFIX:-${PROFILE_RUN_SUFFIX}}"
@@ -188,6 +190,9 @@ if [[ "${BACKEND}" == "v2" && "${SMOKE_ONLY}" != "1" ]]; then
       --drop-local-weights
       --hf-namespace "${HF_NAMESPACE}"
     )
+  fi
+  if [[ "${ALLOW_GATE_FAIL}" == "1" ]]; then
+    V2_CMD+=(--allow-gate-fail)
   fi
   echo "Delegating Tenet v2 release '${RELEASE_ID}' to scripts/run_tenet_v2_foundry.py."
   run_or_print "${V2_CMD[@]}"
