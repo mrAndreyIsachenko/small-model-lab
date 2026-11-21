@@ -1,0 +1,117 @@
+{
+  "after": {
+    "direct_compliance_rate": 1.0,
+    "elapsed_seconds": 743.2,
+    "gsm8k_cot_flexible": 0.25,
+    "gsm8k_cot_strict": 0.05,
+    "gsm8k_math_acc": 0.05,
+    "ifeval_inst_strict": 0.4444444444444444,
+    "ifeval_strict": 0.25,
+    "slop_and_refusal_rate": 0.083333,
+    "sql_incident_acc": 0.0,
+    "sql_incident_reward": 0.0,
+    "unslop_pass_rate": 0.916667
+  },
+  "arms": {
+    "base": {
+      "direct_compliance_rate": 1.0,
+      "elapsed_seconds": 965.0,
+      "gsm8k_cot_flexible": 0.15,
+      "gsm8k_cot_strict": 0.025,
+      "gsm8k_math_acc": 0.025,
+      "ifeval_inst_strict": 0.42857142857142855,
+      "ifeval_strict": 0.225,
+      "slop_and_refusal_rate": 0.083333,
+      "sql_incident_acc": 0.0,
+      "sql_incident_reward": 0.0,
+      "unslop_pass_rate": 0.916667
+    },
+    "naive": {
+      "direct_compliance_rate": 1.0,
+      "elapsed_seconds": 672.5,
+      "gsm8k_cot_flexible": 0.15,
+      "gsm8k_cot_strict": 0.0,
+      "gsm8k_math_acc": 0.0,
+      "ifeval_inst_strict": 0.42857142857142855,
+      "ifeval_strict": 0.225,
+      "slop_and_refusal_rate": 0.083333,
+      "sql_incident_acc": 0.0,
+      "sql_incident_reward": 0.0,
+      "unslop_pass_rate": 0.916667
+    },
+    "tenet": {
+      "direct_compliance_rate": 1.0,
+      "elapsed_seconds": 743.2,
+      "gsm8k_cot_flexible": 0.25,
+      "gsm8k_cot_strict": 0.05,
+      "gsm8k_math_acc": 0.05,
+      "ifeval_inst_strict": 0.4444444444444444,
+      "ifeval_strict": 0.25,
+      "slop_and_refusal_rate": 0.083333,
+      "sql_incident_acc": 0.0,
+      "sql_incident_reward": 0.0,
+      "unslop_pass_rate": 0.916667
+    }
+  },
+  "base_model": "Qwen/Qwen3-14B",
+  "before": {
+    "direct_compliance_rate": 1.0,
+    "elapsed_seconds": 965.0,
+    "gsm8k_cot_flexible": 0.15,
+    "gsm8k_cot_strict": 0.025,
+    "gsm8k_math_acc": 0.025,
+    "ifeval_inst_strict": 0.42857142857142855,
+    "ifeval_strict": 0.225,
+    "slop_and_refusal_rate": 0.083333,
+    "sql_incident_acc": 0.0,
+    "sql_incident_reward": 0.0,
+    "unslop_pass_rate": 0.916667
+  },
+  "deltas": {
+    "direct_compliance_rate": 0.0,
+    "gsm8k_cot_flexible": 0.1,
+    "gsm8k_cot_strict": 0.025,
+    "gsm8k_math_acc": 0.025,
+    "ifeval_inst_strict": 0.015873,
+    "ifeval_strict": 0.025,
+    "slop_and_refusal_rate": 0.0,
+    "sql_incident_acc": 0.0,
+    "sql_incident_reward": 0.0,
+    "unslop_pass_rate": 0.0
+  },
+  "deltas_vs_naive": {
+    "direct_compliance_rate": 0.0,
+    "gsm8k_cot_flexible": 0.1,
+    "gsm8k_cot_strict": 0.05,
+    "gsm8k_math_acc": 0.05,
+    "ifeval_inst_strict": 0.015873,
+    "ifeval_strict": 0.025,
+    "slop_and_refusal_rate": 0.0,
+    "sql_incident_acc": 0.0,
+    "sql_incident_reward": 0.0,
+    "unslop_pass_rate": 0.0
+  },
+  "external_benchmarks": {
+    "direct_compliance_rate": 1.0,
+    "elapsed_seconds": 743.2,
+    "gsm8k_cot_flexible": 0.25,
+    "gsm8k_cot_strict": 0.05,
+    "gsm8k_math_acc": 0.05,
+    "ifeval_inst_strict": 0.4444444444444444,
+    "ifeval_strict": 0.25,
+    "slop_and_refusal_rate": 0.083333,
+    "sql_incident_acc": 0.0,
+    "sql_incident_reward": 0.0,
+    "unslop_pass_rate": 0.916667
+  },
+  "lm_eval_limit": 40,
+  "model_id": "Tenet-14B-Qwen3-Unslop-v2",
+  "seed": 1337,
+  "tasks": [
+    "ifeval",
+    "gsm8k_cot",
+    "sql_incident_val_6",
+    "tenet_unslop_audit_12"
+  ],
+  "tenet_repo": "mr-andrey-isachenko/Tenet-14B-Qwen3-Unslop-v2"
+}
