@@ -1,0 +1,117 @@
+{
+  "after": {
+    "direct_compliance_rate": 1.0,
+    "elapsed_seconds": 167.6,
+    "gsm8k_cot_flexible": 0.775,
+    "gsm8k_cot_strict": 0.35,
+    "gsm8k_math_acc": 0.35,
+    "ifeval_inst_strict": 0.6507936507936508,
+    "ifeval_strict": 0.55,
+    "slop_and_refusal_rate": 0.0,
+    "sql_incident_acc": 0.0,
+    "sql_incident_reward": 0.05,
+    "unslop_pass_rate": 1.0
+  },
+  "arms": {
+    "base": {
+      "direct_compliance_rate": 1.0,
+      "elapsed_seconds": 279.5,
+      "gsm8k_cot_flexible": 0.725,
+      "gsm8k_cot_strict": 0.275,
+      "gsm8k_math_acc": 0.275,
+      "ifeval_inst_strict": 0.6349206349206349,
+      "ifeval_strict": 0.525,
+      "slop_and_refusal_rate": 0.041667,
+      "sql_incident_acc": 0.0,
+      "sql_incident_reward": 0.0,
+      "unslop_pass_rate": 0.958333
+    },
+    "naive": {
+      "direct_compliance_rate": 1.0,
+      "elapsed_seconds": 173.3,
+      "gsm8k_cot_flexible": 0.825,
+      "gsm8k_cot_strict": 0.375,
+      "gsm8k_math_acc": 0.375,
+      "ifeval_inst_strict": 0.6825396825396826,
+      "ifeval_strict": 0.6,
+      "slop_and_refusal_rate": 0.083333,
+      "sql_incident_acc": 0.0,
+      "sql_incident_reward": 0.0,
+      "unslop_pass_rate": 0.916667
+    },
+    "tenet": {
+      "direct_compliance_rate": 1.0,
+      "elapsed_seconds": 167.6,
+      "gsm8k_cot_flexible": 0.775,
+      "gsm8k_cot_strict": 0.35,
+      "gsm8k_math_acc": 0.35,
+      "ifeval_inst_strict": 0.6507936507936508,
+      "ifeval_strict": 0.55,
+      "slop_and_refusal_rate": 0.0,
+      "sql_incident_acc": 0.0,
+      "sql_incident_reward": 0.05,
+      "unslop_pass_rate": 1.0
+    }
+  },
+  "base_model": "mistralai/Mistral-Nemo-Instruct-2407",
+  "before": {
+    "direct_compliance_rate": 1.0,
+    "elapsed_seconds": 279.5,
+    "gsm8k_cot_flexible": 0.725,
+    "gsm8k_cot_strict": 0.275,
+    "gsm8k_math_acc": 0.275,
+    "ifeval_inst_strict": 0.6349206349206349,
+    "ifeval_strict": 0.525,
+    "slop_and_refusal_rate": 0.041667,
+    "sql_incident_acc": 0.0,
+    "sql_incident_reward": 0.0,
+    "unslop_pass_rate": 0.958333
+  },
+  "deltas": {
+    "direct_compliance_rate": 0.0,
+    "gsm8k_cot_flexible": 0.05,
+    "gsm8k_cot_strict": 0.075,
+    "gsm8k_math_acc": 0.075,
+    "ifeval_inst_strict": 0.015873,
+    "ifeval_strict": 0.025,
+    "slop_and_refusal_rate": -0.041667,
+    "sql_incident_acc": 0.0,
+    "sql_incident_reward": 0.05,
+    "unslop_pass_rate": 0.041667
+  },
+  "deltas_vs_naive": {
+    "direct_compliance_rate": 0.0,
+    "gsm8k_cot_flexible": -0.05,
+    "gsm8k_cot_strict": -0.025,
+    "gsm8k_math_acc": -0.025,
+    "ifeval_inst_strict": -0.031746,
+    "ifeval_strict": -0.05,
+    "slop_and_refusal_rate": -0.083333,
+    "sql_incident_acc": 0.0,
+    "sql_incident_reward": 0.05,
+    "unslop_pass_rate": 0.083333
+  },
+  "external_benchmarks": {
+    "direct_compliance_rate": 1.0,
+    "elapsed_seconds": 167.6,
+    "gsm8k_cot_flexible": 0.775,
+    "gsm8k_cot_strict": 0.35,
+    "gsm8k_math_acc": 0.35,
+    "ifeval_inst_strict": 0.6507936507936508,
+    "ifeval_strict": 0.55,
+    "slop_and_refusal_rate": 0.0,
+    "sql_incident_acc": 0.0,
+    "sql_incident_reward": 0.05,
+    "unslop_pass_rate": 1.0
+  },
+  "lm_eval_limit": 40,
+  "model_id": "Tenet-12B-Nemo-Unslop-v1",
+  "seed": 1337,
+  "tasks": [
+    "ifeval",
+    "gsm8k_cot",
+    "sql_incident_val_6",
+    "tenet_unslop_audit_12"
+  ],
+  "tenet_repo": "mr-andrey-isachenko/Tenet-12B-Nemo-Unslop-v1"
+}
